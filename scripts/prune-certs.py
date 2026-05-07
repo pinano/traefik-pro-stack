@@ -115,11 +115,12 @@ def prune_certs(dry_run=True):
 
     if not modified:
         print("✨ No certificates to prune. acme.json is already clean.")
-        return
+        sys.exit(0)
 
     if dry_run:
         print("\n⚠️  DRY RUN: No changes were written to disk.")
         print("Run with --force to apply changes.")
+        sys.exit(0)
     else:
         # Backup before writing
         backup_path = f"{ACME_FILE}.{datetime.now().strftime('%Y%m%d%H%M%S')}.bak"
@@ -134,9 +135,11 @@ def prune_certs(dry_run=True):
             # Ensure permissions 600
             os.chmod(ACME_FILE, 0o600)
             print("✅ Successfully updated acme.json")
-            print("👉 IMPORTANT: Restart Traefik to apply changes: 'make restart traefik'")
+            print("👉 IMPORTANT: Traefik will be restarted to apply changes.")
+            sys.exit(2) # Exit code 2 indicates modifications were made
         except Exception as e:
             print(f"❌ Error writing {ACME_FILE}: {e}")
+            sys.exit(1)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Prune Traefik acme.json of unused certificates.")

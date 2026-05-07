@@ -515,9 +515,23 @@ $PYTHON_CMD scripts/generate-config.py | sed 's/^/   /'
 
 # 3b. Prune old/invalid certificates
 # Ensures Traefik doesn't attempt to renew certificates containing decommissioned domains.
+TRAEFIK_RESTART_REQUIRED="false"
 if [ "$TRAEFIK_ACME_ENV_TYPE" != "local" ]; then
     echo "   🧹 Checking for orphaned certificates..."
-    $PYTHON_CMD scripts/prune-certs.py --force | sed 's/^/      /'
+    # We use a temp file to capture output while preserving the exit code
+    PRUNE_LOG=$(mktemp)
+    set +e
+    $PYTHON_CMD scripts/prune-certs.py --force > "$PRUNE_LOG" 2>&1
+    PRUNE_EXIT=$?
+    set -e
+    cat "$PRUNE_LOG" | sed 's/^/      /'
+    rm "$PRUNE_LOG"
+
+    if [ $PRUNE_EXIT -eq 2 ]; then
+        TRAEFIK_RESTART_REQUIRED="true"
+    elif [ $PRUNE_EXIT -ne 0 ] && [ $PRUNE_EXIT -ne 2 ]; then
+        echo "      ⚠️ Warning: Certificate pruning encountered an error (Exit: $PRUNE_EXIT)."
+    fi
 fi
 
 # Fix permissions if running internally (files created as root)
@@ -863,8 +877,11 @@ if [[ "$DOMAIN_MANAGER_INTERNAL" == "true" ]]; then
 fi
 
 # Deploy everything.
-# We use the global command to match 'make start' exactly.
-# The previous 'internal list' was causing 404s due to network/label inconsistency.
+if [ "$TRAEFIK_RESTART_REQUIRED" == "true" ]; then
+    echo "   🔄 Certificate pruning detected. Forcing Traefik recreation to reload acme.json..."
+    $COMPOSE_CMD $COMPOSE_FILES up -d --force-recreate traefik
+fi
+
 $COMPOSE_CMD $COMPOSE_FILES up -d --remove-orphans
 sleep 1
 
