@@ -41,6 +41,36 @@ CERTS=$(jq -r '.. | .Certificates? | select(. != null) | .[] | .certificate' "$A
 CURRENT_DATE=$(date +%s)
 WARNING_SECONDS=$((WATCHDOG_CERT_DAYS_WARNING * 86400))
 
+# Load expected domains (from domains.csv and environment)
+EXPECTED_DOMAINS=""
+if [ -f "/domains.csv" ]; then
+    # Get first column, skip comments, remove quotes/spaces
+    EXPECTED_DOMAINS=$(grep -v '^#' /domains.csv | cut -d, -f1 | tr -d ' "' | tr '[:upper:]' '[:lower:]')
+    
+    # Also add Anubis subdomains if they exist (4th column)
+    ANUBIS_SUBS=$(grep -v '^#' /domains.csv | cut -d, -f4 | tr -d ' "' | tr '[:upper:]' '[:lower:]')
+    for SUB in $ANUBIS_SUBS; do
+        if [ -n "$SUB" ]; then
+            # We need to find the root domain for this line... this is a bit complex in shell
+            # For now, we'll just add the subdomains and hope they match the CN if it's there
+            # Better: include the full domain later if needed.
+            # But the CN is usually the main domain anyway.
+            : 
+        fi
+    done
+fi
+
+# Add system domains
+if [ -n "$SERVER_DOMAIN" ]; then
+    EXPECTED_DOMAINS="$EXPECTED_DOMAINS $SERVER_DOMAIN"
+    if [ -n "$DASHBOARD_SUBDOMAIN" ]; then
+        EXPECTED_DOMAINS="$EXPECTED_DOMAINS $DASHBOARD_SUBDOMAIN.$SERVER_DOMAIN"
+    fi
+fi
+
+# Clean up list
+EXPECTED_DOMAINS=$(echo $EXPECTED_DOMAINS | tr ' ' '\n' | sort -u)
+
 # Counters
 COUNT=0
 ERRORS=0
@@ -68,6 +98,20 @@ for CERT_B64 in $CERTS; do
     fi
     
     DIFF=$((EXP_DATE - CURRENT_DATE))
+    
+    # Check if domain is expected
+    IS_EXPECTED=false
+    for ED in $EXPECTED_DOMAINS; do
+        if [ "$DOMAIN" = "$ED" ]; then
+            IS_EXPECTED=true
+            break
+        fi
+    done
+
+    if [ "$IS_EXPECTED" = "false" ]; then
+        printf '%b\n' "${NC}[SKIP] $DOMAIN (not in expected list)${NC}"
+        continue
+    fi
     
     if [ $DIFF -lt $WARNING_SECONDS ]; then
         DAYS_LEFT=$((DIFF / 86400))

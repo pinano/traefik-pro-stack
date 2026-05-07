@@ -41,6 +41,15 @@ def load_expected_domains():
     except Exception as e:
         print(f"❌ Error reading {DOMAINS_FILE}: {e}")
     
+    # 2. Add system domains from environment
+    domain_env = os.getenv('DOMAIN', '').lower()
+    dash_sub = os.getenv('DASHBOARD_SUBDOMAIN', '').lower()
+    
+    if domain_env:
+        expected.add(domain_env)
+        if dash_sub:
+            expected.add(f"{dash_sub}.{domain_env}")
+            
     return expected
 
 def get_cert_expiration(cert_b64):

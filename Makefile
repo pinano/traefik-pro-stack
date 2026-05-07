@@ -224,6 +224,14 @@ certs-info: ## Analyze acme.json certificates against domains.csv (Summary)
 .PHONY: certs-inspect
 certs-inspect: ## Analyze acme.json certificates against domains.csv (Detailed)
 	@$(PYTHON) scripts/inspect-certs.py --verbose $(ARGS)
+	
+.PHONY: certs-prune
+certs-prune: ## Remove old/unused certificates from acme.json (Dry-run)
+	@$(PYTHON) scripts/prune-certs.py $(ARGS)
+
+.PHONY: certs-prune-force
+certs-prune-force: ## Remove old/unused certificates from acme.json (Actual)
+	@$(PYTHON) scripts/prune-certs.py --force $(ARGS)
 
 # =============================================================================
 # OPTIONAL INCLUDES
