@@ -79,7 +79,7 @@ BAD_USER_AGENTS = [p.strip().strip('"').strip("'") for p in BAD_USER_AGENTS_STR.
 GOOD_USER_AGENTS = [p.strip().strip('"').strip("'") for p in GOOD_USER_AGENTS_STR.split(',') if p.strip()]
 
 # TLS Chunking Limit (Let's Encrypt max is 100)
-TLS_BATCH_SIZE = 30
+TLS_BATCH_SIZE = int(os.getenv('TLS_BATCH_SIZE', 30))
 
 # CrowdSec & Traefik Settings (with defaults)
 try:

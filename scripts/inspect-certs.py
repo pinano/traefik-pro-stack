@@ -23,9 +23,10 @@ def load_expected_batches():
     to identify exactly which certificate configurations (Main + SANs)
     are expected to be in use.
     """
-    raw_domains = []
+    expected_batches = set()
+    csv_raw_domains = []
     
-    # 1. Load from domains.csv
+    # 1. Load ONLY from domains.csv for grouping (Exactly as generate-config.py does)
     if os.path.exists(DOMAINS_FILE):
         try:
             with open(DOMAINS_FILE, 'r') as f:
@@ -37,33 +38,21 @@ def load_expected_batches():
                     if not domain: continue
                     
                     root = get_root_domain(domain)
-                    raw_domains.append({'domain': domain, 'root': root})
+                    csv_raw_domains.append({'domain': domain, 'root': root})
                     
                     # Check for Anubis subdomain
                     if len(row) > 3 and row[3].strip():
                         anubis_sub = row[3].strip().lower()
-                        raw_domains.append({'domain': f"{anubis_sub}.{root}", 'root': root})
+                        csv_raw_domains.append({'domain': f"{anubis_sub}.{root}", 'root': root})
         except Exception as e:
             print(f"❌ Error reading {DOMAINS_FILE}: {e}")
     
-    # 2. Add system domains from environment
-    domain_env = os.getenv('DOMAIN', '').lower()
-    dash_sub = os.getenv('DASHBOARD_SUBDOMAIN', '').lower()
-    
-    if domain_env:
-        root_env = get_root_domain(domain_env)
-        # Main domain
-        raw_domains.append({'domain': domain_env, 'root': root_env})
-        # Dashboard
-        if dash_sub:
-            raw_domains.append({'domain': f"{dash_sub}.{domain_env}", 'root': root_env})
-            
-    # 3. Group by root and chunk into batches (matching generate-config.py)
+    # Group by root and chunk into batches (Matching generate-config.py logic)
     domains_by_root = defaultdict(list)
-    for entry in raw_domains:
+    for entry in csv_raw_domains:
         domains_by_root[entry['root']].append(entry['domain'])
 
-    expected_batches = set()
+    # Sync batch size logic with generate-config.py
     batch_size = int(os.getenv('TLS_BATCH_SIZE', 30))
 
     for root_domain, subdomains in domains_by_root.items():
@@ -73,9 +62,18 @@ def load_expected_batches():
         for i in range(0, len(subs_unicos), batch_size):
             batch = subs_unicos[i:i + batch_size]
             main = batch[0]
-            # Store as a frozenset of (main, frozenset(sans)) to allow set operations
             sans = frozenset(batch[1:])
             expected_batches.add((main, sans))
+            
+    # 2. Add System Domains as SEPARATE single-domain batches
+    # Traefik requests these based on container labels which don't use the generator's grouping.
+    domain_env = os.getenv('DOMAIN', '').lower()
+    dash_sub = os.getenv('DASHBOARD_SUBDOMAIN', '').lower()
+    
+    if domain_env:
+        expected_batches.add((domain_env, frozenset()))
+        if dash_sub:
+            expected_batches.add((f"{dash_sub}.{domain_env}", frozenset()))
                 
     return expected_batches
 
