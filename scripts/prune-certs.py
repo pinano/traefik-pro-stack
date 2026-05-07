@@ -17,16 +17,15 @@ def get_root_domain(domain):
         return f"{extracted.domain}.{extracted.suffix}"
     return domain
 
-def load_expected_batches():
+def load_expected_batch_sets():
     """
-    Replicates the grouping and batching logic from generate-config.py
-    to identify exactly which certificate configurations (Main + SANs)
-    are expected to be in use.
+    Identifies the exact sets of domains that should be covered by certificates.
+    Returns a set of frozensets.
     """
-    expected_batches = set()
+    expected_batch_sets = set()
     csv_raw_domains = []
     
-    # 1. Load ONLY from domains.csv for grouping (Exactly as generate-config.py does)
+    # 1. Load from domains.csv (Exactly as generate-config.py does)
     if os.path.exists(DOMAINS_FILE):
         try:
             with open(DOMAINS_FILE, 'r') as f:
@@ -40,7 +39,6 @@ def load_expected_batches():
                     root = get_root_domain(domain)
                     csv_raw_domains.append({'domain': domain, 'root': root})
                     
-                    # Check for Anubis subdomain
                     if len(row) > 3 and row[3].strip():
                         anubis_sub = row[3].strip().lower()
                         csv_raw_domains.append({'domain': f"{anubis_sub}.{root}", 'root': root})
@@ -52,30 +50,30 @@ def load_expected_batches():
     for entry in csv_raw_domains:
         domains_by_root[entry['root']].append(entry['domain'])
 
-    # Sync batch size logic with generate-config.py
     batch_size = int(os.getenv('TLS_BATCH_SIZE', 30))
+    all_valid_domains = set()
 
     for root_domain, subdomains in domains_by_root.items():
-        # Deduplicate preserving order
         subs_unicos = list(dict.fromkeys(subdomains))
+        all_valid_domains.update(subs_unicos)
         
         for i in range(0, len(subs_unicos), batch_size):
             batch = subs_unicos[i:i + batch_size]
-            main = batch[0]
-            sans = frozenset(batch[1:])
-            expected_batches.add((main, sans))
+            expected_batch_sets.add(frozenset(batch))
             
-    # 2. Add System Domains as SEPARATE single-domain batches
-    # Traefik requests these based on container labels which don't use the generator's grouping.
+    # 2. Add System Domains as single-domain batches
     domain_env = os.getenv('DOMAIN', '').lower()
     dash_sub = os.getenv('DASHBOARD_SUBDOMAIN', '').lower()
     
     if domain_env:
-        expected_batches.add((domain_env, frozenset()))
+        all_valid_domains.add(domain_env)
+        expected_batch_sets.add(frozenset([domain_env]))
         if dash_sub:
-            expected_batches.add((f"{dash_sub}.{domain_env}", frozenset()))
+            dash_fqdn = f"{dash_sub}.{domain_env}"
+            all_valid_domains.add(dash_fqdn)
+            expected_batch_sets.add(frozenset([dash_fqdn]))
                 
-    return expected_batches
+    return expected_batch_sets, all_valid_domains
 
 def prune_certs(dry_run=True):
     print(f"🧹 Pruning Certificates in {ACME_FILE}...")
@@ -91,12 +89,12 @@ def prune_certs(dry_run=True):
         print(f"❌ Error parsing {ACME_FILE}: {e}")
         return
 
-    expected_batches = load_expected_batches()
-    if not expected_batches:
+    expected_batch_sets, all_valid_domains = load_expected_batch_sets()
+    if not expected_batch_sets:
         print("❌ No expected domains or batches found. Aborting.")
         return
 
-    print(f"✅ Calculated {len(expected_batches)} expected certificate batches.")
+    print(f"✅ Calculated {len(expected_batch_sets)} expected certificate configurations.")
     
     modified = False
     new_acme_data = {}
@@ -116,33 +114,30 @@ def prune_certs(dry_run=True):
 
         for cert in certs:
             main = cert.get('domain', {}).get('main', '').lower()
-            sans = frozenset([s.lower() for s in cert.get('domain', {}).get('sans', [])])
+            sans = [s.lower() for s in cert.get('domain', {}).get('sans', [])]
             
-            # A certificate is kept ONLY if it matches an expected batch exactly.
-            # This prunes both certificates with decommissioned domains AND 
-            # superseded certificates (e.g. from a previous grouping).
-            is_valid_batch = (main, sans) in expected_batches
+            # The complete set of domains in this certificate
+            cert_domains = frozenset([main] + sans if main else sans)
             
-            if is_valid_batch:
+            # A certificate is kept if:
+            # 1. It exactly matches the set of domains of an expected batch.
+            # 2. OR it's a single-domain cert for a domain that is still valid (safety fallback).
+            is_valid_batch = cert_domains in expected_batch_sets
+            is_valid_single = len(cert_domains) == 1 and list(cert_domains)[0] in all_valid_domains
+            
+            if is_valid_batch or is_valid_single:
                 kept_certs.append(cert)
             else:
                 removed_count += 1
                 
                 # Determine reason for logging
-                # Check if it's a completely unknown domain or just a superseded batch
-                all_domains_in_cert = [main] + list(sans)
-                expected_domains = set()
-                for m, s in expected_batches:
-                    expected_domains.add(m)
-                    expected_domains.update(s)
-                
-                unknown = [d for d in all_domains_in_cert if d not in expected_domains]
+                unknown = [d for d in cert_domains if d not in all_valid_domains]
                 if unknown:
                     reason = f"Unknown domains: {', '.join(unknown)}"
                 else:
-                    reason = "Superseded (Not in use / Different grouping)"
+                    reason = "Superseded (Obsolete grouping or batching)"
                 
-                print(f"   🗑️  Removing: {main} {f'(SANs: {list(sans)})' if sans else ''} -> {reason}")
+                print(f"   🗑️  Removing: {main} {f'(SANs: {sans})' if sans else ''} -> {reason}")
                 modified = True
 
         resolver_data['Certificates'] = kept_certs
@@ -173,8 +168,8 @@ def prune_certs(dry_run=True):
             # Ensure permissions 600
             os.chmod(ACME_FILE, 0o600)
             print("✅ Successfully updated acme.json")
-            print("👉 IMPORTANT: Traefik will be restarted to apply changes.")
-            sys.exit(2) # Exit code 2 indicates modifications were made
+            print("👉 IMPORTANT: Restart Traefik to apply changes: 'make restart traefik'")
+            sys.exit(0)
         except Exception as e:
             print(f"❌ Error writing {ACME_FILE}: {e}")
             sys.exit(1)

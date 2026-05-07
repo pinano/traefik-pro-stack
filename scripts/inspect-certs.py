@@ -17,16 +17,15 @@ def get_root_domain(domain):
         return f"{extracted.domain}.{extracted.suffix}"
     return domain
 
-def load_expected_batches():
+def load_expected_batch_sets():
     """
-    Replicates the grouping and batching logic from generate-config.py
-    to identify exactly which certificate configurations (Main + SANs)
-    are expected to be in use.
+    Identifies the exact sets of domains that should be covered by certificates.
+    Returns a set of frozensets.
     """
-    expected_batches = set()
+    expected_batch_sets = set()
     csv_raw_domains = []
     
-    # 1. Load ONLY from domains.csv for grouping (Exactly as generate-config.py does)
+    # 1. Load from domains.csv (Exactly as generate-config.py does)
     if os.path.exists(DOMAINS_FILE):
         try:
             with open(DOMAINS_FILE, 'r') as f:
@@ -40,7 +39,6 @@ def load_expected_batches():
                     root = get_root_domain(domain)
                     csv_raw_domains.append({'domain': domain, 'root': root})
                     
-                    # Check for Anubis subdomain
                     if len(row) > 3 and row[3].strip():
                         anubis_sub = row[3].strip().lower()
                         csv_raw_domains.append({'domain': f"{anubis_sub}.{root}", 'root': root})
@@ -52,30 +50,30 @@ def load_expected_batches():
     for entry in csv_raw_domains:
         domains_by_root[entry['root']].append(entry['domain'])
 
-    # Sync batch size logic with generate-config.py
     batch_size = int(os.getenv('TLS_BATCH_SIZE', 30))
+    all_valid_domains = set()
 
     for root_domain, subdomains in domains_by_root.items():
-        # Deduplicate preserving order
         subs_unicos = list(dict.fromkeys(subdomains))
+        all_valid_domains.update(subs_unicos)
         
         for i in range(0, len(subs_unicos), batch_size):
             batch = subs_unicos[i:i + batch_size]
-            main = batch[0]
-            sans = frozenset(batch[1:])
-            expected_batches.add((main, sans))
+            expected_batch_sets.add(frozenset(batch))
             
-    # 2. Add System Domains as SEPARATE single-domain batches
-    # Traefik requests these based on container labels which don't use the generator's grouping.
+    # 2. Add System Domains as single-domain batches
     domain_env = os.getenv('DOMAIN', '').lower()
     dash_sub = os.getenv('DASHBOARD_SUBDOMAIN', '').lower()
     
     if domain_env:
-        expected_batches.add((domain_env, frozenset()))
+        all_valid_domains.add(domain_env)
+        expected_batch_sets.add(frozenset([domain_env]))
         if dash_sub:
-            expected_batches.add((f"{dash_sub}.{domain_env}", frozenset()))
+            dash_fqdn = f"{dash_sub}.{domain_env}"
+            all_valid_domains.add(dash_fqdn)
+            expected_batch_sets.add(frozenset([dash_fqdn]))
                 
-    return expected_batches
+    return expected_batch_sets, all_valid_domains
 
 def get_cert_expiration(cert_b64):
     try:
