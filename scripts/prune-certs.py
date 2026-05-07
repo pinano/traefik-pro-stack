@@ -6,6 +6,7 @@ import argparse
 import base64
 import sys
 from datetime import datetime
+from collections import defaultdict
 
 ACME_FILE = 'config/traefik/acme.json'
 DOMAINS_FILE = 'domains.csv'
@@ -16,8 +17,13 @@ def get_root_domain(domain):
         return f"{extracted.domain}.{extracted.suffix}"
     return domain
 
-def load_expected_domains():
-    expected = set()
+def load_expected_batches():
+    """
+    Replicates the grouping and batching logic from generate-config.py
+    to identify exactly which certificate configurations (Main + SANs)
+    are expected to be in use.
+    """
+    raw_domains = []
     
     # 1. Load from domains.csv
     if os.path.exists(DOMAINS_FILE):
@@ -26,30 +32,52 @@ def load_expected_domains():
                 lines = [line for line in f if line.strip() and not line.strip().startswith('#')]
                 reader = csv.reader(lines, skipinitialspace=True)
                 for row in reader:
-                    if not row or len(row) < 1:
-                        continue
+                    if not row or len(row) < 1: continue
                     domain = row[0].strip().lower()
-                    if domain:
-                        expected.add(domain)
+                    if not domain: continue
+                    
+                    root = get_root_domain(domain)
+                    raw_domains.append({'domain': domain, 'root': root})
                     
                     # Check for Anubis subdomain
                     if len(row) > 3 and row[3].strip():
                         anubis_sub = row[3].strip().lower()
-                        root = get_root_domain(domain)
-                        expected.add(f"{anubis_sub}.{root}")
+                        raw_domains.append({'domain': f"{anubis_sub}.{root}", 'root': root})
         except Exception as e:
             print(f"❌ Error reading {DOMAINS_FILE}: {e}")
     
-    # 2. Load system domains from environment
+    # 2. Add system domains from environment
     domain_env = os.getenv('DOMAIN', '').lower()
     dash_sub = os.getenv('DASHBOARD_SUBDOMAIN', '').lower()
     
     if domain_env:
-        expected.add(domain_env)
+        root_env = get_root_domain(domain_env)
+        # Main domain
+        raw_domains.append({'domain': domain_env, 'root': root_env})
+        # Dashboard
         if dash_sub:
-            expected.add(f"{dash_sub}.{domain_env}")
+            raw_domains.append({'domain': f"{dash_sub}.{domain_env}", 'root': root_env})
             
-    return expected
+    # 3. Group by root and chunk into batches (matching generate-config.py)
+    domains_by_root = defaultdict(list)
+    for entry in raw_domains:
+        domains_by_root[entry['root']].append(entry['domain'])
+
+    expected_batches = set()
+    batch_size = int(os.getenv('TLS_BATCH_SIZE', 30))
+
+    for root_domain, subdomains in domains_by_root.items():
+        # Deduplicate preserving order
+        subs_unicos = list(dict.fromkeys(subdomains))
+        
+        for i in range(0, len(subs_unicos), batch_size):
+            batch = subs_unicos[i:i + batch_size]
+            main = batch[0]
+            # Store as a frozenset of (main, frozenset(sans)) to allow set operations
+            sans = frozenset(batch[1:])
+            expected_batches.add((main, sans))
+                
+    return expected_batches
 
 def prune_certs(dry_run=True):
     print(f"🧹 Pruning Certificates in {ACME_FILE}...")
@@ -65,13 +93,12 @@ def prune_certs(dry_run=True):
         print(f"❌ Error parsing {ACME_FILE}: {e}")
         return
 
-    expected_domains = load_expected_domains()
-    if not expected_domains:
-        print("❌ No expected domains found. Aborting to avoid deleting everything.")
-        print("Ensure DOMAIN and DASHBOARD_SUBDOMAIN are set in your environment or domains.csv is not empty.")
+    expected_batches = load_expected_batches()
+    if not expected_batches:
+        print("❌ No expected domains or batches found. Aborting.")
         return
 
-    print(f"✅ Loaded {len(expected_domains)} expected domains.")
+    print(f"✅ Calculated {len(expected_batches)} expected certificate batches.")
     
     modified = False
     new_acme_data = {}
@@ -91,20 +118,33 @@ def prune_certs(dry_run=True):
 
         for cert in certs:
             main = cert.get('domain', {}).get('main', '').lower()
-            sans = [s.lower() for s in cert.get('domain', {}).get('sans', [])]
+            sans = frozenset([s.lower() for s in cert.get('domain', {}).get('sans', [])])
             
-            # A certificate is kept ONLY if ALL its domains (main + SANs) are in the expected list.
-            # This ensures that Traefik doesn't attempt to renew certificates containing 
-            # decommissioned subdomains, which would lead to renewal failures.
-            all_domains_in_cert = [main] + sans
-            invalid_domains = [d for d in all_domains_in_cert if d and d not in expected_domains]
+            # A certificate is kept ONLY if it matches an expected batch exactly.
+            # This prunes both certificates with decommissioned domains AND 
+            # superseded certificates (e.g. from a previous grouping).
+            is_valid_batch = (main, sans) in expected_batches
             
-            if not invalid_domains:
+            if is_valid_batch:
                 kept_certs.append(cert)
             else:
                 removed_count += 1
-                reason = f"Missing in domains.csv: {', '.join(invalid_domains)}"
-                print(f"   🗑️  Removing: {main} {f'(SANs: {sans})' if sans else ''} -> {reason}")
+                
+                # Determine reason for logging
+                # Check if it's a completely unknown domain or just a superseded batch
+                all_domains_in_cert = [main] + list(sans)
+                expected_domains = set()
+                for m, s in expected_batches:
+                    expected_domains.add(m)
+                    expected_domains.update(s)
+                
+                unknown = [d for d in all_domains_in_cert if d not in expected_domains]
+                if unknown:
+                    reason = f"Unknown domains: {', '.join(unknown)}"
+                else:
+                    reason = "Superseded (Not in use / Different grouping)"
+                
+                print(f"   🗑️  Removing: {main} {f'(SANs: {list(sans)})' if sans else ''} -> {reason}")
                 modified = True
 
         resolver_data['Certificates'] = kept_certs

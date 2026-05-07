@@ -17,40 +17,67 @@ def get_root_domain(domain):
         return f"{extracted.domain}.{extracted.suffix}"
     return domain
 
-def load_expected_domains():
-    expected = set()
-    if not os.path.exists(DOMAINS_FILE):
-        return expected
+def load_expected_batches():
+    """
+    Replicates the grouping and batching logic from generate-config.py
+    to identify exactly which certificate configurations (Main + SANs)
+    are expected to be in use.
+    """
+    raw_domains = []
     
-    try:
-        with open(DOMAINS_FILE, 'r') as f:
-            lines = [line for line in f if line.strip() and not line.strip().startswith('#')]
-            reader = csv.reader(lines, skipinitialspace=True)
-            for row in reader:
-                if not row or len(row) < 1:
-                    continue
-                domain = row[0].strip()
-                if domain:
-                    expected.add(domain.lower())
-                
-                # Check for Anubis subdomain
-                if len(row) > 3 and row[3].strip():
-                    anubis_sub = row[3].strip()
+    # 1. Load from domains.csv
+    if os.path.exists(DOMAINS_FILE):
+        try:
+            with open(DOMAINS_FILE, 'r') as f:
+                lines = [line for line in f if line.strip() and not line.strip().startswith('#')]
+                reader = csv.reader(lines, skipinitialspace=True)
+                for row in reader:
+                    if not row or len(row) < 1: continue
+                    domain = row[0].strip().lower()
+                    if not domain: continue
+                    
                     root = get_root_domain(domain)
-                    expected.add(f"{anubis_sub}.{root}".lower())
-    except Exception as e:
-        print(f"❌ Error reading {DOMAINS_FILE}: {e}")
+                    raw_domains.append({'domain': domain, 'root': root})
+                    
+                    # Check for Anubis subdomain
+                    if len(row) > 3 and row[3].strip():
+                        anubis_sub = row[3].strip().lower()
+                        raw_domains.append({'domain': f"{anubis_sub}.{root}", 'root': root})
+        except Exception as e:
+            print(f"❌ Error reading {DOMAINS_FILE}: {e}")
     
     # 2. Add system domains from environment
     domain_env = os.getenv('DOMAIN', '').lower()
     dash_sub = os.getenv('DASHBOARD_SUBDOMAIN', '').lower()
     
     if domain_env:
-        expected.add(domain_env)
+        root_env = get_root_domain(domain_env)
+        # Main domain
+        raw_domains.append({'domain': domain_env, 'root': root_env})
+        # Dashboard
         if dash_sub:
-            expected.add(f"{dash_sub}.{domain_env}")
+            raw_domains.append({'domain': f"{dash_sub}.{domain_env}", 'root': root_env})
             
-    return expected
+    # 3. Group by root and chunk into batches (matching generate-config.py)
+    domains_by_root = defaultdict(list)
+    for entry in raw_domains:
+        domains_by_root[entry['root']].append(entry['domain'])
+
+    expected_batches = set()
+    batch_size = int(os.getenv('TLS_BATCH_SIZE', 30))
+
+    for root_domain, subdomains in domains_by_root.items():
+        # Deduplicate preserving order
+        subs_unicos = list(dict.fromkeys(subdomains))
+        
+        for i in range(0, len(subs_unicos), batch_size):
+            batch = subs_unicos[i:i + batch_size]
+            main = batch[0]
+            # Store as a frozenset of (main, frozenset(sans)) to allow set operations
+            sans = frozenset(batch[1:])
+            expected_batches.add((main, sans))
+                
+    return expected_batches
 
 def get_cert_expiration(cert_b64):
     try:
@@ -147,35 +174,46 @@ def inspect_certs(verbose=False):
                     for s in cert['sans']:
                         print(f"      - {s}")
 
-    expected_domains = load_expected_domains()
-    missing = expected_domains - covered_domains
+    expected_batches = load_expected_batches()
     
-    # Identify "Dirty" certificates (those containing domains NOT in expected list)
+    # Flatten expected domains for summary
+    expected_domains = set()
+    for m, s in expected_batches:
+        expected_domains.add(m)
+        expected_domains.update(s)
+
+    missing_domains = expected_domains - covered_domains
+    
+    # Identify "Dirty" certificates (those NOT matching any expected batch)
     dirty_certs = []
     for cert in certificates_details:
-        all_cert_domains = [cert['main']] + cert['sans']
-        invalid = [d for d in all_cert_domains if d not in expected_domains]
-        if invalid:
-            dirty_certs.append((cert, invalid))
-    
+        # Reconstruct as it is stored in expected_batches for exact comparison
+        cert_batch = (cert['main'], frozenset(cert['sans']))
+        if cert_batch not in expected_batches:
+            # Check why it's dirty
+            all_cert_domains = [cert['main']] + cert['sans']
+            unknown = [d for d in all_cert_domains if d not in expected_domains]
+            cert['dirty_reason'] = f"Unknown domains: {', '.join(unknown)}" if unknown else "Superseded (Different grouping)"
+            dirty_certs.append(cert)
+
     print(f"\n📊 Summary vs {DOMAINS_FILE}:")
     print(f"   - Expected domains: {len(expected_domains)}")
-    print(f"   - Covered domains:  {len(expected_domains - missing)}")
-    print(f"   - Missing domains:  {len(missing)}")
-    print(f"   - Dirty certs:      {len(dirty_certs)} (contain decommissioned domains)")
+    print(f"   - Covered domains:  {len(expected_domains - missing_domains)}")
+    print(f"   - Missing domains:  {len(missing_domains)}")
+    print(f"   - Dirty certs:      {len(dirty_certs)} (superseded or containing invalid domains)")
 
-    if missing:
+    if missing_domains:
         print("\n❌ MISSING DOMAINS (No certificate found):")
-        for d in sorted(missing):
+        for d in sorted(missing_domains):
             print(f"   ➜ {d}")
     
     if dirty_certs:
-        print("\n⚠️  DIRTY CERTIFICATES (Will fail renewal):")
-        for cert, invalid in dirty_certs:
-            print(f"   ➜ Main: {cert['main']} (Invalid: {', '.join(invalid)})")
+        print("\n⚠️  DIRTY CERTIFICATES (Will fail renewal or are not in use):")
+        for cert in dirty_certs:
+            print(f"   ➜ Main: {cert['main']} (Reason: {cert['dirty_reason']})")
         print("\n   👉 Run 'make certs-prune-force' to clean them up.")
 
-    if not missing and not dirty_certs and expected_domains:
+    if not missing_domains and not dirty_certs and expected_domains:
         print("\n✨ All certificates are clean and cover all expected domains.")
 
 if __name__ == "__main__":
