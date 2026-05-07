@@ -513,6 +513,13 @@ fi
 
 $PYTHON_CMD scripts/generate-config.py | sed 's/^/   /'
 
+# 3b. Prune old/invalid certificates
+# Ensures Traefik doesn't attempt to renew certificates containing decommissioned domains.
+if [ "$TRAEFIK_ACME_ENV_TYPE" != "local" ]; then
+    echo "   🧹 Checking for orphaned certificates..."
+    $PYTHON_CMD scripts/prune-certs.py --force | sed 's/^/      /'
+fi
+
 # Fix permissions if running internally (files created as root)
 if [[ "$DOMAIN_MANAGER_INTERNAL" == "true" ]]; then
     echo "   🔧 Internal run detected. Fixing permissions for generated files..."

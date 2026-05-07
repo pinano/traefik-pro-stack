@@ -150,17 +150,33 @@ def inspect_certs(verbose=False):
     expected_domains = load_expected_domains()
     missing = expected_domains - covered_domains
     
+    # Identify "Dirty" certificates (those containing domains NOT in expected list)
+    dirty_certs = []
+    for cert in certificates_details:
+        all_cert_domains = [cert['main']] + cert['sans']
+        invalid = [d for d in all_cert_domains if d not in expected_domains]
+        if invalid:
+            dirty_certs.append((cert, invalid))
+    
     print(f"\n📊 Summary vs {DOMAINS_FILE}:")
     print(f"   - Expected domains: {len(expected_domains)}")
     print(f"   - Covered domains:  {len(expected_domains - missing)}")
     print(f"   - Missing domains:  {len(missing)}")
+    print(f"   - Dirty certs:      {len(dirty_certs)} (contain decommissioned domains)")
 
     if missing:
         print("\n❌ MISSING DOMAINS (No certificate found):")
         for d in sorted(missing):
             print(f"   ➜ {d}")
-    elif expected_domains:
-        print("\n✨ All domains from domains.csv are covered by current certificates.")
+    
+    if dirty_certs:
+        print("\n⚠️  DIRTY CERTIFICATES (Will fail renewal):")
+        for cert, invalid in dirty_certs:
+            print(f"   ➜ Main: {cert['main']} (Invalid: {', '.join(invalid)})")
+        print("\n   👉 Run 'make certs-prune-force' to clean them up.")
+
+    if not missing and not dirty_certs and expected_domains:
+        print("\n✨ All certificates are clean and cover all expected domains.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Inspect Traefik acme.json certificates.")

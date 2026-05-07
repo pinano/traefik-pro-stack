@@ -93,14 +93,18 @@ def prune_certs(dry_run=True):
             main = cert.get('domain', {}).get('main', '').lower()
             sans = [s.lower() for s in cert.get('domain', {}).get('sans', [])]
             
-            # A certificate is kept if its main domain OR any of its SANs are in the expected list
-            is_needed = main in expected_domains or any(s in expected_domains for s in sans)
+            # A certificate is kept ONLY if ALL its domains (main + SANs) are in the expected list.
+            # This ensures that Traefik doesn't attempt to renew certificates containing 
+            # decommissioned subdomains, which would lead to renewal failures.
+            all_domains_in_cert = [main] + sans
+            invalid_domains = [d for d in all_domains_in_cert if d and d not in expected_domains]
             
-            if is_needed:
+            if not invalid_domains:
                 kept_certs.append(cert)
             else:
                 removed_count += 1
-                print(f"   🗑️  Removing: {main} {f'(SANs: {sans})' if sans else ''}")
+                reason = f"Missing in domains.csv: {', '.join(invalid_domains)}"
+                print(f"   🗑️  Removing: {main} {f'(SANs: {sans})' if sans else ''} -> {reason}")
                 modified = True
 
         resolver_data['Certificates'] = kept_certs
