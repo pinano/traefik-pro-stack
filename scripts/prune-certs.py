@@ -102,7 +102,8 @@ def load_expected_batch_sets():
     return expected_batch_sets, all_valid_domains
 
 def prune_certs(dry_run=True):
-    print(f"🧹 Pruning Certificates in {ACME_FILE}...")
+    action = "Dry-run pruning" if dry_run else "Pruning"
+    print(f"🧹 {action} Certificates in {ACME_FILE}...")
     
     if not os.path.exists(ACME_FILE) or os.path.getsize(ACME_FILE) == 0:
         print(f"⚠️  {ACME_FILE} is empty or missing. Nothing to prune.")
@@ -202,22 +203,24 @@ def prune_certs(dry_run=True):
                         else:
                             reason = "Superseded (Obsolete grouping or batching)"
                     
-                    print(f"   🗑️  Removing: {main} {f'(SANs: {sans})' if sans else ''} -> {reason}")
+                    print(f"   🗑️  Removing: {main} (Reason: {reason})")
                     modified = True
 
         resolver_data['Certificates'] = kept_certs
         new_acme_data[resolver_name] = resolver_data
         
         if removed_count > 0:
-            print(f"   ✨ Resolver '{resolver_name}': Kept {len(kept_certs)}, Removed {removed_count}")
+            print("\n📊 PRUNE SUMMARY:")
+            print(f"   - Kept active certificates:   {len(kept_certs)}")
+            print(f"   - Removed dirty certificates: {removed_count}")
 
     if not modified:
-        print("✨ No certificates to prune. acme.json is already clean.")
+        print("\n✨ All certificates are 100% active. acme.json is already clean.")
         sys.exit(0)
 
     if dry_run:
         print("\n⚠️  DRY RUN: No changes were written to disk.")
-        print("Run with --force to apply changes.")
+        print("👉 Run 'make certs-prune-force' to apply changes.")
         sys.exit(0)
     else:
         # Backup before writing

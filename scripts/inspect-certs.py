@@ -177,7 +177,7 @@ def inspect_certs(verbose=False):
                             'certificate': cert.get('certificate', '')
                         })
 
-    print(f"✅ Found {len(certificates_details)} certificates covering {len(covered_domains)} unique domains.")
+    print(f"✅ Loaded {len(certificates_details)} certificates from acme.json.")
     
     if verbose and certificates_details:
         print("\n📜 DETAILED CERTIFICATE LIST:")
@@ -239,25 +239,24 @@ def inspect_certs(verbose=False):
                 cert['dirty_reason'] = f"Unknown domains: {', '.join(unknown)}" if unknown else "Superseded (Obsolete grouping or batching)"
                 dirty_certs.append(cert)
 
-    print(f"\n📊 Summary vs {DOMAINS_FILE}:")
-    print(f"   - Expected domains: {len(expected_domains)}")
-    print(f"   - Covered domains:  {len(expected_domains - missing_domains)}")
-    print(f"   - Missing domains:  {len(missing_domains)}")
-    print(f"   - Dirty certs:      {len(dirty_certs)} (superseded or containing invalid domains)")
+    print("\n📊 DASHBOARD SUMMARY EQUIVALENT:")
+    print(f"   - Total certificates:     {len(certificates_details)}")
+    print(f"   - Unique domains covered: {len(covered_domains)}")
+    print(f"   - Missing domains:        {len(missing_domains)}")
 
     if missing_domains:
-        print("\n❌ MISSING DOMAINS (No certificate found):")
+        print("\n❌ MISSING DOMAINS (Expected in domains.csv but no certificate found):")
         for d in sorted(missing_domains):
             print(f"   ➜ {d}")
     
     if dirty_certs:
-        print("\n⚠️  DIRTY CERTIFICATES (Will fail renewal or are not in use):")
+        print(f"\n⚠️  NOT IN USE / SUPERSEDED CERTIFICATES ({len(dirty_certs)} found):")
         for cert in dirty_certs:
             print(f"   ➜ Main: {cert['main']} (Reason: {cert['dirty_reason']})")
-        print("\n   👉 Run 'make certs-prune-force' to clean them up.")
+        print("\n   👉 Run 'make certs-prune-force' to safely remove them.")
 
     if not missing_domains and not dirty_certs and expected_domains:
-        print("\n✨ All certificates are clean and cover all expected domains.")
+        print("\n✨ All certificates are 100% active and perfectly aligned with domains.csv.")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Inspect Traefik acme.json certificates.")
