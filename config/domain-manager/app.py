@@ -676,7 +676,46 @@ def certs_view():
                         # Fallback if no certificate data (shouldn't happen for valid entries)
                         continue
 
-    # 3. Post-process to identify superseded certificates
+    # 3. Post-process to identify superseded/invalid certificates
+    # Re-calculate expected batches for precise validation (like prune-certs.py)
+    expected_batch_sets = set()
+    domains_by_root = defaultdict(list)
+    all_valid_domains = set()
+    
+    csv_raw_domains = []
+    for row in csv_data:
+        if row.get('enabled', True):
+            d = row.get('domain', '').strip().lower()
+            if d:
+                root = get_root_domain(d)
+                csv_raw_domains.append({'domain': d, 'root': root})
+                anubis = row.get('anubis_subdomain', '').strip()
+                if anubis:
+                    csv_raw_domains.append({'domain': f"{anubis}.{root}".lower(), 'root': root})
+                    
+    for entry in csv_raw_domains:
+        domains_by_root[entry['root']].append(entry['domain'])
+        
+    batch_size = int(os.environ.get('TLS_BATCH_SIZE', '30'))
+    
+    for root_domain, subdomains in domains_by_root.items():
+        subs_unicos = list(dict.fromkeys(subdomains))
+        all_valid_domains.update(subs_unicos)
+        for i in range(0, len(subs_unicos), batch_size):
+            batch = subs_unicos[i:i + batch_size]
+            expected_batch_sets.add(frozenset(batch))
+            
+    domain_env = os.environ.get('DOMAIN', '').lower()
+    dash_sub = os.environ.get('DASHBOARD_SUBDOMAIN', '').lower()
+    if domain_env:
+        if dash_sub:
+            dash_fqdn = f"{dash_sub}.{domain_env}"
+            all_valid_domains.add(dash_fqdn)
+            expected_batch_sets.add(frozenset([dash_fqdn]))
+        else:
+            all_valid_domains.add(domain_env)
+            expected_batch_sets.add(frozenset([domain_env]))
+
     # Group by Main Domain (CN)
     certs_by_main = defaultdict(list)
     for cert in certificates_details:
@@ -685,15 +724,19 @@ def certs_view():
     final_certificates = []
     
     for main_domain, certs in certs_by_main.items():
-        # If multiple certs for same CN, sort by precise expiration timestamp (more future = newer)
-        if len(certs) > 1:
-            # Sort descending by expiration_timestamp
-            certs.sort(key=lambda x: x.get('expiration_timestamp', 0), reverse=True)
+        # Sort descending by expiration_timestamp
+        certs.sort(key=lambda x: x.get('expiration_timestamp', 0), reverse=True)
+        
+        for i, cert in enumerate(certs):
+            # Check if this specific certificate exactly matches an expected batch or valid single domain
+            cert_domains = frozenset([cert['main']] + cert['sans'])
+            is_valid_batch = cert_domains in expected_batch_sets
+            is_valid_single = len(cert_domains) == 1 and list(cert_domains)[0] in all_valid_domains
             
-            # The first one is active (furthest future expiration), rest are superseded
-            for i in range(1, len(certs)):
-                certs[i]['superseded'] = True
-                certs[i]['status'] = 'superseded' # Override status for display logic if needed
+            # It's superseded/invalid if it's not the newest OR it doesn't match expected configuration
+            if i > 0 or not (is_valid_batch or is_valid_single):
+                cert['superseded'] = True
+                cert['status'] = 'superseded'
         
         final_certificates.extend(certs)
     
