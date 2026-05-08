@@ -138,17 +138,20 @@ def prune_certs(dry_run=True):
         kept_certs = []
         removed_count = 0
         
-        # Group by Main Domain (CN) to detect exact duplicates
-        certs_by_main = defaultdict(list)
+        # Group by frozenset of domains to detect exact duplicates
+        certs_by_domains = defaultdict(list)
         for cert in certs:
             main = cert.get('domain', {}).get('main', '').lower()
+            sans = [s.lower() for s in cert.get('domain', {}).get('sans', [])]
             cert_b64 = cert.get('certificate', '')
             actual_domains = extract_domains_from_cert(cert_b64)
-            if actual_domains and main not in actual_domains:
-                main = actual_domains[0]
-            certs_by_main[main].append(cert)
+            if actual_domains:
+                cert_doms = frozenset(actual_domains)
+            else:
+                cert_doms = frozenset([main] + sans if main else sans)
+            certs_by_domains[cert_doms].append(cert)
             
-        for main_domain, grouped_certs in certs_by_main.items():
+        for cert_domains, grouped_certs in certs_by_domains.items():
             # Try to parse expiration to sort, if fails default to 0
             def get_ts(c):
                 try:
@@ -191,7 +194,7 @@ def prune_certs(dry_run=True):
                 else:
                     removed_count += 1
                     if i > 0:
-                        reason = "Superseded (Older duplicate for the same main domain)"
+                        reason = "Superseded (Older duplicate)"
                     else:
                         unknown = [d for d in cert_domains if d not in all_valid_domains]
                         if unknown:

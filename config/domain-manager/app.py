@@ -716,14 +716,15 @@ def certs_view():
             all_valid_domains.add(domain_env)
             expected_batch_sets.add(frozenset([domain_env]))
 
-    # Group by Main Domain (CN)
-    certs_by_main = defaultdict(list)
+    # Group by exact domain set to detect duplicates flawlessly
+    certs_by_domains = defaultdict(list)
     for cert in certificates_details:
-        certs_by_main[cert['main']].append(cert)
+        cert_doms = frozenset([cert['main']] + cert['sans'])
+        certs_by_domains[cert_doms].append(cert)
     
     final_certificates = []
     
-    for main_domain, certs in certs_by_main.items():
+    for cert_doms, certs in certs_by_domains.items():
         # Sort descending by expiration_timestamp
         certs.sort(key=lambda x: x.get('expiration_timestamp', 0), reverse=True)
         

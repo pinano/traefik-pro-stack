@@ -208,12 +208,13 @@ def inspect_certs(verbose=False):
     # Identify "Dirty" certificates (those NOT matching any expected batch or single valid domain, OR duplicates)
     dirty_certs = []
     
-    # Group by Main Domain (CN) to detect exact duplicates
-    certs_by_main = defaultdict(list)
+    # Group by frozenset of domains to detect exact duplicates regardless of 'main' vs 'sans' JSON flip-flops
+    certs_by_domains = defaultdict(list)
     for cert in certificates_details:
-        certs_by_main[cert['main']].append(cert)
+        cert_doms = frozenset([cert['main']] + cert['sans'])
+        certs_by_domains[cert_doms].append(cert)
         
-    for main_domain, certs in certs_by_main.items():
+    for cert_domains, certs in certs_by_domains.items():
         # Try to parse expiration to sort, if fails default to 0
         def get_ts(c):
             try:
@@ -226,7 +227,6 @@ def inspect_certs(verbose=False):
         certs.sort(key=get_ts, reverse=True)
         
         for i, cert in enumerate(certs):
-            cert_domains = frozenset([cert['main']] + cert['sans'])
             
             is_valid_batch = cert_domains in expected_batch_sets
             is_valid_single = len(cert_domains) == 1 and list(cert_domains)[0] in all_valid_domains
