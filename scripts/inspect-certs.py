@@ -205,19 +205,39 @@ def inspect_certs(verbose=False):
     expected_domains = all_valid_domains
     missing_domains = expected_domains - covered_domains
     
-    # Identify "Dirty" certificates (those NOT matching any expected batch or single valid domain)
+    # Identify "Dirty" certificates (those NOT matching any expected batch or single valid domain, OR duplicates)
     dirty_certs = []
+    
+    # Group by Main Domain (CN) to detect exact duplicates
+    certs_by_main = defaultdict(list)
     for cert in certificates_details:
-        cert_domains = frozenset([cert['main']] + cert['sans'])
+        certs_by_main[cert['main']].append(cert)
         
-        is_valid_batch = cert_domains in expected_batch_sets
-        is_valid_single = len(cert_domains) == 1 and list(cert_domains)[0] in all_valid_domains
+    for main_domain, certs in certs_by_main.items():
+        # Try to parse expiration to sort, if fails default to 0
+        def get_ts(c):
+            try:
+                date_str = get_cert_expiration(c['certificate'])
+                dt = datetime.datetime.strptime(date_str, '%b %d %H:%M:%S %Y GMT')
+                return dt.timestamp()
+            except Exception:
+                return 0
+                
+        certs.sort(key=get_ts, reverse=True)
         
-        if not (is_valid_batch or is_valid_single):
-            # Check why it's dirty
-            unknown = [d for d in cert_domains if d not in expected_domains]
-            cert['dirty_reason'] = f"Unknown domains: {', '.join(unknown)}" if unknown else "Superseded (Obsolete grouping or batching)"
-            dirty_certs.append(cert)
+        for i, cert in enumerate(certs):
+            cert_domains = frozenset([cert['main']] + cert['sans'])
+            
+            is_valid_batch = cert_domains in expected_batch_sets
+            is_valid_single = len(cert_domains) == 1 and list(cert_domains)[0] in all_valid_domains
+            
+            if i > 0:
+                cert['dirty_reason'] = "Superseded (Older duplicate for the same main domain)"
+                dirty_certs.append(cert)
+            elif not (is_valid_batch or is_valid_single):
+                unknown = [d for d in cert_domains if d not in expected_domains]
+                cert['dirty_reason'] = f"Unknown domains: {', '.join(unknown)}" if unknown else "Superseded (Obsolete grouping or batching)"
+                dirty_certs.append(cert)
 
     print(f"\n📊 Summary vs {DOMAINS_FILE}:")
     print(f"   - Expected domains: {len(expected_domains)}")

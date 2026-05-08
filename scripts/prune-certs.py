@@ -137,43 +137,70 @@ def prune_certs(dry_run=True):
 
         kept_certs = []
         removed_count = 0
-
+        
+        # Group by Main Domain (CN) to detect exact duplicates
+        certs_by_main = defaultdict(list)
         for cert in certs:
             main = cert.get('domain', {}).get('main', '').lower()
-            sans = [s.lower() for s in cert.get('domain', {}).get('sans', [])]
-            
             cert_b64 = cert.get('certificate', '')
             actual_domains = extract_domains_from_cert(cert_b64)
-            if actual_domains:
-                cert_domains = frozenset(actual_domains)
-                # Ensure main is accurate for logging
-                if main not in actual_domains:
-                    main = actual_domains[0]
-                sans = [d for d in actual_domains if d != main]
-            else:
-                cert_domains = frozenset([main] + sans if main else sans)
-
+            if actual_domains and main not in actual_domains:
+                main = actual_domains[0]
+            certs_by_main[main].append(cert)
             
-            # A certificate is kept if:
-            # 1. It exactly matches the set of domains of an expected batch.
-            # 2. OR it's a single-domain cert for a domain that is still valid (safety fallback).
-            is_valid_batch = cert_domains in expected_batch_sets
-            is_valid_single = len(cert_domains) == 1 and list(cert_domains)[0] in all_valid_domains
-            
-            if is_valid_batch or is_valid_single:
-                kept_certs.append(cert)
-            else:
-                removed_count += 1
+        for main_domain, grouped_certs in certs_by_main.items():
+            # Try to parse expiration to sort, if fails default to 0
+            def get_ts(c):
+                try:
+                    cert_pem = base64.b64decode(c.get('certificate', '')).decode('utf-8')
+                    cmd = ['openssl', 'x509', '-noout', '-enddate']
+                    process = subprocess.Popen(
+                        cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+                    )
+                    stdout, _ = process.communicate(input=cert_pem)
+                    if process.returncode == 0 and '=' in stdout:
+                        date_str = stdout.strip().split('=', 1)[1]
+                        dt = datetime.strptime(date_str, '%b %d %H:%M:%S %Y GMT')
+                        return dt.timestamp()
+                except Exception:
+                    pass
+                return 0
                 
-                # Determine reason for logging
-                unknown = [d for d in cert_domains if d not in all_valid_domains]
-                if unknown:
-                    reason = f"Unknown domains: {', '.join(unknown)}"
+            grouped_certs.sort(key=get_ts, reverse=True)
+            
+            for i, cert in enumerate(grouped_certs):
+                main = cert.get('domain', {}).get('main', '').lower()
+                sans = [s.lower() for s in cert.get('domain', {}).get('sans', [])]
+                
+                cert_b64 = cert.get('certificate', '')
+                actual_domains = extract_domains_from_cert(cert_b64)
+                if actual_domains:
+                    cert_domains = frozenset(actual_domains)
+                    if main not in actual_domains:
+                        main = actual_domains[0]
+                    sans = [d for d in actual_domains if d != main]
                 else:
-                    reason = "Superseded (Obsolete grouping or batching)"
+                    cert_domains = frozenset([main] + sans if main else sans)
+
                 
-                print(f"   🗑️  Removing: {main} {f'(SANs: {sans})' if sans else ''} -> {reason}")
-                modified = True
+                is_valid_batch = cert_domains in expected_batch_sets
+                is_valid_single = len(cert_domains) == 1 and list(cert_domains)[0] in all_valid_domains
+                
+                if i == 0 and (is_valid_batch or is_valid_single):
+                    kept_certs.append(cert)
+                else:
+                    removed_count += 1
+                    if i > 0:
+                        reason = "Superseded (Older duplicate for the same main domain)"
+                    else:
+                        unknown = [d for d in cert_domains if d not in all_valid_domains]
+                        if unknown:
+                            reason = f"Unknown domains: {', '.join(unknown)}"
+                        else:
+                            reason = "Superseded (Obsolete grouping or batching)"
+                    
+                    print(f"   🗑️  Removing: {main} {f'(SANs: {sans})' if sans else ''} -> {reason}")
+                    modified = True
 
         resolver_data['Certificates'] = kept_certs
         new_acme_data[resolver_name] = resolver_data

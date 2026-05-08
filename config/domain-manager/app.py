@@ -745,10 +745,15 @@ def certs_view():
 
     # 4. Calculate Stats (using final list)
     total_certs = len(final_certificates)
-    # Count unique active SANs only? Or all? Let's count all to be safe, or just active.
-    # User asked for visual indication, not necessarily removing them from stats.
-    # But let's keep stats based on what's visible.
-    total_sans = sum(len(c['sans']) for c in final_certificates)
+    
+    unique_domains = set()
+    for c in final_certificates:
+        if not c.get('superseded', False):
+            if c['main'] != 'unknown':
+                unique_domains.add(c['main'])
+            unique_domains.update(c['sans'])
+            
+    total_unique_domains = len(unique_domains)
     
     missing_domains = expected_domains - covered_domains
     missing_count = len(missing_domains)
@@ -758,9 +763,10 @@ def certs_view():
                            domain=DOMAIN,
                            certificates=final_certificates,
                            total_certs=total_certs,
-                           total_sans=total_sans,
+                           total_unique_domains=total_unique_domains,
                            missing_count=missing_count,
                            missing_domains=sorted(list(missing_domains)))
+
 
 
 @app.route('/dm-api/domains', methods=['GET', 'POST'])
