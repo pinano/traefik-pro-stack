@@ -1,4 +1,4 @@
-import json
+cimport json
 import csv
 import os
 import tldextract
