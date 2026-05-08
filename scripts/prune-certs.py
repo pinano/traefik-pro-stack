@@ -66,12 +66,14 @@ def load_expected_batch_sets():
     dash_sub = os.getenv('DASHBOARD_SUBDOMAIN', '').lower()
     
     if domain_env:
-        all_valid_domains.add(domain_env)
-        expected_batch_sets.add(frozenset([domain_env]))
         if dash_sub:
             dash_fqdn = f"{dash_sub}.{domain_env}"
             all_valid_domains.add(dash_fqdn)
             expected_batch_sets.add(frozenset([dash_fqdn]))
+        else:
+            # If no dashboard subdomain, the dashboard is on the bare domain
+            all_valid_domains.add(domain_env)
+            expected_batch_sets.add(frozenset([domain_env]))
                 
     return expected_batch_sets, all_valid_domains
 
