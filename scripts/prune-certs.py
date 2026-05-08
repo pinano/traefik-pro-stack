@@ -5,7 +5,31 @@ import tldextract
 import argparse
 import base64
 import sys
+import subprocess
 from datetime import datetime
+
+def extract_domains_from_cert(cert_b64):
+    try:
+        cert_pem = base64.b64decode(cert_b64).decode('utf-8')
+        cmd = ['openssl', 'x509', '-noout', '-ext', 'subjectAltName']
+        process = subprocess.Popen(
+            cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+        )
+        stdout, _ = process.communicate(input=cert_pem)
+        if process.returncode == 0:
+            actual_domains = []
+            for line in stdout.splitlines():
+                line = line.strip()
+                if line.startswith('DNS:'):
+                    for part in line.split(','):
+                        part = part.strip()
+                        if part.startswith('DNS:'):
+                            actual_domains.append(part[4:].lower())
+            return actual_domains
+    except Exception:
+        pass
+    return []
+
 from collections import defaultdict
 
 ACME_FILE = 'config/traefik/acme.json'
@@ -118,8 +142,17 @@ def prune_certs(dry_run=True):
             main = cert.get('domain', {}).get('main', '').lower()
             sans = [s.lower() for s in cert.get('domain', {}).get('sans', [])]
             
-            # The complete set of domains in this certificate
-            cert_domains = frozenset([main] + sans if main else sans)
+            cert_b64 = cert.get('certificate', '')
+            actual_domains = extract_domains_from_cert(cert_b64)
+            if actual_domains:
+                cert_domains = frozenset(actual_domains)
+                # Ensure main is accurate for logging
+                if main not in actual_domains:
+                    main = actual_domains[0]
+                sans = [d for d in actual_domains if d != main]
+            else:
+                cert_domains = frozenset([main] + sans if main else sans)
+
             
             # A certificate is kept if:
             # 1. It exactly matches the set of domains of an expected batch.
