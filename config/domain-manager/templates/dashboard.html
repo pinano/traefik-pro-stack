@@ -115,6 +115,21 @@
                     <h2 class="app-title">Grafana</h2>
                     <p class="app-desc">Visualize logs, metrics, and dashboards.</p>
                 </a>
+                
+                <!-- CrowdSec UI -->
+                {% if crowdsec_enabled %}
+                <a href="/crowdsec/" target="_blank" class="app-card">
+                    <i data-lucide="shield" class="app-icon" style="color: #6366f1;"></i>
+                    <h2 class="app-title">CrowdSec UI</h2>
+                    <p class="app-desc">Manage security alerts and IP bans.</p>
+                </a>
+                {% else %}
+                <div class="app-card" style="opacity: 0.6; cursor: not-allowed;" title="CrowdSec is disabled (CROWDSEC_ENABLE=false)">
+                    <i data-lucide="shield-off" class="app-icon" style="color: #94a3b8;"></i>
+                    <h2 class="app-title">CrowdSec UI</h2>
+                    <p class="app-desc">Security firewall is currently disabled.</p>
+                </div>
+                {% endif %}
             </div>
         </main>
     </div>

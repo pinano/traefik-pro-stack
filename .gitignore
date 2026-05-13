@@ -28,6 +28,9 @@ config/anubis/assets/static/img/reject.webp
 # Runtime flags
 .apache_host_available
 
+# Service data / databases
+config/crowdsec-web-ui/*
+
 # Python cache files
 __pycache__
 .venv/

@@ -593,7 +593,8 @@ def auth_check():
 @app.route('/')
 @login_required
 def dashboard():
-    return render_template('dashboard.html', domain=DOMAIN)
+    cs_enable = os.environ.get('CROWDSEC_ENABLE', 'true').lower() == 'true'
+    return render_template('dashboard.html', domain=DOMAIN, crowdsec_enabled=cs_enable)
 
 @app.route('/domains')
 @login_required

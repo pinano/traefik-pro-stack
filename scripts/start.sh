@@ -245,6 +245,17 @@ if [ -z "$DOMAIN_MANAGER_SECRET_KEY" ] || [ "$DOMAIN_MANAGER_SECRET_KEY" == "REP
     set +a
 fi
 
+# CrowdSec Web UI Password (auto-generate on first run)
+if [ -z "$CROWDSEC_WEB_UI_PASSWORD" ] || [ "$CROWDSEC_WEB_UI_PASSWORD" == "REPLACE_ME" ]; then
+    echo "   🔄 Generating CrowdSec Web UI internal password..."
+    NEW_CS_UI_PASS=$(openssl rand -hex 32)
+    update_env_var "CROWDSEC_WEB_UI_PASSWORD" "$NEW_CS_UI_PASS"
+    export CROWDSEC_WEB_UI_PASSWORD="$NEW_CS_UI_PASS"
+    set -a
+    source .env
+    set +a
+fi
+
 # =============================================================================
 # AUTO-CONFIGURATION: Absolute Path Mirroring
 # =============================================================================
@@ -817,6 +828,16 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
     fi
 
     # =============================================================================
+    # PHASE 5: Register Web UI Machine
+    # =============================================================================
+    # Register the Web UI machine to allow it to communicate with LAPI.
+    # We use -f /dev/null to avoid overwriting the local credentials of the crowdsec container itself.
+    
+    echo "   🖥️ Registering CrowdSec Web UI machine..."
+    docker exec "$CROWDSEC_ID" cscli machines add "${CROWDSEC_WEB_UI_USER:-crowdsec-web-ui}" --password "${CROWDSEC_WEB_UI_PASSWORD}" -f /dev/null > /dev/null 2>&1 || true
+    echo "   ✅ Web UI machine registered."
+
+    # =============================================================================
     # PHASE 5: CrowdSec Console Enrollment (Optional)
     # =============================================================================
     # If CROWDSEC_ENROLLMENT_KEY is set, enroll this instance with CrowdSec Console
@@ -930,5 +951,10 @@ echo "🌐 Core Services:"
     echo -e "   ➜ Traefik:         https://${DASHBOARD_SUBDOMAIN:-dashboard}.${DOMAIN}/traefik/"
     echo -e "   ➜ Dozzle (Logs):   https://${DASHBOARD_SUBDOMAIN:-dashboard}.${DOMAIN}/dozzle/"
     echo -e "   ➜ Grafana:         https://${DASHBOARD_SUBDOMAIN:-dashboard}.${DOMAIN}/grafana/"
+    if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
+        echo -e "   ➜ CrowdSec UI:     https://${DASHBOARD_SUBDOMAIN:-dashboard}.${DOMAIN}/crowdsec/"
+    else
+        echo -e "   ➜ CrowdSec UI:     [DISABLED] (CROWDSEC_ENABLE=false)"
+    fi
     echo -e "========================================================"
 echo ""

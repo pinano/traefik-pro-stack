@@ -19,6 +19,11 @@ COMPOSE_FILES="-f docker-compose-traefik-crowdsec-redis.yaml \
                -f docker-compose-grafana-loki-alloy-prometheus.yaml \
                -f docker-compose-domain-manager.yaml"
 
+# Add CrowdSec Web UI if enabled
+if [[ "${CROWDSEC_ENABLE:-true}" == "true" ]]; then
+    COMPOSE_FILES="$COMPOSE_FILES -f docker-compose-crowdsec-web-ui.yaml"
+fi
+
 # Add Anubis if generated config exists
 if [ -f "docker-compose-anubis-generated.yaml" ]; then
     COMPOSE_FILES="$COMPOSE_FILES -f docker-compose-anubis-generated.yaml"

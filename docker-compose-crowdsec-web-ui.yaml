@@ -1,0 +1,42 @@
+services:
+  crowdsec-web-ui:
+    image: ghcr.io/theduffman85/crowdsec-web-ui:latest
+    container_name: crowdsec-web-ui
+    restart: unless-stopped
+    environment:
+      - CROWDSEC_URL=http://crowdsec:8080
+      - CROWDSEC_USER=${CROWDSEC_WEB_UI_USER:-crowdsec-web-ui}
+      - CROWDSEC_PASSWORD=${CROWDSEC_WEB_UI_PASSWORD}
+      - BASE_PATH=/crowdsec
+      - TZ=${TZ}
+    volumes:
+      - ./config/crowdsec-web-ui:/app/data
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      # Routing
+      - "traefik.http.routers.crowdsec-web-ui.rule=Host(`${DASHBOARD_SUBDOMAIN}.${DOMAIN}`) && PathPrefix(`/crowdsec`)"
+      - "traefik.http.routers.crowdsec-web-ui.priority=100"
+      - "traefik.http.routers.crowdsec-web-ui.entrypoints=websecure"
+      - "traefik.http.routers.crowdsec-web-ui.tls.certresolver=${TRAEFIK_CERT_RESOLVER}"
+      # Middleware: SSO protection
+      - "traefik.http.routers.crowdsec-web-ui.middlewares=dashboard-error@docker,dashboard-auth@docker"
+      # Internal port
+      - "traefik.http.services.crowdsec-web-ui.loadbalancer.server.port=3000"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+networks:
+  traefik:
+    name: traefik
+    external: true
