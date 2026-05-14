@@ -1,7 +1,6 @@
 services:
   crowdsec-web-ui:
     image: ghcr.io/theduffman85/crowdsec-web-ui:latest
-    container_name: crowdsec-web-ui
     restart: unless-stopped
     environment:
       - CROWDSEC_URL=http://crowdsec:8080
