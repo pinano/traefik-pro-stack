@@ -872,6 +872,10 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
     # Register the Web UI machine to allow it to communicate with LAPI.
     # We use -f /dev/null to avoid overwriting the local credentials of the crowdsec container itself.
     
+    echo "   🛡️ Hardening CrowdSec LAPI (trusted_ips)..."
+    docker exec "$CROWDSEC_ID" sh -c "yq -i '.api.server.trusted_ips += [\"172.16.0.0/12\", \"192.168.0.0/16\"]' /etc/crowdsec/config.yaml"
+    docker exec "$CROWDSEC_ID" kill -HUP 1
+
     echo "   🖥️ Registering CrowdSec Web UI machine..."
     docker exec "$CROWDSEC_ID" cscli machines add "${CROWDSEC_WEB_UI_USER:-crowdsec-web-ui}" --password "${CROWDSEC_WEB_UI_PASSWORD}" -f /dev/null > /dev/null 2>&1 || true
     echo "   ✅ Web UI machine registered."
