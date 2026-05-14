@@ -363,6 +363,45 @@ fi
 echo " --------------------------------------------------------"
 echo " [3/6] 🎨 Preparing application assets..."
 
+# =============================================================================
+# Persistent data directories (bind mounts — created once, never overwritten)
+# =============================================================================
+# Services with non-root internal users need world-writable directories:
+#   - Grafana: UID 472
+#   - Loki:    UID 10001
+#   - Alloy:   root (no issue)
+#   - Prometheus: UID 65534 (nobody)
+#   - CrowdSec: root / GID 1000 (no issue)
+#   - Redis:   root (no issue)
+
+DATA_DIRS=(
+    "data/crowdsec/db"
+    "data/crowdsec/config"
+    "data/redis"
+    "data/grafana"
+    "data/loki"
+    "data/alloy"
+    "data/prometheus"
+)
+DATA_CREATED=0
+for dir in "${DATA_DIRS[@]}"; do
+    if [ ! -d "./$dir" ]; then
+        mkdir -p "./$dir"
+        DATA_CREATED=$((DATA_CREATED + 1))
+    fi
+done
+
+# Ensure non-root service users can write to their data directories.
+# chmod 777 is appropriate here: the project directory is the real security
+# boundary, and these dirs contain runtime state (not secrets).
+chmod -R 777 ./data/grafana ./data/loki ./data/prometheus 2>/dev/null || true
+
+if [ $DATA_CREATED -gt 0 ]; then
+    echo "   ✅ Created $DATA_CREATED persistent data director(ies) under ./data/."
+else
+    echo "   ✅ Persistent data directories present."
+fi
+
 ANUBIS_ASSETS_DIR="./config/anubis/assets"
 ANUBIS_ASSETS_IMG_DIR="$ANUBIS_ASSETS_DIR/static/img"
 

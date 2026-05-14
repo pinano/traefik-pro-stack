@@ -23,7 +23,7 @@ services:
       - GRAFANA_TELEGRAM_BOT_TOKEN=${WATCHDOG_TELEGRAM_BOT_TOKEN}
       - GRAFANA_TELEGRAM_CHAT_ID=${WATCHDOG_TELEGRAM_RECIPIENT_ID}
     volumes:
-      - grafana_data:/var/lib/grafana
+      - ./data/grafana:/var/lib/grafana
       - ./config/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./config/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - /etc/localtime:/etc/localtime:ro
@@ -53,7 +53,7 @@ services:
         max-file: "3"
 
   # ===========================
-  #  LOKI (The storage)
+  #  LOKI (Log storage)
   # ===========================
   loki:
     image: grafana/loki:3.6.7
@@ -62,7 +62,7 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ./config/loki/config.yaml:/etc/loki/local-config.yaml:ro
-      - loki_data:/loki
+      - ./data/loki:/loki
     environment:
       - TZ=${TZ}
     networks:
@@ -80,7 +80,7 @@ services:
         max-file: "3"
 
   # ===========================
-  #  ALLOY (The collector)
+  #  ALLOY (Log & metrics collector)
   # ===========================
   alloy:
     image: grafana/alloy:v1.13.2
@@ -93,7 +93,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - ./config/alloy/config.alloy:/etc/alloy/config.alloy:ro
-      - alloy_data:/var/lib/alloy
+      - ./data/alloy:/var/lib/alloy
       - /etc/localtime:/etc/localtime:ro
       # Host mounts for prometheus.exporter.unix (Node Exporter equivalent)
       - /proc:/host/proc:ro
@@ -114,7 +114,7 @@ services:
         max-file: "3"
 
   # ===========================
-  #  PROMETHEUS (Metrics Storage)
+  #  PROMETHEUS (Metrics storage)
   # ===========================
   prometheus:
     image: prom/prometheus:v3.11.1
@@ -132,7 +132,7 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./config/prometheus/rules.yml:/etc/prometheus/rules.yml:ro
-      - prometheus_data:/prometheus
+      - ./data/prometheus:/prometheus
     networks:
       - traefik
     deploy:
@@ -146,13 +146,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-
-volumes:
-  grafana_data:
-  loki_data:
-  alloy_data:
-  prometheus_data:
-
 
 networks:
   traefik:

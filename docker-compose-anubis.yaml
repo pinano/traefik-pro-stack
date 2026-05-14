@@ -1,7 +1,7 @@
 services:
 
   # ===========================
-  # ANUBIS (base)
+  # ANUBIS (base template - extended by docker-compose-anubis-generated.yaml)
   # ===========================
   anubis-base:
     image: ghcr.io/techarohq/anubis:v1.25.0
@@ -43,6 +43,29 @@ services:
       options:
         max-size: "5m"
         max-file: "1"
+
+  # ===========================
+  #  ANUBIS-ASSETS (Static files server for Anubis challenge pages)
+  # ===========================
+  anubis-assets:
+    image: nginx:alpine3.23-slim
+    restart: unless-stopped
+    stop_grace_period: 20s
+    volumes:
+      - ./config/anubis/assets:/usr/share/nginx/html:ro
+    deploy:
+      resources:
+        limits:
+          cpus: 0.10
+          memory: 32M
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.services.anubis-assets.loadbalancer.server.port=80"
+      # NOTICE: We don't define routers here, we do it via global dynamic config
+      # so we don't mess this file up with complex regex
 
 networks:
   traefik:

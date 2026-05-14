@@ -1308,13 +1308,13 @@ You will see: `🔐 Local Mode detected. Automating certificate generation...`
 │       └── check-crowdsec.sh            # CrowdSec health monitor
 │
 └── Docker Compose Files:
-    ├── docker-compose-traefik-crowdsec-redis.yaml      # Core: Traefik, CrowdSec, Redis, Redis Exporter
-    ├── docker-compose-tools.yaml                        # Tools: Dozzle, ctop, Watchdog, Anubis-Assets
-    ├── docker-compose-grafana-loki-alloy-prometheus.yaml  # Observability: Grafana, Loki, Alloy, Prometheus
-    ├── docker-compose-domain-manager.yaml               # Admin: Domain Manager UI
-    ├── docker-compose-anubis-base.yaml                  # Anubis service template
-    ├── docker-compose-anubis-generated.yaml             # Auto-generated Anubis instances (per TLD)
-    └── docker-compose-apache-logs.yaml                  # Apache log aggregation (auto-included if Apache detected)
+    ├── docker-compose-edge.yaml              # Edge: Traefik (TLS termination, routing)
+    ├── docker-compose-security.yaml          # Security: CrowdSec, Redis, Redis Exporter, CrowdSec Web UI
+    ├── docker-compose-observability.yaml     # Observability: Grafana, Loki, Alloy, Prometheus
+    ├── docker-compose-dashboard.yaml         # Dashboard: Domain Manager, Dozzle, Watchdog, ctop
+    ├── docker-compose-anubis.yaml            # Bot Defense: Anubis base template + Assets server
+    ├── docker-compose-anubis-generated.yaml  # Auto-generated Anubis instances (per TLD, do not edit)
+    └── docker-compose-apache-logs.yaml       # Apache log extension (auto-included if Apache detected)
 ```
 
 ---

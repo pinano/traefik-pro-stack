@@ -1,0 +1,191 @@
+services:
+
+  # ===========================
+  #  DOMAIN MANAGER (SSO + Admin UI)
+  # ===========================
+  domain-manager:
+    build: ./config/domain-manager
+    restart: unless-stopped
+    networks:
+      - traefik
+    environment:
+      - DOMAIN_MANAGER_ADMIN_USER=${DOMAIN_MANAGER_ADMIN_USER}
+      - DOMAIN_MANAGER_ADMIN_PASSWORD=${DOMAIN_MANAGER_ADMIN_PASSWORD}
+      - FLASK_SECRET_KEY=${DOMAIN_MANAGER_SECRET_KEY}
+      - DOMAIN=${DOMAIN}
+      - PROJECT_NAME=${PROJECT_NAME}
+      - DOMAIN_MANAGER_APP_PATH_HOST=${DOMAIN_MANAGER_APP_PATH_HOST}
+      - TZ=${TZ}
+      - DOMAIN_MANAGER_INTERNAL=true
+      - TRAEFIK_ACME_ENV_TYPE=${TRAEFIK_ACME_ENV_TYPE}
+      - DASHBOARD_SUBDOMAIN=${DASHBOARD_SUBDOMAIN}
+      - CROWDSEC_ENABLE=${CROWDSEC_ENABLE:-true}
+      - APACHE_HOST_IP=${APACHE_HOST_IP:-172.17.0.1}
+      - APACHE_HOST_PORT=${APACHE_HOST_PORT:-8080}
+    working_dir: ${DOMAIN_MANAGER_APP_PATH_HOST}/config/domain-manager
+    volumes:
+      - ./domains.csv:${DOMAIN_MANAGER_APP_PATH_HOST}/domains.csv
+      - ./.env:${DOMAIN_MANAGER_APP_PATH_HOST}/.env
+      - ./.env.dist:${DOMAIN_MANAGER_APP_PATH_HOST}/.env.dist:ro
+      - ./scripts:${DOMAIN_MANAGER_APP_PATH_HOST}/scripts:ro
+      - ./docker-compose-edge.yaml:${DOMAIN_MANAGER_APP_PATH_HOST}/docker-compose-edge.yaml:ro
+      - ./docker-compose-security.yaml:${DOMAIN_MANAGER_APP_PATH_HOST}/docker-compose-security.yaml:ro
+      - ./docker-compose-anubis.yaml:${DOMAIN_MANAGER_APP_PATH_HOST}/docker-compose-anubis.yaml:ro
+      - ./docker-compose-anubis-base.yaml:${DOMAIN_MANAGER_APP_PATH_HOST}/docker-compose-anubis-base.yaml:ro
+      - ./docker-compose-anubis-generated.yaml:${DOMAIN_MANAGER_APP_PATH_HOST}/docker-compose-anubis-generated.yaml
+      - ./docker-compose-apache-logs.yaml:${DOMAIN_MANAGER_APP_PATH_HOST}/docker-compose-apache-logs.yaml:ro
+      - ./docker-compose-observability.yaml:${DOMAIN_MANAGER_APP_PATH_HOST}/docker-compose-observability.yaml:ro
+      - ./docker-compose-dashboard.yaml:${DOMAIN_MANAGER_APP_PATH_HOST}/docker-compose-dashboard.yaml:ro
+      - ./config:${DOMAIN_MANAGER_APP_PATH_HOST}/config
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/hosts:/etc/hosts-host:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.routers.domain-manager.rule=Host(`${DASHBOARD_SUBDOMAIN}.${DOMAIN}`)"
+      - "traefik.http.routers.domain-manager.priority=1"
+      - "traefik.http.routers.domain-manager.entrypoints=websecure"
+      - "traefik.http.routers.domain-manager.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-}"
+      - "traefik.http.services.domain-manager.loadbalancer.server.port=5000"
+      # --- Middleware chain for the domain-manager router ---
+      # Intentionally excludes crowdsec-check: the admin panel must remain accessible
+      # even if the admin IP is temporarily banned (e.g. during aggressive validation
+      # sessions). Protection is provided by Flask auth + CSRF + the rate limiter below.
+      - "traefik.http.routers.domain-manager.middlewares=security-headers@file,dashboard-ratelimit,global-compress@file"
+      # Dashboard rate limiter: 600 req/min / burst 1200. Survives batch domain validation
+      # (which is a single POST but can be called rapidly via UI buttons).
+      - "traefik.http.middlewares.dashboard-ratelimit.rateLimit.average=600"
+      - "traefik.http.middlewares.dashboard-ratelimit.rateLimit.burst=1200"
+      # --- SSO Middlewares Definition (to be used by other services) ---
+      # 1. Forward Auth: checks /auth-check
+      - "traefik.http.middlewares.dashboard-auth.forwardauth.address=http://domain-manager:5000/auth-check"
+      - "traefik.http.middlewares.dashboard-auth.forwardauth.trustForwardHeader=true"
+      - "traefik.http.middlewares.dashboard-auth.forwardauth.maxResponseBodySize=1048576" # 1MB cap
+      # 2. Error Page: Redirects 401 and 403 to /login
+      - "traefik.http.middlewares.dashboard-error.errors.status=401-403"
+      - "traefik.http.middlewares.dashboard-error.errors.service=domain-manager@docker"
+      - "traefik.http.middlewares.dashboard-error.errors.query=/login"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          cpus: 0.10
+          memory: 512M
+
+  # ===========================
+  #  DOZZLE (Container log viewer)
+  # ===========================
+  dozzle:
+    image: amir20/dozzle:v10.0.7
+    restart: always
+    networks:
+      - traefik
+    environment:
+      - DOZZLE_BASE=/dozzle
+      - TZ=${TZ}
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    deploy:
+      resources:
+        limits:
+          cpus: 0.10
+          memory: 64M
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      # Dashboard
+      - "traefik.http.routers.dozzle.rule=Host(`${DASHBOARD_SUBDOMAIN}.${DOMAIN}`) && PathPrefix(`/dozzle`)"
+      - "traefik.http.routers.dozzle.priority=100"
+      - "traefik.http.routers.dozzle.entrypoints=websecure"
+      - "traefik.http.routers.dozzle.tls.certresolver=${TRAEFIK_CERT_RESOLVER}"
+      # Service: Tell Traefik that Dozzle listens on internal port 8080
+      - "traefik.http.services.dozzle.loadbalancer.server.port=8080"
+      # SSO Middleware (Error middleware must be first)
+      - "traefik.http.routers.dozzle.middlewares=dashboard-error@docker,dashboard-auth@docker"
+
+  # ===========================
+  #  WATCHDOG (SSL, DNS, CrowdSec health monitor → Telegram)
+  # ===========================
+  watchdog:
+    build: ./config/watchdog
+    restart: unless-stopped
+    # Run all check scripts in parallel with independent intervals
+    # check-certs.sh: every 24h, check-dns.sh: every WATCHDOG_DNS_CHECK_INTERVAL
+    # check-crowdsec.sh: every WATCHDOG_CROWDSEC_CHECK_INTERVAL (default 1h)
+    entrypoint: >
+      sh -c "
+        # Trap SIGTERM/INT to kill all background jobs on stop
+        trap 'kill 0' TERM INT;
+        # Start certificate check loop in background
+        (while true; do
+          sh /check-certs.sh;
+          echo 'Cert check: sleeping for 24h...';
+          sleep 86400;
+        done) &
+        # Start CrowdSec check loop in background (if enabled)
+        (if [ \"$${CROWDSEC_ENABLE}\" != \"false\" ]; then
+          while true; do
+            sh /check-crowdsec.sh;
+            echo \"CrowdSec check: sleeping for $${WATCHDOG_CROWDSEC_CHECK_INTERVAL:-3600}s...\";
+            sleep $${WATCHDOG_CROWDSEC_CHECK_INTERVAL:-3600};
+          done
+        else
+          echo 'CrowdSec check DISABLED.';
+        fi) &
+        # Start DNS check loop in foreground (wait for background jobs too)
+        while true; do
+          sh /check-dns.sh;
+          echo \"DNS check: sleeping for $${WATCHDOG_DNS_CHECK_INTERVAL:-21600}s...\";
+          sleep $${WATCHDOG_DNS_CHECK_INTERVAL:-21600};
+        done
+      "
+    volumes:
+      - ./config/traefik/acme.json:/acme.json:ro
+      - ./config/watchdog/check-certs.sh:/check-certs.sh:ro
+      - ./config/watchdog/check-dns.sh:/check-dns.sh:ro
+      - ./config/watchdog/check-crowdsec.sh:/check-crowdsec.sh:ro
+      - ./domains.csv:/domains.csv:ro
+      # Docker socket for CrowdSec container inspection
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - WATCHDOG_TELEGRAM_BOT_TOKEN=${WATCHDOG_TELEGRAM_BOT_TOKEN}
+      - WATCHDOG_TELEGRAM_RECIPIENT_ID=${WATCHDOG_TELEGRAM_RECIPIENT_ID}
+      - SERVER_DOMAIN=${DOMAIN} # For customizing the alert message
+      - WATCHDOG_CERT_DAYS_WARNING=${WATCHDOG_CERT_DAYS_WARNING}
+      - TZ=${TZ}
+      - TRAEFIK_LISTEN_IP=${TRAEFIK_LISTEN_IP}
+      - WATCHDOG_DNS_CHECK_INTERVAL=${WATCHDOG_DNS_CHECK_INTERVAL:-21600}
+      - WATCHDOG_CROWDSEC_CHECK_INTERVAL=${WATCHDOG_CROWDSEC_CHECK_INTERVAL:-3600}
+      - CROWDSEC_CONTAINER=crowdsec
+      - DASHBOARD_SUBDOMAIN=${DASHBOARD_SUBDOMAIN}
+      - CROWDSEC_ENABLE=${CROWDSEC_ENABLE:-true}
+    deploy:
+      resources:
+        limits:
+          cpus: 0.10
+          memory: 96M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================
+  #  CTOP: Explicitly invoked with: docker compose run --rm ctop
+  # ===========================
+  ctop:
+    image: quay.io/vektorlab/ctop:0.7.7
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    profiles: [ "tools" ] # Trick: This way it doesn't start automatically, only if explicitly requested
+
+networks:
+  traefik:
+    name: traefik
+    external: true

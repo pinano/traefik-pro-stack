@@ -276,7 +276,7 @@ if [[ "$ENABLE_CS" != "false" ]]; then
         docker network create traefik
     fi
 
-    COMPOSE_FILE="docker-compose-traefik-crowdsec-redis.yaml"
+    COMPOSE_FILE="docker-compose-security.yaml"
     echo "   🚀 Starting CrowdSec container..."
     docker compose -f $COMPOSE_FILE up -d crowdsec
     
@@ -316,7 +316,7 @@ if [[ "$ENABLE_CS" != "false" ]]; then
     fi
 
     echo "   🛑 Stopping CrowdSec..."
-    docker compose -f docker-compose-traefik-crowdsec-redis.yaml stop crowdsec
+    docker compose -f docker-compose-security.yaml stop crowdsec
     fi
 else
     echo ""

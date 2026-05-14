@@ -14,15 +14,13 @@
 # =============================================================================
 
 # Base compose files (always included)
-COMPOSE_FILES="-f docker-compose-traefik-crowdsec-redis.yaml \
-               -f docker-compose-tools.yaml \
-               -f docker-compose-grafana-loki-alloy-prometheus.yaml \
-               -f docker-compose-domain-manager.yaml"
+COMPOSE_FILES="-f docker-compose-edge.yaml \
+               -f docker-compose-security.yaml \
+               -f docker-compose-observability.yaml \
+               -f docker-compose-dashboard.yaml"
 
-# Add CrowdSec Web UI if enabled
-if [[ "${CROWDSEC_ENABLE:-true}" == "true" ]]; then
-    COMPOSE_FILES="$COMPOSE_FILES -f docker-compose-crowdsec-web-ui.yaml"
-fi
+# Add Anubis if enabled (base template + assets)
+COMPOSE_FILES="$COMPOSE_FILES -f docker-compose-anubis.yaml"
 
 # Add Anubis if generated config exists
 if [ -f "docker-compose-anubis-generated.yaml" ]; then

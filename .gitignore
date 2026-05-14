@@ -28,7 +28,8 @@ config/anubis/assets/static/img/reject.webp
 # Runtime flags
 .apache_host_available
 
-# Service data / databases
+# Service data / databases (runtime state — never commit)
+data/
 config/crowdsec-web-ui/*
 
 # Python cache files
