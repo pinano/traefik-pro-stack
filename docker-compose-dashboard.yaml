@@ -31,7 +31,6 @@ services:
       - ./docker-compose-edge.yaml:${DOMAIN_MANAGER_APP_PATH_HOST}/docker-compose-edge.yaml:ro
       - ./docker-compose-security.yaml:${DOMAIN_MANAGER_APP_PATH_HOST}/docker-compose-security.yaml:ro
       - ./docker-compose-anubis.yaml:${DOMAIN_MANAGER_APP_PATH_HOST}/docker-compose-anubis.yaml:ro
-      - ./docker-compose-anubis-base.yaml:${DOMAIN_MANAGER_APP_PATH_HOST}/docker-compose-anubis-base.yaml:ro
       - ./docker-compose-anubis-generated.yaml:${DOMAIN_MANAGER_APP_PATH_HOST}/docker-compose-anubis-generated.yaml
       - ./docker-compose-apache-logs.yaml:${DOMAIN_MANAGER_APP_PATH_HOST}/docker-compose-apache-logs.yaml:ro
       - ./docker-compose-observability.yaml:${DOMAIN_MANAGER_APP_PATH_HOST}/docker-compose-observability.yaml:ro

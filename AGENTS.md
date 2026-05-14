@@ -117,11 +117,11 @@ The stack uses multiple compose files to keep concerns separated:
 
 | File | Contents |
 |------|----------|
-| `docker-compose-traefik-crowdsec-redis.yaml` | Traefik, CrowdSec, Redis, Redis Exporter |
-| `docker-compose-tools.yaml` | Dozzle, ctop, Watchdog, Anubis-Assets |
-| `docker-compose-grafana-loki-alloy-prometheus.yaml` | Grafana, Loki, Alloy, Prometheus |
-| `docker-compose-domain-manager.yaml` | Domain Manager (Flask) |
-| `docker-compose-anubis-base.yaml` | Anubis service template |
+| `docker-compose-edge.yaml` | Traefik |
+| `docker-compose-security.yaml` | CrowdSec, Redis, Redis Exporter, CrowdSec Web UI |
+| `docker-compose-observability.yaml` | Grafana, Loki, Alloy, Prometheus |
+| `docker-compose-dashboard.yaml` | Domain Manager (Flask), Dozzle, Watchdog, ctop |
+| `docker-compose-anubis.yaml` | Anubis base template + Anubis Assets server |
 | `docker-compose-anubis-generated.yaml` | Auto-generated Anubis instances (from `generate-config.py`) |
 | `docker-compose-apache-logs.yaml` | Apache log integration (auto-included only when Apache is detected) |
 
