@@ -11,7 +11,7 @@ from collections import defaultdict
 # =============================================================================
 
 INPUT_FILE = 'domains.csv'
-BASE_FILENAME = 'docker-compose-anubis-base.yaml'
+BASE_FILENAME = 'docker-compose-anubis.yaml'
 OUTPUT_COMPOSE = 'docker-compose-anubis-generated.yaml'
 OUTPUT_TRAEFIK = 'config/traefik/dynamic-config/routers-generated.yaml'
 
