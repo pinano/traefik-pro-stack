@@ -595,6 +595,7 @@ def generate_configs():
                 'captchaSiteKey': CROWDSEC_CAPTCHA_SITE_KEY,
                 'captchaSecretKey': CROWDSEC_CAPTCHA_SECRET_KEY,
                 'captchaGracePeriodSeconds': CROWDSEC_CAPTCHA_GRACE_PERIOD,
+                'captchaHTMLFilePath': '/captcha.html',
             })
 
     # Blocked Paths Middleware (Conditional)
