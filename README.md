@@ -362,6 +362,10 @@ Redis uses two separate databases:
 | `CROWDSEC_COLLECTIONS` | Space-separated list of CrowdSec collections (parsers + scenarios) to install at startup. AppSec collections are injected automatically — do not add them here. | *defaults below* |
 | `CROWDSEC_WHITELIST_IPS` | Comma-separated IPs or CIDR ranges that bypass all CrowdSec checks. Internal Docker networks are always whitelisted automatically. | — |
 | `CROWDSEC_ENROLLMENT_KEY` | Optional key to enroll in the [CrowdSec Console](https://app.crowdsec.net) for centralized management and premium blocklists. | — |
+| `CROWDSEC_CAPTCHA_PROVIDER` | CAPTCHA provider for suspicious IPs (`turnstile`, `hcaptcha`, `recaptcha`). Leave empty to disable CAPTCHA remediation. | — |
+| `CROWDSEC_CAPTCHA_SITE_KEY` | Public site key for the selected CAPTCHA provider. | — |
+| `CROWDSEC_CAPTCHA_SECRET_KEY` | Secret/Private key for the selected CAPTCHA provider. | — |
+| `CROWDSEC_CAPTCHA_GRACE_PERIOD` | How long (seconds) an IP is allowed to browse freely after successfully solving a CAPTCHA. | `3600` |
 
 **Default collections included in `CROWDSEC_COLLECTIONS`:**
 
@@ -683,6 +687,17 @@ Profile order matters: the first matching profile wins. Repeat offenders are cau
 
 > [!TIP]
 > Edit `config/crowdsec/profiles.yaml` to tune ban durations. A restart of CrowdSec (`make restart crowdsec`) is required to apply changes.
+
+#### CAPTCHA Remediation
+
+Instead of directly blocking suspicious IPs for HTTP-based scenarios (e.g., crawlers or minor bot activity), CrowdSec can present a CAPTCHA challenge (via Turnstile, hCaptcha, or reCAPTCHA).
+
+- If the user solves the challenge, their IP is temporarily cleared for the duration of `CROWDSEC_CAPTCHA_GRACE_PERIOD`.
+- If they fail or are an automated bot, they remain blocked.
+- AppSec rules (WAF) always issue an immediate hard **ban** to prevent exploitation, skipping the CAPTCHA entirely.
+
+> [!WARNING]
+> If using Cloudflare Turnstile, ensure **all domains** served by Traefik are registered in the Turnstile widget configuration. If a domain is missing, the CAPTCHA will fail to load for that site, resulting in an un-solvable challenge (effectively a hard ban) for any users flagged on that domain.
 
 #### Log Acquisition (`acquis.yaml`)
 

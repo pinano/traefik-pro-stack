@@ -139,7 +139,7 @@ The active compose file list is determined by `scripts/compose-files.sh` — the
 
 ```
 Request → [UA Blacklist Router] → (if matched: 403)
-       → [CrowdSec Bouncer] → (if banned IP or bad payload: 403)
+       → [CrowdSec Bouncer] → (if banned IP or bad payload: 403; if captcha: present challenge)
        → [Slowloris Buffer]
        → [Security Headers]
        → [Rate Limiter]
@@ -276,6 +276,7 @@ make help             # Full command list
 | Forgetting `apache-host` requires Apache actually running | The TCP probe at startup determines if it's included |
 | Changing `TRAEFIK_HSTS_MAX_AGE` to a high value without testing HTTPS first | Always test with a low value (300) first |
 | Creating new secrets manually and adding them to .env | Use `openssl rand -hex 32` and update via `make init` or the auto-sync in `start.sh` |
+| Forgetting to add a domain to the Turnstile widget configuration | The CAPTCHA will fail to load on that domain, acting as an un-solvable ban for affected users. |
 
 ---
 
