@@ -23,6 +23,11 @@ CROWDSEC_API_KEY = os.getenv('CROWDSEC_API_KEY')
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD')
 CROWDSEC_ENABLE = os.getenv('CROWDSEC_ENABLE', 'true').lower() == 'true'
 CROWDSEC_APPSEC_ENABLE = os.getenv('CROWDSEC_APPSEC_ENABLE', 'true').lower() == 'true'
+CROWDSEC_CAPTCHA_PROVIDER = os.getenv('CROWDSEC_CAPTCHA_PROVIDER', '').strip()
+CROWDSEC_CAPTCHA_SITE_KEY = os.getenv('CROWDSEC_CAPTCHA_SITE_KEY', '').strip()
+CROWDSEC_CAPTCHA_SECRET_KEY = os.getenv('CROWDSEC_CAPTCHA_SECRET_KEY', '').strip()
+_grace_period = os.getenv('CROWDSEC_CAPTCHA_GRACE_PERIOD', '')
+CROWDSEC_CAPTCHA_GRACE_PERIOD = int(_grace_period) if _grace_period.strip() else 3600
 TRAEFIK_ENV_TYPE = os.getenv('TRAEFIK_ACME_ENV_TYPE', 'staging')
 IS_LOCAL_DEV = (TRAEFIK_ENV_TYPE == 'local')
 TRAEFIK_CERT_RESOLVER = os.getenv('TRAEFIK_CERT_RESOLVER', 'le')
@@ -583,6 +588,14 @@ def generate_configs():
                 }
             }
         }
+        
+        if CROWDSEC_CAPTCHA_PROVIDER:
+            traefik_dynamic_conf['http']['middlewares']['crowdsec-check']['plugin']['crowdsec'].update({
+                'captchaProvider': CROWDSEC_CAPTCHA_PROVIDER,
+                'captchaSiteKey': CROWDSEC_CAPTCHA_SITE_KEY,
+                'captchaSecretKey': CROWDSEC_CAPTCHA_SECRET_KEY,
+                'captchaGracePeriodSeconds': CROWDSEC_CAPTCHA_GRACE_PERIOD,
+            })
 
     # Blocked Paths Middleware (Conditional)
     if BLOCKED_PATHS:
