@@ -95,15 +95,47 @@ footer::after {
     top: 0 !important;
     left: 0 !important;
     right: 0 !important;
-    content: "Protected by Anubis" !important;
+    content: "Powered by Anubis" !important;
     text-align: center !important;
     font-size: 0.75rem !important;
     color: #9ca3af !important;
 }
 
-/* Hide error codes for a cleaner look */
-pre, code {
-    display: none !important;
+/* Style error codes and details content instead of hiding them */
+details {
+    text-align: left !important;
+    margin-top: 1rem !important;
+    font-size: 0.875rem !important;
+    color: #4b5563 !important;
+}
+
+summary {
+    cursor: pointer !important;
+    color: #3b82f6 !important;
+    margin-bottom: 0.5rem !important;
+}
+
+summary:hover {
+    text-decoration: underline !important;
+}
+
+pre {
+    background-color: #f3f4f6 !important;
+    padding: 1rem !important;
+    border-radius: 8px !important;
+    overflow-x: auto !important;
+    font-size: 0.75rem !important;
+    color: #4b5563 !important;
+    text-align: left !important;
+    margin-top: 0.5rem !important;
+}
+
+code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+    font-size: 0.75rem !important;
+    background-color: #f3f4f6 !important;
+    padding: 0.125rem 0.25rem !important;
+    border-radius: 4px !important;
 }
 
 a {
