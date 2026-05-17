@@ -103,16 +103,19 @@ footer::after {
 
 /* Style error codes and details content instead of hiding them */
 details {
-    text-align: left !important;
     margin-top: 1rem !important;
     font-size: 0.875rem !important;
     color: #4b5563 !important;
+    width: 100% !important;
 }
 
 summary {
     cursor: pointer !important;
     color: #3b82f6 !important;
     margin-bottom: 0.5rem !important;
+    text-align: center !important;
+    padding: 0.75rem !important; /* Larger tap target for mobile */
+    touch-action: manipulation !important; /* Improves mobile responsiveness */
 }
 
 summary:hover {
