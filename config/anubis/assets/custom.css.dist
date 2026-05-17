@@ -35,7 +35,7 @@ main {
     border-radius: 8px !important; /* Optional: smooth edges if needed */
 }
 
-/* Title styling similar to Captcha */
+/* Title styling */
 h1#title {
     font-size: 1.25rem !important;
     font-weight: 600 !important;
@@ -81,7 +81,7 @@ p, #status {
     transition: width 0.25s ease-in !important;
 }
 
-/* Clean up footer to look like the Captcha one */
+/* Clean up footer */
 footer {
     visibility: hidden !important;
     position: relative !important;
@@ -101,24 +101,9 @@ footer::after {
     color: #9ca3af !important;
 }
 
-/* Style error codes to look clean and contained */
-pre {
-    background-color: #f3f4f6 !important;
-    padding: 1rem !important;
-    border-radius: 8px !important;
-    overflow-x: auto !important;
-    font-size: 0.75rem !important;
-    color: #4b5563 !important;
-    text-align: left !important;
-    margin-top: 1rem !important;
-}
-
-code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
-    font-size: 0.75rem !important;
-    background-color: #f3f4f6 !important;
-    padding: 0.125rem 0.25rem !important;
-    border-radius: 4px !important;
+/* Hide error codes for a cleaner look */
+pre, code {
+    display: none !important;
 }
 
 a {
