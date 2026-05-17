@@ -101,24 +101,27 @@ footer::after {
     color: #9ca3af !important;
 }
 
-/* Style error codes and details content instead of hiding them */
+/* Style error codes and details content for desktop */
 details {
-    margin-top: 1rem !important;
+    margin-top: 1.5rem !important;
     font-size: 0.875rem !important;
     color: #4b5563 !important;
     width: 100% !important;
+    border-top: 1px solid #f3f4f6 !important;
+    padding-top: 1rem !important;
 }
 
 summary {
     cursor: pointer !important;
     color: #3b82f6 !important;
-    margin-bottom: 0.5rem !important;
     text-align: center !important;
-    padding: 0.75rem !important; /* Larger tap target for mobile */
-    touch-action: manipulation !important; /* Improves mobile responsiveness */
+    padding: 0.5rem !important;
+    transition: color 0.2s ease-in-out !important;
+    user-select: none !important;
 }
 
 summary:hover {
+    color: #2563eb !important;
     text-decoration: underline !important;
 }
 
@@ -130,7 +133,7 @@ pre {
     font-size: 0.75rem !important;
     color: #4b5563 !important;
     text-align: left !important;
-    margin-top: 0.5rem !important;
+    margin-top: 1rem !important;
 }
 
 code {
@@ -149,4 +152,11 @@ a {
 
 a:hover {
     text-decoration: underline !important;
+}
+
+/* Hide details and raw error blocks completely on mobile devices */
+@media (max-width: 768px) {
+    details, pre {
+        display: none !important;
+    }
 }
