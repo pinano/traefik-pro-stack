@@ -4,7 +4,7 @@ services:
   #  TRAEFIK (Edge Router)
   # ===========================
   traefik:
-    image: traefik:v3.6.9
+    image: traefik:v3.7.1
     restart: always
     ports:
       - "${TRAEFIK_LISTEN_IP:-0.0.0.0}:80:80"
