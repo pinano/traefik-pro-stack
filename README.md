@@ -161,6 +161,7 @@ All internal tools are accessible from your dashboard subdomain (default: `dashb
 3. **View Live Logs**: `https://dashboard.<your-domain>/dozzle` — Real-time container logs.
 4. **Monitor Metrics**: `https://dashboard.<your-domain>/grafana` — Traffic and system dashboards.
 5. **View Certificates**: `https://dashboard.<your-domain>/certs` — Certificate status per domain.
+6. **Manage Firewall**: `https://dashboard.<your-domain>/crowdsec` — CrowdSec alert management.
 
 > [!NOTE]
 > The `dashboard` subdomain is configurable via `DASHBOARD_SUBDOMAIN` in `.env`. All tools behind it share a single SSO login — the Domain Manager credentials.
@@ -696,6 +697,9 @@ Instead of directly blocking suspicious IPs for HTTP-based scenarios (e.g., craw
 - If they fail or are an automated bot, they remain blocked.
 - AppSec rules (WAF) always issue an immediate hard **ban** to prevent exploitation, skipping the CAPTCHA entirely.
 
+> [!NOTE]
+> The CAPTCHA remediation profile is generated dynamically. It is only enabled if `CROWDSEC_CAPTCHA_PROVIDER`, `CROWDSEC_CAPTCHA_SITE_KEY`, and `CROWDSEC_CAPTCHA_SECRET_KEY` are all configured in your `.env`. If any of these are missing, the stack gracefully falls back to aggressive bans.
+
 > [!WARNING]
 > If using Cloudflare Turnstile, ensure **all domains** served by Traefik are registered in the Turnstile widget configuration. If a domain is missing, the CAPTCHA will fail to load for that site, resulting in an un-solvable challenge (effectively a hard ban) for any users flagged on that domain.
 
@@ -888,6 +892,7 @@ All alerts are sent via the Telegram Bot API to `WATCHDOG_TELEGRAM_RECIPIENT_ID`
 | Service | Description | Access |
 |---------|-------------|--------|
 | **Dozzle** | Real-time log viewer for all running containers | `https://dashboard.<domain>/dozzle` |
+| **CrowdSec Web UI** | Web interface for the CrowdSec LAPI to manage alerts | `https://dashboard.<domain>/crowdsec` |
 | **ctop** | Interactive container monitoring (CPU, RAM, net I/O) | `make ctop` |
 | **Anubis-Assets** | Nginx server that serves Anubis static assets (CSS, images) | Internal, via Traefik dynamic config |
 | **Redis Exporter** | Prometheus exporter for Redis metrics | Internal, scraped by Alloy |
@@ -1067,6 +1072,7 @@ All dashboards are served under `https://<DASHBOARD_SUBDOMAIN>.<DOMAIN>`:
 | Grafana | `/grafana` | SSO (Viewer) or Admin login | Full metrics/alerting platform |
 | Dozzle | `/dozzle` | SSO Login | Real-time container log viewer |
 | Certificates | `/certs` | SSO Login | Certificate status per domain |
+| CrowdSec UI | `/crowdsec` | SSO Login | Alert management and decision overview |
 
 ---
 
