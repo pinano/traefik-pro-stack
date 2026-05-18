@@ -31,7 +31,7 @@ on_success: break
 ---
 
 # -----------------------------------------------------------------------------
-# Profile 2: CAPTCHA Remediation for HTTP Scenarios (1 hour)
+# Profile 2: CAPTCHA Remediation for HTTP Scenarios (4 hours)
 # -----------------------------------------------------------------------------
 # HTTP-based attacks (crawlers, bad bots) get a CAPTCHA instead of a ban.
 # Excludes AppSec (WAF) since those are high-confidence malicious.
@@ -62,7 +62,7 @@ on_success: break
 ---
 
 # -----------------------------------------------------------------------------
-# Profile 3: Range-based Attacks (48 hours)
+# Profile 4: Range-based Attacks (48 hours)
 # -----------------------------------------------------------------------------
 # If the attack targets a range (subnet), apply a 48-hour ban to the range.
 

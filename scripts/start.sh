@@ -345,6 +345,90 @@ else
     echo "   ✅ acquis.yaml generated."
 fi
 
+# =============================================================================
+# PHASE 2c: Generate profiles.yaml (CrowdSec remediation profiles)
+# =============================================================================
+# Conditionally inject CAPTCHA remediation only if fully configured.
+
+PROFILES_BASE="./config/crowdsec/profiles-base.yaml"
+PROFILES_OUT="./config/crowdsec/profiles.yaml"
+
+if [ ! -f "$PROFILES_BASE" ]; then
+    echo "   ❌ Error: $PROFILES_BASE not found!"
+    exit 1
+fi
+
+TMP_PROFILES=$(mktemp)
+cp "$PROFILES_BASE" "$TMP_PROFILES"
+
+# Check if CAPTCHA is fully configured
+if [ -n "$CROWDSEC_CAPTCHA_PROVIDER" ] && [ -n "$CROWDSEC_CAPTCHA_SITE_KEY" ] && [ -n "$CROWDSEC_CAPTCHA_SECRET_KEY" ]; then
+    cat >> "$TMP_PROFILES" << 'EOF'
+
+---
+
+# -----------------------------------------------------------------------------
+# Profile 2: CAPTCHA Remediation for HTTP Scenarios (4 hours)
+# -----------------------------------------------------------------------------
+# HTTP-based attacks (crawlers, bad bots) get a CAPTCHA instead of a ban.
+# Excludes AppSec (WAF) since those are high-confidence malicious.
+
+name: captcha_remediation
+filters:
+ - Alert.Remediation == true && Alert.GetScope() == "Ip" && Alert.GetScenario() contains "http" && !(Alert.GetScenario() contains "appsec")
+decisions:
+ - type: captcha
+   duration: 4h
+on_success: break
+EOF
+    echo "   🛡️ CAPTCHA remediation profile is ENABLED."
+else
+    echo "   ℹ️ CAPTCHA variables are empty. CAPTCHA remediation is DISABLED."
+fi
+
+# Append the fallback/default aggressive bans
+cat >> "$TMP_PROFILES" << 'EOF'
+
+---
+
+# -----------------------------------------------------------------------------
+# Profile 3: Standard Aggressive Ban (24 hours)
+# -----------------------------------------------------------------------------
+# Default ban duration increased from 4h to 24h for all IP-based remediation.
+
+name: aggressive_ban
+filters:
+ - Alert.Remediation == true && Alert.GetScope() == "Ip"
+decisions:
+ - type: ban
+   duration: 24h   # 24 hours (default is 4h)
+on_success: break
+
+---
+
+# -----------------------------------------------------------------------------
+# Profile 4: Range-based Attacks (48 hours)
+# -----------------------------------------------------------------------------
+# If the attack targets a range (subnet), apply a 48-hour ban to the range.
+
+name: range_ban
+filters:
+ - Alert.Remediation == true && Alert.GetScope() == "Range"
+decisions:
+ - type: ban
+   duration: 48h
+on_success: break
+EOF
+
+# Idempotent write: only update profiles.yaml if content changed
+if [ -f "$PROFILES_OUT" ] && cmp -s "$TMP_PROFILES" "$PROFILES_OUT"; then
+    rm "$TMP_PROFILES"
+else
+    cat "$TMP_PROFILES" > "$PROFILES_OUT"
+    rm "$TMP_PROFILES"
+    echo "   ✅ profiles.yaml generated."
+fi
+
 # Build Compose command with or without CrowdSec profile
 # Enforce project name to avoid conflicts when running from within a container
 COMPOSE_BASE="docker compose"

@@ -1,0 +1,29 @@
+# =============================================================================
+# Profile 0: AppSec (WAF) Alerts (48h ban)
+# -----------------------------------------------------------------------------
+# Detections from the WAF engine result in an immediate 48h ban.
+# WAF alerts have very high confidence.
+
+name: appsec_ban
+filters:
+ - Alert.Remediation == true && Alert.GetScope() == "Ip" && Alert.GetScenario() contains "appsec"
+decisions:
+ - type: ban
+   duration: 48h
+on_success: break
+
+---
+
+# -----------------------------------------------------------------------------
+# Profile 1: Repeat Offenders (7-day ban)
+# -----------------------------------------------------------------------------
+# If an IP triggers multiple alerts (>5 events), apply a 7-day ban.
+# This catches persistent attackers who keep probing after initial bans.
+
+name: repeat_offender
+filters:
+ - Alert.Remediation == true && Alert.GetScope() == "Ip" && len(Alert.Events) > 5
+decisions:
+ - type: ban
+   duration: 168h  # 7 days
+on_success: break
