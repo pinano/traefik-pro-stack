@@ -49,6 +49,7 @@ body {
     background-color: var(--bg-color);
     color: var(--text-color);
     line-height: 1.5;
+    overflow-y: scroll;
 }
 
 /* Enforce font on form elements */
