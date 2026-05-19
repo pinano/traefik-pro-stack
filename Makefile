@@ -41,6 +41,16 @@ PROJECT_NAME := $(shell grep '^PROJECT_NAME=' .env 2>/dev/null | cut -d= -f2 || 
 export TRAEFIK_CONFIG_HASH ?= ""
 export TRAEFIK_CERT_RESOLVER ?= ""
 
+# Resolve path variables if they are empty or set to placeholder/default values
+ifeq ($(DASHBOARD_APP_PATH_HOST),REPLACE_ME)
+    DASHBOARD_APP_PATH_HOST := $(shell pwd)
+    export DASHBOARD_APP_PATH_HOST
+endif
+ifeq ($(DASHBOARD_APP_PATH_HOST),)
+    DASHBOARD_APP_PATH_HOST := $(shell pwd)
+    export DASHBOARD_APP_PATH_HOST
+endif
+
 # Default tail for logs (can be overridden with tail=N)
 tail ?= all
 
