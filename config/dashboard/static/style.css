@@ -637,6 +637,11 @@ input:focus {
     box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);
 }
 
+.toast.alert-warning {
+    border: 2px solid #f59e0b;
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.2);
+}
+
 .toast-header {
     display: flex;
     justify-content: space-between;
@@ -651,6 +656,12 @@ input:focus {
     background-color: #fef2f2;
     color: #991b1b;
     border-bottom-color: #fecaca;
+}
+
+.toast.alert-warning .toast-header {
+    background-color: #fffbeb;
+    color: #92400e;
+    border-bottom-color: #fef3c7;
 }
 
 .toast-body {
@@ -679,6 +690,10 @@ input:focus {
 
 .toast.alert-danger .toast-close {
     color: #ef4444;
+}
+
+.toast.alert-warning .toast-close {
+    color: #f59e0b;
 }
 
 .error-list {
@@ -954,8 +969,8 @@ input:focus {
         padding-bottom: 0.6rem;
         min-height: 40px;
         display: flex;
-        align-items: flex-start;
-        /* Align content to top */
+        align-items: center;
+        /* Align content to center vertically */
         flex-wrap: wrap;
         gap: 0.5rem;
         border-bottom: 1px solid var(--border-color);
@@ -972,8 +987,9 @@ input:focus {
 
     td:before {
         position: absolute;
-        top: 0.6rem;
-        /* Align with top padding */
+        top: 50%;
+        transform: translateY(-50%);
+        /* Center vertically */
         left: 0.75rem;
         width: 40%;
         padding-right: 10px;
@@ -1005,14 +1021,17 @@ input:focus {
     /* Input adjustments for mobile */
     input[type="text"],
     input[type="password"],
-    input[type="number"] {
+    input[type="number"],
+    select {
         font-size: 16px;
         /* Prevent zoom on iOS */
     }
 
     /* Width overrides for card view */
-    td:nth-child(n) {
-        width: 100%;
+    td:nth-child(n),
+    #captcha-table td,
+    #deleted-captcha-table td {
+        width: 100% !important;
     }
 
     .remove-row-btn {

@@ -5,6 +5,7 @@ import hmac
 import subprocess
 import secrets
 import re
+import requests
 import socket
 import logging
 import tempfile
@@ -488,7 +489,55 @@ def write_csv(data):
             os.unlink(tmp_path)
         except OSError:
             pass
-        raise
+# CAPTCHA keys validation patterns
+TURNSTILE_SITE_KEY_RE = re.compile(r'^(0x4|[123]x)[A-Za-z0-9-_]{15,30}$')
+TURNSTILE_SECRET_KEY_RE = re.compile(r'^(0x4|[123]x)[A-Za-z0-9-_]{30,50}$')
+
+HCAPTCHA_SITE_KEY_RE = re.compile(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
+HCAPTCHA_SECRET_KEY_RE = re.compile(r'^(0x[0-9a-fA-F]{40}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$')
+
+RECAPTCHA_KEY_RE = re.compile(r'^[A-Za-z0-9-_]{35,50}$')
+
+def verify_secret_key_online(provider, secret_key):
+    """
+    Query the provider's /siteverify API with the secret key and a dummy response.
+    Returns (True, None) if the key is valid/not explicitly rejected.
+    Returns (False, error_msg) if explicitly rejected by the provider (invalid-input-secret).
+    Returns (None, warning_msg) on connection error/timeout (fail-open).
+    """
+    endpoints = {
+        'turnstile': 'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+        'hcaptcha': 'https://api.hcaptcha.com/siteverify',
+        'recaptcha': 'https://www.google.com/recaptcha/api/siteverify'
+    }
+    url = endpoints.get(provider.lower())
+    if not url:
+        return False, "Proveedor desconocido"
+    try:
+        # Pass a dummy token so the API evaluates the secret key
+        res = requests.post(url, data={'secret': secret_key, 'response': 'dummy_response_token'}, timeout=4)
+        if res.status_code != 200:
+            # Let's check: Turnstile returns 400 for bad secrets, which is expected
+            if res.status_code == 400 and provider.lower() == 'turnstile':
+                try:
+                    res_json = res.json()
+                    error_codes = res_json.get('error-codes', [])
+                    if 'invalid-input-secret' in error_codes:
+                        return False, "Clave secreta inválida (rechazada por Cloudflare)"
+                except Exception:
+                    pass
+            return None, f"El API del proveedor respondió con estado HTTP {res.status_code}"
+            
+        res_json = res.json()
+        error_codes = res_json.get('error-codes', [])
+        if 'invalid-input-secret' in error_codes:
+            return False, f"Clave secreta inválida (rechazada por {provider})"
+            
+        return True, None
+    except requests.Timeout:
+        return None, "Tiempo de espera agotado al conectar con el proveedor"
+    except Exception as e:
+        return None, f"Error de conexión: {str(e)}"
 
 def validate_captcha_data(entry):
     """Validate a captcha entry. Disabled entries only need a valid domain."""
@@ -1045,20 +1094,97 @@ def api_captchas():
                 'duplicates': duplicates
             }), 400
 
-        # Only validate active entries for key completeness
-        invalid_entries = []
-        for entry in data:
-            if not validate_captcha_data(entry):
-                invalid_entries.append(entry.get('root_domain', 'Unknown'))
+        # Retrieve active root domains from domains.csv to check configuration alignment
+        try:
+            domains_data = read_csv()
+            active_root_domains = {get_root_domain(d['domain']).lower() for d in domains_data if d.get('enabled', True) and d.get('domain')}
+        except Exception as e:
+            log.error("Failed to read domains.csv during captcha validation: %s", e)
+            active_root_domains = set()
 
-        if invalid_entries:
+        errors = []
+        warnings = []
+        entries_to_verify = []
+
+        for entry in data:
+            if not entry.get('enabled', True):
+                continue
+
+            domain = entry.get('root_domain', '').strip().lower()
+            provider = entry.get('provider', '').strip().lower()
+            site_key = entry.get('site_key', '').strip()
+            secret_key = entry.get('secret_key', '').strip()
+
+            has_structural_error = False
+
+            # Basic structure validation (empty keys, etc.)
+            if not validate_captcha_data(entry):
+                errors.append(f"[{domain}] Faltan la Site Key, la Secret Key o el dominio es inválido.")
+                has_structural_error = True
+                continue
+
+            # 1. Check if domain exists in domains.csv
+            if domain not in active_root_domains:
+                errors.append(f"[{domain}] El dominio no está configurado como activo en domains.csv.")
+                has_structural_error = True
+
+            # 2. Check format with Regex
+            if provider == 'turnstile':
+                if not TURNSTILE_SITE_KEY_RE.match(site_key):
+                    errors.append(f"[{domain}] Formato de Site Key inválido para Turnstile (debe empezar por 0x4 y tener de 18 a 33 caracteres).")
+                    has_structural_error = True
+                if not TURNSTILE_SECRET_KEY_RE.match(secret_key):
+                    errors.append(f"[{domain}] Formato de Secret Key inválido para Turnstile (debe empezar por 0x4 y tener de 33 a 53 caracteres).")
+                    has_structural_error = True
+            elif provider == 'hcaptcha':
+                if not HCAPTCHA_SITE_KEY_RE.match(site_key):
+                    errors.append(f"[{domain}] La Site Key de hCaptcha debe tener un formato UUID válido.")
+                    has_structural_error = True
+                if not HCAPTCHA_SECRET_KEY_RE.match(secret_key):
+                    errors.append(f"[{domain}] La Secret Key de hCaptcha debe ser un UUID o empezar con 0x y tener 40 caracteres hexadecimales.")
+                    has_structural_error = True
+            elif provider == 'recaptcha':
+                if not RECAPTCHA_KEY_RE.match(site_key):
+                    errors.append(f"[{domain}] Formato de Site Key inválido para reCAPTCHA.")
+                    has_structural_error = True
+                if not RECAPTCHA_KEY_RE.match(secret_key):
+                    errors.append(f"[{domain}] Formato de Secret Key inválido para reCAPTCHA.")
+                    has_structural_error = True
+
+            # If no structural/regex errors, queue for online verification
+            if not has_structural_error:
+                entries_to_verify.append((domain, provider, secret_key))
+
+        # 3. Online verification (Parallel via ThreadPoolExecutor)
+        if entries_to_verify:
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                futures = {
+                    executor.submit(verify_secret_key_online, provider, sec): (dom, provider)
+                    for dom, provider, sec in entries_to_verify
+                }
+                for future in as_completed(futures):
+                    dom, prov = futures[future]
+                    try:
+                        is_valid, err_msg = future.result()
+                        if is_valid is False:
+                            errors.append(f"[{dom}] Error en la clave secreta de {prov}: {err_msg}")
+                        elif is_valid is None:
+                            warnings.append(f"[{dom}] No se pudo verificar la clave secreta de {prov} online: {err_msg}")
+                    except Exception as e:
+                        warnings.append(f"[{dom}] Error al verificar la clave secreta de {prov}: {str(e)}")
+
+        if errors:
             return jsonify({
                 'status': 'error',
-                'message': f'Invalid credentials or domain format for: {", ".join(invalid_entries)}'
+                'message': 'Falló la validación de claves CAPTCHA.',
+                'errors': errors
             }), 400
 
         write_captcha_csv(data)
-        return jsonify({'status': 'success'})
+        return jsonify({
+            'status': 'success',
+            'warnings': warnings
+        })
 
 @app.route('/dm-api/services', methods=['GET'])
 @login_required

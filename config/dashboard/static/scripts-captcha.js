@@ -311,10 +311,15 @@ function escapeHtml(str) {
 function showToast(message, type = 'success', errors = []) {
     toastEl.className = 'toast';
     if (type === 'danger') toastEl.classList.add('alert-danger');
+    if (type === 'warning') toastEl.classList.add('alert-warning');
+    
+    let title = 'Notification';
+    if (type === 'danger') title = 'Validation Error';
+    else if (type === 'warning') title = 'Validation Warning';
     
     let html = `
         <div class="toast-header">
-            <span>${type === 'danger' ? 'Validation Error' : 'Notification'}</span>
+            <span>${title}</span>
             <button onclick="hideToast()" class="toast-close" title="Dismiss">&times;</button>
         </div>
         <div class="toast-body">
@@ -333,8 +338,8 @@ function showToast(message, type = 'success', errors = []) {
     toastEl.innerHTML = html;
     toastEl.classList.add('show');
 
-    // Auto close after 5 seconds if not error
-    if (type !== 'danger') {
+    // Auto close after 5 seconds if not error or warning
+    if (type !== 'danger' && type !== 'warning') {
         setTimeout(hideToast, 5000);
     }
 }
@@ -438,23 +443,23 @@ function renderTables() {
             const visibleDomain = (row.root_domain || '').startsWith('new-domain-') ? '' : row.root_domain;
 
             tr.innerHTML = `
-                <td>
+                <td data-label="Root Domain">
                     <input type="text" class="data-input domain-input" value="${escapeHtml(visibleDomain)}" placeholder="example.com" autocomplete="off">
                 </td>
-                <td>
+                <td data-label="CAPTCHA Provider">
                     <select class="data-input provider-select">
                         <option value="turnstile" ${row.provider === 'turnstile' ? 'selected' : ''}>turnstile (Cloudflare)</option>
                         <option value="recaptcha" ${row.provider === 'recaptcha' ? 'selected' : ''}>recaptcha (Google)</option>
                         <option value="hcaptcha" ${row.provider === 'hcaptcha' ? 'selected' : ''}>hcaptcha</option>
                     </select>
                 </td>
-                <td>
+                <td data-label="Site Key">
                     <input type="text" class="data-input site-key-input" value="${escapeHtml(row.site_key)}" placeholder="Site Key">
                 </td>
-                <td>
+                <td data-label="Secret Key">
                     <input type="text" class="data-input secret-key-input" value="${escapeHtml(row.secret_key)}" placeholder="Secret Key">
                 </td>
-                <td style="text-align: center;">
+                <td data-label="Action" style="text-align: center;">
                     <button class="btn btn-danger btn-xs delete-row-btn" title="Delete record">
                         <i data-lucide="trash-2"></i>
                     </button>
@@ -479,11 +484,11 @@ function renderTables() {
             const tr = document.createElement('tr');
             tr.dataset.id = row._id;
             tr.innerHTML = `
-                <td><input type="text" class="data-input" value="${escapeHtml(row.root_domain)}" disabled></td>
-                <td><input type="text" class="data-input" value="${escapeHtml(row.provider)}" disabled></td>
-                <td><input type="text" class="data-input" value="${escapeHtml(row.site_key)}" disabled></td>
-                <td><input type="text" class="data-input" value="${escapeHtml(row.secret_key)}" disabled></td>
-                <td style="text-align: center;">
+                <td data-label="Root Domain"><input type="text" class="data-input" value="${escapeHtml(row.root_domain)}" disabled></td>
+                <td data-label="CAPTCHA Provider"><input type="text" class="data-input" value="${escapeHtml(row.provider)}" disabled></td>
+                <td data-label="Site Key"><input type="text" class="data-input" value="${escapeHtml(row.site_key)}" disabled></td>
+                <td data-label="Secret Key"><input type="text" class="data-input" value="${escapeHtml(row.secret_key)}" disabled></td>
+                <td data-label="Action" style="text-align: center;">
                     <div style="display: flex; gap: 0.25rem; justify-content: center;">
                         <button class="btn btn-success btn-xs restore-row-btn" title="Restore record">
                             <i data-lucide="rotate-ccw"></i>
@@ -681,10 +686,16 @@ async function saveChanges() {
 
         const result = await response.json();
         if (!response.ok) {
-            throw new Error(result.message || 'Failed to save changes');
+            showToast(result.message || 'Failed to save changes', 'danger', result.errors || []);
+            saveBtn.disabled = false;
+            return;
         }
 
-        showToast('Changes saved successfully. The system is ready to apply configurations.', 'success');
+        if (result.warnings && result.warnings.length > 0) {
+            showToast('Changes saved with warnings. Please review the connection issues below.', 'warning', result.warnings);
+        } else {
+            showToast('Changes saved successfully. The system is ready to apply configurations.', 'success');
+        }
 
         // Remove the isNew flag from all saved entries
         currentData.forEach(r => { delete r.isNew; });
