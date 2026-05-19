@@ -579,6 +579,10 @@ def write_captcha_csv(data):
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp_path, CAPTCHA_CSV_PATH)
+        try:
+            os.chmod(CAPTCHA_CSV_PATH, 0o644)
+        except OSError:
+            pass
     except Exception:
         try:
             os.unlink(tmp_path)
