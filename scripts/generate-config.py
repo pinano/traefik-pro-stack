@@ -203,11 +203,24 @@ def atomic_write_yaml(data, filepath, header=None):
         os.chmod(temp_path, 0o644)
         
         # Atomic replacement
-        os.replace(temp_path, filepath)
+        try:
+            os.replace(temp_path, filepath)
+        except OSError as e:
+            import errno
+            if e.errno == errno.EBUSY:
+                # Fallback to non-atomic write if target is a bind mount
+                with open(filepath, 'w') as f_out:
+                    f_out.write(new_content)
+                os.remove(temp_path)
+            else:
+                raise
     except Exception as e:
         # Cleanup temp file on failure
         if os.path.exists(temp_path):
-            os.remove(temp_path)
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
         print(f"    ❌ Error writing to {filepath}: {e}")
         # We don't raise so the script can continue with other files
 
