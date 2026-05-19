@@ -42,14 +42,14 @@
                 {% if certs_enabled %}
                 <a href="/certs" class="app-card">
                     <i data-lucide="shield-check" class="app-icon" style="color: #10b981;"></i>
-                    <h2 class="app-title">Certificates</h2>
-                    <p class="app-desc">Manage SSL/TLS certificates.</p>
+                    <h2 class="app-title">Certificates Inspector</h2>
+                    <p class="app-desc">Inspect SSL/TLS certificates.</p>
                 </a>
                 {% else %}
                 <div class="app-card" style="opacity: 0.6; cursor: not-allowed;"
                     title="Certificates are not managed in local environment (TRAEFIK_ACME_ENV_TYPE=local)">
                     <i data-lucide="shield-off" class="app-icon" style="color: #94a3b8;"></i>
-                    <h2 class="app-title" style="color: #6b7280;">Certificates</h2>
+                    <h2 class="app-title" style="color: #6b7280;">Certificates Inspector</h2>
                     <p class="app-desc">Certificates are not managed in local environment.</p>
                 </div>
                 {% endif %}

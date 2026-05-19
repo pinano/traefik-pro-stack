@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Certificates - {{ domain }}</title>
+    <title>{{ domain }} - Certificates Inspector</title>
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link
@@ -164,47 +164,67 @@
             <div class="modal-body">
                 <div class="help-section">
                     <p style="margin-bottom: 1rem; color: var(--text-muted);">
-                        The stack provides several Makefile commands to manage, inspect, and clean SSL/TLS certificates directly from the console:
+                        The stack provides several Makefile commands to manage, inspect, and clean SSL/TLS certificates
+                        directly from the console:
                     </p>
                     <ul class="help-list" style="list-style: none; padding-left: 0;">
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.75rem;">
-                            <div style="flex-shrink: 0; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; font-weight: bold; color: var(--primary-color);">
+                        <li
+                            style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.75rem;">
+                            <div
+                                style="flex-shrink: 0; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; font-weight: bold; color: var(--primary-color);">
                                 make certs-info
                             </div>
                             <div style="margin-top: 2px;">
-                                <strong>Analyze Certificates (Summary):</strong> Compares active certificates in <code>acme.json</code> against the domains listed in <code>domains.csv</code> and prints a quick status summary.
+                                <strong>Analyze Certificates (Summary):</strong> Compares active certificates in
+                                <code>acme.json</code> against the domains listed in <code>domains.csv</code> and prints
+                                a quick status summary.
                             </div>
                         </li>
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.75rem;">
-                            <div style="flex-shrink: 0; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; font-weight: bold; color: var(--primary-color);">
+                        <li
+                            style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.75rem;">
+                            <div
+                                style="flex-shrink: 0; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; font-weight: bold; color: var(--primary-color);">
                                 make certs-inspect
                             </div>
                             <div style="margin-top: 2px;">
-                                <strong>Detailed Inspection:</strong> Performs a comprehensive comparison of certificates against <code>domains.csv</code>, listing all covered domains, SANs, status, and expiration dates.
+                                <strong>Detailed Inspection:</strong> Performs a comprehensive comparison of
+                                certificates against <code>domains.csv</code>, listing all covered domains, SANs,
+                                status, and expiration dates.
                             </div>
                         </li>
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.75rem;">
-                            <div style="flex-shrink: 0; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; font-weight: bold; color: var(--primary-color);">
+                        <li
+                            style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.75rem;">
+                            <div
+                                style="flex-shrink: 0; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; font-weight: bold; color: var(--primary-color);">
                                 make certs-watch
                             </div>
                             <div style="margin-top: 2px;">
-                                <strong>Monitor ACME Logs:</strong> Streams and filters Traefik container logs in real-time, focusing on ACME validation stages, challenge resolutions, and certification errors.
+                                <strong>Monitor ACME Logs:</strong> Streams and filters Traefik container logs in
+                                real-time, focusing on ACME validation stages, challenge resolutions, and certification
+                                errors.
                             </div>
                         </li>
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.75rem;">
-                            <div style="flex-shrink: 0; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; font-weight: bold; color: var(--primary-color);">
+                        <li
+                            style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.75rem;">
+                            <div
+                                style="flex-shrink: 0; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; font-weight: bold; color: var(--primary-color);">
                                 make certs-prune
                             </div>
                             <div style="margin-top: 2px;">
-                                <strong>Prune Unused (Dry-Run):</strong> Identifies and lists certificates inside <code>acme.json</code> that belong to domains no longer defined in <code>domains.csv</code>. Does not modify the file.
+                                <strong>Prune Unused (Dry-Run):</strong> Identifies and lists certificates inside
+                                <code>acme.json</code> that belong to domains no longer defined in
+                                <code>domains.csv</code>. Does not modify the file.
                             </div>
                         </li>
                         <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
-                            <div style="flex-shrink: 0; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; font-weight: bold; color: var(--primary-color);">
+                            <div
+                                style="flex-shrink: 0; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; font-weight: bold; color: var(--primary-color);">
                                 make certs-prune-force
                             </div>
                             <div style="margin-top: 2px;">
-                                <strong>Force Prune (Destructive):</strong> Permanently removes old/unused certificates from <code>acme.json</code> and hot-reloads Traefik to apply changes. Creates a backup automatically.
+                                <strong>Force Prune (Destructive):</strong> Permanently removes old/unused certificates
+                                from <code>acme.json</code> and hot-reloads Traefik to apply changes. Creates a backup
+                                automatically.
                             </div>
                         </li>
                     </ul>
