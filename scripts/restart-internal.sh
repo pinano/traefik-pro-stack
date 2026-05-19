@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # =============================================================================
-# restart-internal.sh - Targeted Stack Restart for Domain Manager UI
+# restart-internal.sh - Targeted Stack Restart for Dashboard UI
 # =============================================================================
 # A lightweight restart that regenerates config and applies changes
 # WITHOUT recreating existing containers.
 #
-# Designed to run INSIDE the domain-manager container.
+# Designed to run INSIDE the dashboard container.
 #
 # Strategy:
 #   1. Regenerate dynamic config (Traefik routes, Anubis compose, policies)

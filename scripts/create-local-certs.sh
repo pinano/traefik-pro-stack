@@ -14,7 +14,7 @@ fi
 # Ensure output directory exists
 mkdir -p "$CERT_DIR"
 
-# Determine which hosts file to use (support for running inside domain-manager container)
+# Determine which hosts file to use (support for running inside dashboard container)
 HOSTS_FILE="/etc/hosts"
 if [ -f "/etc/hosts-host" ]; then
     HOSTS_FILE="/etc/hosts-host"

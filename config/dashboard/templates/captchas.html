@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ domain }} - CAPTCHA Keys</title>
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,300;0,400;0,700;1,300&display=swap"
+        rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Specific column alignments for captcha manager table */
+        th:nth-child(1),
+        td:nth-child(1) {
+            width: 25%;
+        }
+
+        th:nth-child(2),
+        td:nth-child(2) {
+            width: 20%;
+        }
+
+        th:nth-child(3),
+        td:nth-child(3) {
+            width: 25%;
+        }
+
+        th:nth-child(4),
+        td:nth-child(4) {
+            width: 25%;
+        }
+
+        th:nth-child(5),
+        td:nth-child(5) {
+            width: 5%;
+            text-align: center;
+        }
+
+        select.data-input {
+            width: 100%;
+            padding: 0.35rem 0.5rem;
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 0.25rem;
+            color: var(--text-color);
+            font-size: 0.8125rem;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        select.data-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="unsaved-notification" class="unsaved-changes-banner">
+        <i data-lucide="save" style="vertical-align: middle; margin-right: 0.5rem; width: 1.2rem; height: 1.2rem;"></i>
+        Unsaved changes. Don't forget to save!
+    </div>
+    <div id="deploy-notification" class="deploy-needed-banner">
+        <i id="deploy-notification-icon" data-lucide="zap"
+            style="vertical-align: middle; margin-right: 0.5rem; width: 1.2rem; height: 1.2rem;"></i>
+        <span id="deploy-notification-text">Changes saved. Ready to deploy.</span>
+    </div>
+
+    <div class="container">
+        <header>
+            <div class="logo">
+                <div class="logo-title-row">
+                    <a href="{{ url_for('dashboard') }}" class="back-link" title="Back to Dashboard">
+                        <i data-lucide="arrow-left"></i>
+                    </a>
+                    <h1>Captcha Keys</h1>
+                </div>
+                <div class="logo-subtitles">
+                    <span>{{ domain }}</span>
+                    <span class="subtitle-separator">|</span>
+                    <span class="subtitle-link" style="cursor: default;">
+                        <i data-lucide="key-round" style="color: var(--warning-color); width: 14px; height: 14px;"></i> Root-Domain Security
+                    </span>
+                </div>
+            </div>
+            <div class="actions">
+                <button id="save-btn" class="btn btn-success" disabled>
+                    <i data-lucide="save"></i> Save Changes
+                </button>
+                <button id="deploy-btn" class="btn btn-apply" disabled title="Save changes first to enable deployment">
+                    <i data-lucide="rocket"></i> Deploy Changes
+                </button>
+                <a href="{{ url_for('logout') }}" class="btn btn-secondary">
+                    <i data-lucide="log-out"></i> Logout
+                </a>
+            </div>
+        </header>
+
+        <main>
+            <div class="table-tools">
+                <button id="add-row-top-btn" class="btn btn-success" style="margin-right: 1rem;">
+                    <i data-lucide="plus"></i> Add CAPTCHA Key
+                </button>
+                <div class="search-wrapper">
+                    <i data-lucide="search"></i>
+                    <input type="text" id="search-input" placeholder="Search domains...">
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table id="captcha-table">
+                    <thead>
+                        <tr>
+                            <th class="sortable" data-sort="root_domain">Root Domain
+                                <i data-lucide="chevrons-up-down" class="sort-icon default"></i>
+                                <i data-lucide="chevron-up" class="sort-icon asc"></i>
+                                <i data-lucide="chevron-down" class="sort-icon desc"></i>
+                            </th>
+                            <th class="sortable" data-sort="provider">CAPTCHA Provider
+                                <i data-lucide="chevrons-up-down" class="sort-icon default"></i>
+                                <i data-lucide="chevron-up" class="sort-icon asc"></i>
+                                <i data-lucide="chevron-down" class="sort-icon desc"></i>
+                            </th>
+                            <th>Site Key</th>
+                            <th>Secret Key</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="captcha-body">
+                        <!-- Loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-footer">
+                <button id="add-row-btn" class="btn btn-success">
+                    <i data-lucide="plus"></i> Add CAPTCHA Key
+                </button>
+            </div>
+
+            <div class="deleted-section">
+                <h2>Deleted CAPTCHA Keys</h2>
+                <div class="table-container">
+                    <table id="deleted-captcha-table">
+                        <thead>
+                            <tr>
+                                <th>Root Domain</th>
+                                <th>CAPTCHA Provider</th>
+                                <th>Site Key</th>
+                                <th>Secret Key</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="deleted-captcha-body">
+                            <!-- Deleted Rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Restart Progress Modal -->
+    <div id="restart-modal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="restart-modal-title">Hot Reload Config Progress</h2>
+                <button id="close-modal-btn" class="btn btn-secondary btn-sm" style="display: none;">Close</button>
+            </div>
+            <div class="modal-body modal-body-console">
+                <pre id="log-container">Initializing stream...</pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirm-modal" class="modal-overlay">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h2 id="confirm-modal-title">Confirm Deletion</h2>
+            </div>
+            <div class="modal-body">
+                <p id="confirm-msg" style="color: var(--text-color);">Are you sure you want to delete these keys?</p>
+            </div>
+            <div class="modal-footer">
+                <button id="cancel-delete-btn" class="btn btn-secondary">Cancel</button>
+                <button id="confirm-delete-btn" class="btn btn-danger">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Global Domain Dropdown (attached to body to escape table overflow) -->
+    <div id="global-domain-dropdown" class="dropdown-menu"></div>
+
+    <script src="{{ url_for('static', filename='captcha-script.js') }}"></script>
+    <script>
+        const csrfToken = "{{ csrf_token() }}";
+        const stackDomain = "{{ domain }}";
+        // Initialize Lucide icons
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>

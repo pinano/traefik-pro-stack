@@ -10,8 +10,12 @@ set -e
 # =============================================================================
 
 cleanup() {
-    tput cnorm  # Restore cursor
-    stty echo   # Ensure echo is back
+    set +e
+    if [ -t 0 ]; then
+        tput cnorm 2>/dev/null || true
+        stty echo 2>/dev/null || true
+    fi
+    return 0
 }
 
 trap cleanup EXIT INT TERM
@@ -208,11 +212,11 @@ echo ""
 echo "👉 Dashboard Admin Credentials (SSO for all services)"
 read -p "   User [admin]: " dm_user
 [ -z "$dm_user" ] && dm_user="admin"
-replace_val "DOMAIN_MANAGER_ADMIN_USER" "$dm_user"
+replace_val "DASHBOARD_ADMIN_USER" "$dm_user"
 
 read -p "   Password [password]: " dm_pass
 [ -z "$dm_pass" ] && dm_pass="password"
-replace_val "DOMAIN_MANAGER_ADMIN_PASSWORD" "$dm_pass"
+replace_val "DASHBOARD_ADMIN_PASSWORD" "$dm_pass"
 
 # --- GRAFANA ADMIN CREDENTIALS ---
 echo ""
@@ -245,21 +249,21 @@ if [[ "$gen_anubis" == "y" || "$gen_anubis" == "Y" || -z "$gen_anubis" ]]; then
     echo "   ✅ Generated ANUBIS_REDIS_PRIVATE_KEY"
 fi
 
-# 1B. DOMAIN_MANAGER_SECRET_KEY
-DM_KEY=$(grep "^DOMAIN_MANAGER_SECRET_KEY=" "$ENV_FILE" | cut -d'=' -f2-)
+# 1B. DASHBOARD_SECRET_KEY
+DM_KEY=$(grep "^DASHBOARD_SECRET_KEY=" "$ENV_FILE" | cut -d'=' -f2-)
 if [ -z "$DM_KEY" ] || [ "$DM_KEY" == "REPLACE_ME" ]; then
-    echo "🔐 Generating secure random Secret Key for Domain Manager..."
+    echo "🔐 Generating secure random Secret Key for Dashboard..."
     NEW_DM_KEY=$(openssl rand -hex 32)
-    replace_val "DOMAIN_MANAGER_SECRET_KEY" "$NEW_DM_KEY"
-    echo "   ✅ Generated DOMAIN_MANAGER_SECRET_KEY"
+    replace_val "DASHBOARD_SECRET_KEY" "$NEW_DM_KEY"
+    echo "   ✅ Generated DASHBOARD_SECRET_KEY"
 else
     echo ""
-    echo "👉 Domain Manager Secret Key is already set."
+    echo "👉 Dashboard Secret Key is already set."
     read -p "   Regenerate it? (y/N): " regen_dm_key
     if [[ "$regen_dm_key" == "y" || "$regen_dm_key" == "Y" ]]; then
         NEW_DM_KEY=$(openssl rand -hex 32)
-        replace_val "DOMAIN_MANAGER_SECRET_KEY" "$NEW_DM_KEY"
-        echo "   ✅ Re-generated DOMAIN_MANAGER_SECRET_KEY"
+        replace_val "DASHBOARD_SECRET_KEY" "$NEW_DM_KEY"
+        echo "   ✅ Re-generated DASHBOARD_SECRET_KEY"
     fi
 fi
 

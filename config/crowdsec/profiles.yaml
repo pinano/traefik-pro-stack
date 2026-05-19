@@ -31,22 +31,6 @@ on_success: break
 ---
 
 # -----------------------------------------------------------------------------
-# Profile 2: CAPTCHA Remediation for HTTP Scenarios (4 hours)
-# -----------------------------------------------------------------------------
-# HTTP-based attacks (crawlers, bad bots) get a CAPTCHA instead of a ban.
-# Excludes AppSec (WAF) since those are high-confidence malicious.
-
-name: captcha_remediation
-filters:
- - Alert.Remediation == true && Alert.GetScope() == "Ip" && Alert.GetScenario() contains "http" && !(Alert.GetScenario() contains "appsec")
-decisions:
- - type: captcha
-   duration: 4h
-on_success: break
-
----
-
-# -----------------------------------------------------------------------------
 # Profile 3: Standard Aggressive Ban (24 hours)
 # -----------------------------------------------------------------------------
 # Default ban duration increased from 4h to 24h for all IP-based remediation.

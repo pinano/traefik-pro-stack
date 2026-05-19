@@ -19,7 +19,7 @@
   - [Key Benefits](#key-benefits)
 - [Domain Management](#domain-management)
   - [The Domain Inventory (domains.csv)](#the-domain-inventory-domainscsv)
-  - [Domain Manager UI](#domain-manager-ui)
+  - [Dashboard UI](#dashboard-ui)
   - [Adding Your First Site](#adding-your-first-site)
 - [Configuration Reference](#configuration-reference)
   - [General](#general)
@@ -35,7 +35,7 @@
   - [CrowdSec — IPS + WAF](#crowdsec--ips--waf)
   - [Anubis — Bot Defense](#anubis--bot-defense)
   - [Redis / Valkey — Session Store](#redis--valkey--session-store)
-  - [Domain Manager — Admin UI](#domain-manager--admin-ui)
+  - [Dashboard — Admin UI](#dashboard--admin-ui)
   - [Observability Stack](#observability-stack)
   - [Watchdog — Stack Monitor](#watchdog--stack-monitor)
   - [Auxiliary Tools](#auxiliary-tools)
@@ -156,7 +156,7 @@ make restart
 
 All internal tools are accessible from your dashboard subdomain (default: `dashboard.<your-domain>`):
 
-1. **Access Domain Manager**: `https://dashboard.<your-domain>` — Add and manage your sites here.
+1. **Access Dashboard**: `https://dashboard.<your-domain>` — Add and manage your sites here.
 2. **View Traefik Dashboard**: `https://dashboard.<your-domain>/traefik` — Live routing overview.
 3. **View Live Logs**: `https://dashboard.<your-domain>/dozzle` — Real-time container logs.
 4. **Monitor Metrics**: `https://dashboard.<your-domain>/grafana` — Traffic and system dashboards.
@@ -164,7 +164,7 @@ All internal tools are accessible from your dashboard subdomain (default: `dashb
 6. **Manage Firewall**: `https://dashboard.<your-domain>/crowdsec` — CrowdSec alert management.
 
 > [!NOTE]
-> The `dashboard` subdomain is configurable via `DASHBOARD_SUBDOMAIN` in `.env`. All tools behind it share a single SSO login — the Domain Manager credentials.
+> The `dashboard` subdomain is configurable via `DASHBOARD_SUBDOMAIN` in `.env`. All tools behind it share a single SSO login — the Dashboard credentials.
 
 ---
 
@@ -267,7 +267,7 @@ legacy-site.com,      ,                apache-host,   ,            ,     ,
 
 ---
 
-### Domain Manager UI
+### Dashboard UI
 
 Access the management interface at `https://dashboard.<your-domain>`.
 
@@ -280,7 +280,7 @@ Access the management interface at `https://dashboard.<your-domain>`.
 
 ### Adding Your First Site
 
-1. Open the Domain Manager UI or edit `domains.csv` directly.
+1. Open the Dashboard UI or edit `domains.csv` directly.
 2. Add a row for your domain, pointing `service` to your Docker container name.
 3. Ensure your container is on the `traefik` Docker network:
    ```yaml
@@ -363,10 +363,6 @@ Redis uses two separate databases:
 | `CROWDSEC_COLLECTIONS` | Space-separated list of CrowdSec collections (parsers + scenarios) to install at startup. AppSec collections are injected automatically — do not add them here. | *defaults below* |
 | `CROWDSEC_WHITELIST_IPS` | Comma-separated IPs or CIDR ranges that bypass all CrowdSec checks. Internal Docker networks are always whitelisted automatically. | — |
 | `CROWDSEC_ENROLLMENT_KEY` | Optional key to enroll in the [CrowdSec Console](https://app.crowdsec.net) for centralized management and premium blocklists. | — |
-| `CROWDSEC_CAPTCHA_PROVIDER` | CAPTCHA provider for suspicious IPs (`turnstile`, `hcaptcha`, `recaptcha`). Leave empty to disable CAPTCHA remediation. | — |
-| `CROWDSEC_CAPTCHA_SITE_KEY` | Public site key for the selected CAPTCHA provider. | — |
-| `CROWDSEC_CAPTCHA_SECRET_KEY` | Secret/Private key for the selected CAPTCHA provider. | — |
-| `CROWDSEC_CAPTCHA_GRACE_PERIOD` | How long (seconds) an IP is allowed to browse freely after successfully solving a CAPTCHA. | `3600` |
 
 **Default collections included in `CROWDSEC_COLLECTIONS`:**
 
@@ -511,18 +507,18 @@ TRAEFIK_BAD_USER_AGENTS="(?i).*nikto.*,(?i).*sqlmap.*,(?i).*nmap.*,(?i).*masscan
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `DASHBOARD_SUBDOMAIN` | Subdomain prefix for all internal tools. Example: `dashboard` → `dashboard.yourdomain.com`. | `dashboard` |
-| `DOMAIN_MANAGER_ADMIN_USER` | Username for the Domain Manager / SSO login (also used to access Traefik, Dozzle, Grafana). | `admin` |
-| `DOMAIN_MANAGER_ADMIN_PASSWORD` | Password for the SSO login. **Required.** Change from default before first use. | — |
+| `DASHBOARD_ADMIN_USER` | Username for the Dashboard / SSO login (also used to access Traefik, Dozzle, Grafana). | `admin` |
+| `DASHBOARD_ADMIN_PASSWORD` | Password for the SSO login. **Required.** Change from default before first use. | — |
 | `GRAFANA_ADMIN_USER` | Grafana-specific admin username for full admin access inside Grafana. | `admin` |
 | `GRAFANA_ADMIN_PASSWORD` | Grafana-specific admin password. Independent from SSO credentials. **Required.** | — |
 
 **Access levels explained:**
 
-- **SSO (Domain Manager credentials)**: Grants **read-only Viewer** access to Grafana. Sufficient for viewing dashboards.
+- **SSO (Dashboard credentials)**: Grants **read-only Viewer** access to Grafana. Sufficient for viewing dashboards.
 - **Grafana admin credentials**: Grants **full admin access** to Grafana for adding datasources, editing dashboards, and managing users.
 
 > [!NOTE]
-> Variables like `TRAEFIK_CERT_RESOLVER`, `TRAEFIK_CONFIG_HASH`, `DOMAIN_MANAGER_SECRET_KEY`, `DOMAIN_MANAGER_APP_PATH_HOST`, `TRAEFIK_DASHBOARD_AUTH`, and `DOZZLE_DASHBOARD_AUTH` are managed automatically by `start.sh`. **Do not edit them manually.**
+> Variables like `TRAEFIK_CERT_RESOLVER`, `TRAEFIK_CONFIG_HASH`, `DASHBOARD_SECRET_KEY`, `DASHBOARD_APP_PATH_HOST`, `TRAEFIK_DASHBOARD_AUTH`, and `DOZZLE_DASHBOARD_AUTH` are managed automatically by `start.sh`. **Do not edit them manually.**
 
 ---
 
@@ -693,15 +689,15 @@ Profile order matters: the first matching profile wins. Repeat offenders are cau
 
 Instead of directly blocking suspicious IPs for HTTP-based scenarios (e.g., crawlers or minor bot activity), CrowdSec can present a CAPTCHA challenge (via Turnstile, hCaptcha, or reCAPTCHA).
 
-- If the user solves the challenge, their IP is temporarily cleared for the duration of `CROWDSEC_CAPTCHA_GRACE_PERIOD`.
+- If the user solves the challenge, their IP is temporarily cleared for a grace period of 3600 seconds (1 hour).
 - If they fail or are an automated bot, they remain blocked.
 - AppSec rules (WAF) always issue an immediate hard **ban** to prevent exploitation, skipping the CAPTCHA entirely.
 
 > [!NOTE]
-> The CAPTCHA remediation profile is generated dynamically. It is only enabled if `CROWDSEC_CAPTCHA_PROVIDER`, `CROWDSEC_CAPTCHA_SITE_KEY`, and `CROWDSEC_CAPTCHA_SECRET_KEY` are all configured in your `.env`. If any of these are missing, the stack gracefully falls back to aggressive bans.
+> The CAPTCHA remediation profile is generated dynamically. It is enabled on a per-root-domain basis by registering the provider, site key, and secret key in the CAPTCHA Keys section of the Dashboard. If no active keys are registered for a root domain, the stack gracefully falls back to aggressive bans for all services on that domain.
 
 > [!WARNING]
-> If using Cloudflare Turnstile, ensure **all domains** served by Traefik are registered in the Turnstile widget configuration. If a domain is missing, the CAPTCHA will fail to load for that site, resulting in an un-solvable challenge (effectively a hard ban) for any users flagged on that domain.
+> If using Cloudflare Turnstile, ensure **all domains** served by Traefik on a registered root domain are allowed in the Turnstile widget configuration. If a domain is missing, the CAPTCHA will fail to load for that site, resulting in an un-solvable challenge (effectively a hard ban) for any users flagged on that domain.
 
 #### Log Acquisition (`acquis.yaml`)
 
@@ -798,11 +794,11 @@ The `anubis-backend` network is created as **Docker internal** (`--internal`), m
 
 ---
 
-### Domain Manager — Admin UI
+### Dashboard — Admin UI
 
 A lightweight Python/Flask web application that provides the web interface for managing `domains.csv`.
 
-- **SSO Provider**: The Domain Manager acts as the authentication backend for all dashboard tools. It issues session cookies that Traefik's ForwardAuth middleware validates.
+- **SSO Provider**: The Dashboard acts as the authentication backend for all dashboard tools. It issues session cookies that Traefik's ForwardAuth middleware validates.
 - **Live Service Discovery**: Reads from the Docker socket to list running containers as available services.
 - **Stack Restart**: Triggers `start.sh` from inside the container, applying changes without SSH access.
 - **Environment visibility**: Exposes the stack's environment type (local/staging/production) to inform users about the certificate mode.
@@ -910,8 +906,8 @@ All alerts are sent via the Telegram Bot API to `WATCHDOG_TELEGRAM_RECIPIENT_ID`
 | **Stop stack** | `make stop` |
 | **Restart full stack** | `make restart` |
 | **Restart single service** | `make restart traefik` |
-| **Rebuild custom images** | `make rebuild` (domain-manager + watchdog) |
-| **Rebuild specific service** | `make rebuild domain-manager` |
+| **Rebuild custom images** | `make rebuild` (dashboard + watchdog) |
+| **Rebuild specific service** | `make rebuild dashboard` |
 | **Pull latest images** | `make pull` |
 | **List services** | `make services` |
 | **Container status** | `make status` |
@@ -942,11 +938,11 @@ All alerts are sent via the Telegram Bot API to `WATCHDOG_TELEGRAM_RECIPIENT_ID`
 When you run `make start`, `scripts/start.sh` follows a strict "Defense First" order:
 
 1. **[1/6] Environment sync**: validates `.env`, merges any new variables from `.env.dist`.
-2. **[2/6] Credential sync**: generates or verifies `DOMAIN_MANAGER_SECRET_KEY`, `TRAEFIK_CERT_RESOLVER`, and any auto-generated secrets.
+2. **[2/6] Credential sync**: generates or verifies `DASHBOARD_SECRET_KEY`, `TRAEFIK_CERT_RESOLVER`, and any auto-generated secrets.
 3. **[3/6] Asset preparation**: copies `.dist` Anubis assets if no custom versions exist; generates `traefik-generated.yaml` from template; runs `generate-config.py` to build dynamic Traefik config.
 4. **[4/6] Network & security prep**: creates Docker networks (`traefik`, `anubis-backend`); generates CrowdSec IP whitelist from `CROWDSEC_WHITELIST_IPS`; probes for host Apache.
 5. **[5/6] Security layer boot**: starts CrowdSec and Redis first. Waits up to 60 seconds for CrowdSec to pass its health check. **Traefik will not start until this is healthy.**
-6. **[6/6] Full stack start**: launches all remaining services (Traefik, Grafana, Loki, Alloy, Prometheus, domain-manager, watchdog, Dozzle). Then calls `grafana-setup-telegram` to configure alerting.
+6. **[6/6] Full stack start**: launches all remaining services (Traefik, Grafana, Loki, Alloy, Prometheus, dashboard, watchdog, Dozzle). Then calls `grafana-setup-telegram` to configure alerting.
 
 ---
 
@@ -954,7 +950,7 @@ When you run `make start`, `scripts/start.sh` follows a strict "Defense First" o
 
 You never need to manually generate bcrypt hashes or restart containers to apply credential changes.
 
-1. **Edit** `DOMAIN_MANAGER_ADMIN_PASSWORD` or `GRAFANA_ADMIN_PASSWORD` in `.env`.
+1. **Edit** `DASHBOARD_ADMIN_PASSWORD` or `GRAFANA_ADMIN_PASSWORD` in `.env`.
 2. **Run** `make start` (or `make restart`).
 3. `start.sh` detects the changed values, regenerates the secure hashes, updates `.env`, and applies them to running containers.
 
@@ -1067,7 +1063,7 @@ All dashboards are served under `https://<DASHBOARD_SUBDOMAIN>.<DOMAIN>`:
 
 | Tool | Path | Auth | Notes |
 |------|------|------|-------|
-| Domain Manager | `/` | SSO Login | Stack management, domain config |
+| Dashboard | `/` | SSO Login | Stack management, domain config |
 | Traefik | `/traefik` | SSO Login | Live routing, middleware status |
 | Grafana | `/grafana` | SSO (Viewer) or Admin login | Full metrics/alerting platform |
 | Dozzle | `/dozzle` | SSO Login | Real-time container log viewer |
@@ -1097,13 +1093,13 @@ The stack automatically detects whether Apache is listening via TCP probe at sta
 | Context | Probe target | Method |
 |---------|-------------|--------|
 | `start.sh` on host | `localhost:APACHE_HOST_PORT` | `python3 socket` |
-| `start.sh` inside domain-manager container | `APACHE_HOST_IP:APACHE_HOST_PORT` | `python3 socket` |
-| Domain Manager UI (per-domain check) | `APACHE_HOST_IP:APACHE_HOST_PORT` | `python3 socket` |
+| `start.sh` inside dashboard container | `APACHE_HOST_IP:APACHE_HOST_PORT` | `python3 socket` |
+| Dashboard UI (per-domain check) | `APACHE_HOST_IP:APACHE_HOST_PORT` | `python3 socket` |
 
 Detection drives three behaviors:
 - `docker-compose-apache-logs.yaml` is included in the compose stack (sends Apache logs to Loki).
 - Traefik's dynamic config is generated with an `apache-host-8080` backend service.
-- Domain Manager UI exposes `apache-host` as a valid service option.
+- Dashboard UI exposes `apache-host` as a valid service option.
 
 > [!NOTE]
 > Apache must be **actively listening** for detection to succeed. An installed-but-stopped Apache won't be detected. Run `sudo systemctl start apache2` first.
@@ -1300,7 +1296,7 @@ You will see: `🔐 Local Mode detected. Automating certificate generation...`
 │   │       ├── custom.css.dist           # Default stylesheet template
 │   │       └── static/img/               # Challenge page images (.dist versions)
 │   │
-│   ├── domain-manager/                   # Admin UI backend (Python/Flask)
+│   ├── dashboard/                        # Admin UI backend (Python/Flask)
 │   │   ├── app.py                        # Flask application
 │   │   ├── Dockerfile
 │   │   ├── static/                       # Frontend assets
@@ -1332,7 +1328,7 @@ You will see: `🔐 Local Mode detected. Automating certificate generation...`
     ├── docker-compose-edge.yaml              # Edge: Traefik (TLS termination, routing)
     ├── docker-compose-security.yaml          # Security: CrowdSec, Redis, Redis Exporter, CrowdSec Web UI
     ├── docker-compose-observability.yaml     # Observability: Grafana, Loki, Alloy, Prometheus
-    ├── docker-compose-dashboard.yaml         # Dashboard: Domain Manager, Dozzle, Watchdog, ctop
+    ├── docker-compose-dashboard.yaml         # Dashboard: Dashboard, Dozzle, Watchdog, ctop
     ├── docker-compose-anubis.yaml            # Bot Defense: Anubis base template + Assets server
     ├── docker-compose-anubis-generated.yaml  # Auto-generated Anubis instances (per TLD, do not edit)
     └── docker-compose-apache-logs.yaml       # Apache log extension (auto-included if Apache detected)
@@ -1374,8 +1370,8 @@ If `.env` gets corrupted:
 ```bash
 # Delete the auto-managed variables and let start.sh regenerate them:
 # Remove these lines from .env:
-# DOMAIN_MANAGER_SECRET_KEY=...
-# DOMAIN_MANAGER_APP_PATH_HOST=...
+# DASHBOARD_SECRET_KEY=...
+# DASHBOARD_APP_PATH_HOST=...
 # TRAEFIK_CERT_RESOLVER=...
 # TRAEFIK_DASHBOARD_AUTH=...
 # DOZZLE_DASHBOARD_AUTH=...

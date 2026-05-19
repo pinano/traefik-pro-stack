@@ -37,10 +37,12 @@ set -e  # Exit on any error
 # Ensures the cursor is restored and echo is enabled if the script is interrupted.
 
 cleanup() {
+    set +e
     if [ -t 0 ]; then
-        tput cnorm  # Restore cursor
-        stty echo   # Ensure echo is back
+        tput cnorm 2>/dev/null || true
+        stty echo 2>/dev/null || true
     fi
+    return 0
 }
 
 trap cleanup EXIT INT TERM

@@ -65,7 +65,7 @@ check_service = \
 
 # Helper: Extract arguments for logs and shell commands
 # This allows using "make logs redis" instead of "make logs s=redis"
-SUPPORTED_COMMANDS := logs shell restart crowdsec-unban crowdsec-ban crowdsec-ban-country crowdsec-unban-country
+SUPPORTED_COMMANDS := logs shell restart rebuild crowdsec-unban crowdsec-ban crowdsec-ban-country crowdsec-unban-country
 SUPPORTS_ARGS := $(filter $(firstword $(MAKECMDGOALS)),$(SUPPORTED_COMMANDS))
 ifneq "$(SUPPORTS_ARGS)" ""
   # The remaining arguments are the service names
@@ -118,7 +118,7 @@ else
 endif
 
 .PHONY: rebuild
-rebuild: ## Rebuild services from Dockerfile (default: domain-manager watchdog)
+rebuild: ## Rebuild services from Dockerfile (default: dashboard watchdog)
 ifneq ($(strip $(SERVICE_ARGS)),)
 	@echo "Rebuilding service(s): $(SERVICE_ARGS)..."
 	@$(DOCKER_COMPOSE) up -d --build --force-recreate $(SERVICE_ARGS)
@@ -126,8 +126,8 @@ else ifdef s
 	@echo "Rebuilding service: $(s)..."
 	@$(DOCKER_COMPOSE) up -d --build --force-recreate $(s)
 else
-	@echo "Rebuilding custom image services (domain-manager, watchdog)..."
-	@$(DOCKER_COMPOSE) up -d --build --force-recreate domain-manager watchdog
+	@echo "Rebuilding custom image services (dashboard, watchdog)..."
+	@$(DOCKER_COMPOSE) up -d --build --force-recreate dashboard watchdog
 endif
 
 .PHONY: status

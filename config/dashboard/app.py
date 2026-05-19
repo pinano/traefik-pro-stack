@@ -21,7 +21,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 log = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('DOMAIN_MANAGER_SECRET_KEY', secrets.token_hex(32))
+app.secret_key = os.environ.get('DASHBOARD_SECRET_KEY', secrets.token_hex(32))
 
 # --- Hardened Session Settings ---
 app.config.update(
@@ -44,27 +44,28 @@ limiter = Limiter(
     storage_uri="memory://",
 )
 
-ADMIN_USER = os.environ.get('DOMAIN_MANAGER_ADMIN_USER', 'admin')
-ADMIN_PASS = os.environ.get('DOMAIN_MANAGER_ADMIN_PASSWORD', 'admin')
+ADMIN_USER = os.environ.get('DASHBOARD_ADMIN_USER', 'admin')
+ADMIN_PASS = os.environ.get('DASHBOARD_ADMIN_PASSWORD', 'admin')
 
 # Security check: warn if using default credentials
 if ADMIN_PASS in ('password', 'admin', ''):
     print("=" * 60)
     print("⚠️  WARNING: Dashboard is using a DEFAULT PASSWORD!")
-    print("   Run 'make init' or update DOMAIN_MANAGER_ADMIN_PASSWORD")
+    print("   Run 'make init' or update DASHBOARD_ADMIN_PASSWORD")
     print("   in your .env file to set a secure password.")
     print("=" * 60)
 
 # Mirror the host path inside the container
-BASE_DIR = os.environ.get('DOMAIN_MANAGER_APP_PATH_HOST', os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-CSV_PATH = os.path.join(BASE_DIR, 'domains.csv')
+BASE_DIR = os.environ.get('DASHBOARD_APP_PATH_HOST', os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+DOMAINS_CSV_PATH = os.path.join(BASE_DIR, 'domains.csv')
+CAPTCHA_CSV_PATH = os.path.join(BASE_DIR, 'config/crowdsec/captcha_keys.csv')
 START_SCRIPT = os.path.join(BASE_DIR, 'scripts/start.sh')
 RESTART_INTERNAL_SCRIPT = os.path.join(BASE_DIR, 'scripts/restart-internal.sh')
 GENERATE_CONFIG_SCRIPT = os.path.join(BASE_DIR, 'scripts/generate-config.py')
 ACME_FILE = os.path.join(BASE_DIR, 'config/traefik/acme.json')
 
 log.debug(f"BASE_DIR={BASE_DIR}")
-log.debug(f"CSV_PATH={CSV_PATH}")
+log.debug(f"DOMAINS_CSV_PATH={DOMAINS_CSV_PATH}")
 log.debug(f"START_SCRIPT={START_SCRIPT}")
 
 DOMAIN = os.environ.get('DOMAIN', 'localhost')
@@ -155,8 +156,8 @@ def get_subprocess_env():
         local_env['PROJECT_NAME'] = 'stack'
         
     # Normalize path if present to avoid trailing slash discrepancies that trigger recreations
-    if 'DOMAIN_MANAGER_APP_PATH_HOST' in local_env:
-        local_env['DOMAIN_MANAGER_APP_PATH_HOST'] = local_env['DOMAIN_MANAGER_APP_PATH_HOST'].rstrip('/')
+    if 'DASHBOARD_APP_PATH_HOST' in local_env:
+        local_env['DASHBOARD_APP_PATH_HOST'] = local_env['DASHBOARD_APP_PATH_HOST'].rstrip('/')
             
     # Add common environment variables for well-behaved subprocesses
     local_env['TERM'] = 'xterm-256color'
@@ -173,7 +174,7 @@ def build_compose_env():
     The critical insight: when `make start` runs on the host, the process env
     contains only system vars + sourced .env vars. When restarting from inside
     the container, os.environ has container-specific vars (FLASK_SECRET_KEY,
-    DOMAIN_MANAGER_INTERNAL, etc.) that were NOT present on the host.
+    DASHBOARD_INTERNAL, etc.) that were NOT present on the host.
     Docker Compose includes everything from the process env when resolving
     ${VAR} placeholders in compose files. Any difference → container recreation.
 
@@ -205,8 +206,8 @@ def build_compose_env():
         env['PROJECT_NAME'] = 'stack'
 
     # Normalize path to prevent trailing-slash drift
-    if 'DOMAIN_MANAGER_APP_PATH_HOST' in env:
-        env['DOMAIN_MANAGER_APP_PATH_HOST'] = env['DOMAIN_MANAGER_APP_PATH_HOST'].rstrip('/')
+    if 'DASHBOARD_APP_PATH_HOST' in env:
+        env['DASHBOARD_APP_PATH_HOST'] = env['DASHBOARD_APP_PATH_HOST'].rstrip('/')
 
     # Subprocess execution essentials
     env['TERM'] = 'xterm-256color'
@@ -349,9 +350,9 @@ def parse_certificate_data(cert_b64):
 
 def read_csv():
     data = []
-    if not os.path.exists(CSV_PATH):
+    if not os.path.exists(DOMAINS_CSV_PATH):
         return data
-    with open(CSV_PATH, mode='r', encoding='utf-8') as f:
+    with open(DOMAINS_CSV_PATH, mode='r', encoding='utf-8') as f:
         reader = csv.reader(f)
         for row in reader:
             if not row:
@@ -411,7 +412,7 @@ def write_csv(data):
     # We will overwrite but try to keep the header.
     header = "# domain, redirection, service_name, anubis_subdomain, rate, burst, concurrency"
     
-    with open(CSV_PATH, mode='w', encoding='utf-8', newline='') as f:
+    with open(DOMAINS_CSV_PATH, mode='w', encoding='utf-8', newline='') as f:
         f.write(header + '\n\n')
         writer = csv.writer(f)
         for entry in data:
@@ -431,6 +432,59 @@ def write_csv(data):
                 entry['rate'],
                 entry['burst'],
                 entry['concurrency']
+            ])
+
+def validate_captcha_data(entry):
+    domain = entry.get('root_domain', '').strip().lower()
+    provider = entry.get('provider', '').strip().lower()
+    site_key = entry.get('site_key', '').strip()
+    secret_key = entry.get('secret_key', '').strip()
+    
+    if not domain or '.' not in domain or ' ' in domain:
+        return False
+    if provider not in ['recaptcha', 'turnstile', 'hcaptcha']:
+        return False
+    if not site_key or not secret_key:
+        return False
+    return True
+
+def read_captcha_csv():
+    data = []
+    if not os.path.exists(CAPTCHA_CSV_PATH):
+        return data
+    with open(CAPTCHA_CSV_PATH, mode='r', encoding='utf-8') as f:
+        reader = csv.reader(f)
+        for row in reader:
+            if not row:
+                continue
+            first_col = row[0].strip()
+            if first_col.startswith('#'):
+                continue
+            while len(row) < 4:
+                row.append('')
+            entry = {
+                'root_domain': row[0].strip().lower(),
+                'provider': row[1].strip().lower(),
+                'site_key': row[2].strip(),
+                'secret_key': row[3].strip()
+            }
+            if validate_captcha_data(entry):
+                data.append(entry)
+    return data
+
+def write_captcha_csv(data):
+    header = "# root_domain, provider, site_key, secret_key"
+    with open(CAPTCHA_CSV_PATH, mode='w', encoding='utf-8', newline='') as f:
+        f.write(header + '\n\n')
+        writer = csv.writer(f)
+        for entry in data:
+            if not validate_captcha_data(entry):
+                continue
+            writer.writerow([
+                entry['root_domain'].strip().lower(),
+                entry['provider'].strip().lower(),
+                entry['site_key'].strip(),
+                entry['secret_key'].strip()
             ])
 
 def resolve_domain(domain):
@@ -594,12 +648,13 @@ def auth_check():
 @login_required
 def dashboard():
     cs_enable = os.environ.get('CROWDSEC_ENABLE', 'true').lower() == 'true'
-    return render_template('dashboard.html', domain=DOMAIN, crowdsec_enabled=cs_enable)
+    certs_enabled = os.environ.get('TRAEFIK_ACME_ENV_TYPE', 'production').lower() != 'local'
+    return render_template('index.html', domain=DOMAIN, crowdsec_enabled=cs_enable, certs_enabled=certs_enabled)
 
 @app.route('/domains')
 @login_required
 def index():
-    return render_template('index.html', 
+    return render_template('domains.html', 
                            domain=DOMAIN,
                            rate_avg=TRAEFIK_RATE_AVG,
                            rate_burst=TRAEFIK_RATE_BURST,
@@ -769,6 +824,11 @@ def certs_view():
                            missing_count=missing_count,
                            missing_domains=sorted(list(missing_domains)))
 
+@app.route('/captchas')
+@login_required
+def captchas_view():
+    return render_template('captchas.html', domain=DOMAIN)
+
 
 
 @app.route('/dm-api/domains', methods=['GET', 'POST'])
@@ -841,6 +901,47 @@ def api_domains():
                 processed_domains.add(d)
         
         write_csv(final_list)
+        return jsonify({'status': 'success'})
+
+@app.route('/dm-api/captchas', methods=['GET', 'POST'])
+@login_required
+def api_captchas():
+    if request.method == 'GET':
+        return jsonify(read_captcha_csv())
+    
+    if request.method == 'POST':
+        data = request.json
+        
+        seen_domains = {}
+        duplicates = []
+        for entry in data:
+            domain = entry.get('root_domain', '').strip().lower()
+            if not domain:
+                continue
+            if domain in seen_domains:
+                if domain not in duplicates:
+                    duplicates.append(domain)
+            seen_domains[domain] = True
+            
+        if duplicates:
+            return jsonify({
+                'status': 'error',
+                'message': f'Duplicate root domains found: {", ".join(duplicates)}',
+                'duplicates': duplicates
+            }), 400
+            
+        invalid_entries = []
+        for entry in data:
+            if not validate_captcha_data(entry):
+                invalid_entries.append(entry.get('root_domain', 'Unknown'))
+                
+        if invalid_entries:
+            return jsonify({
+                'status': 'error',
+                'message': f'Invalid credentials or domain format for: {", ".join(invalid_entries)}'
+            }), 400
+            
+        write_captcha_csv(data)
         return jsonify({'status': 'success'})
 
 @app.route('/dm-api/services', methods=['GET'])

@@ -30,13 +30,15 @@ echo ""
 # Ensures the cursor is restored and echo is enabled if the script is interrupted.
 
 cleanup() {
+    set +e
     if [ -t 0 ]; then
-        tput cnorm  # Restore cursor
-        stty echo   # Ensure echo is back
+        tput cnorm 2>/dev/null || true
+        stty echo 2>/dev/null || true
     fi
+    return 0
 }
 
-# Determine which hosts file to use (support for running inside domain-manager container)
+# Determine which hosts file to use (support for running inside dashboard container)
 HOSTS_FILE="/etc/hosts"
 if [ -f "/etc/hosts-host" ]; then
     HOSTS_FILE="/etc/hosts-host"
@@ -169,8 +171,8 @@ validate_env() {
             echo "⚠️  Warning: GRAFANA_ADMIN_PASSWORD is set to a trivial value."
             trivial_passwords=$((trivial_passwords + 1))
         fi
-        if [ "$DOMAIN_MANAGER_ADMIN_PASSWORD" = "password" ] || [ "$DOMAIN_MANAGER_ADMIN_PASSWORD" = "admin" ]; then
-            echo "⚠️  Warning: DOMAIN_MANAGER_ADMIN_PASSWORD is set to a trivial value."
+        if [ "$DASHBOARD_ADMIN_PASSWORD" = "password" ] || [ "$DASHBOARD_ADMIN_PASSWORD" = "admin" ]; then
+            echo "⚠️  Warning: DASHBOARD_ADMIN_PASSWORD is set to a trivial value."
             trivial_passwords=$((trivial_passwords + 1))
         fi
         if [ $trivial_passwords -gt 0 ]; then
@@ -234,12 +236,12 @@ update_env_var() {
     rm "$TMP_ENV"
 }
 
-# Domain Manager Secret Key (auto-generate on first run)
-if [ -z "$DOMAIN_MANAGER_SECRET_KEY" ] || [ "$DOMAIN_MANAGER_SECRET_KEY" == "REPLACE_ME" ]; then
-    echo "   🔄 Generating Domain Manager secret key..."
+# Dashboard Secret Key (auto-generate on first run)
+if [ -z "$DASHBOARD_SECRET_KEY" ] || [ "$DASHBOARD_SECRET_KEY" == "REPLACE_ME" ]; then
+    echo "   🔄 Generating Dashboard secret key..."
     NEW_DM_KEY=$(openssl rand -hex 32)
-    update_env_var "DOMAIN_MANAGER_SECRET_KEY" "$NEW_DM_KEY"
-    export DOMAIN_MANAGER_SECRET_KEY="$NEW_DM_KEY"
+    update_env_var "DASHBOARD_SECRET_KEY" "$NEW_DM_KEY"
+    export DASHBOARD_SECRET_KEY="$NEW_DM_KEY"
     set -a
     source .env
     set +a
@@ -273,13 +275,13 @@ fi
 
 # Update .env only if it's currently missing or placeholder (REPLACE_ME).
 # This avoids 'path shifts' that trigger recreations when running via UI.
-if [ -z "$DOMAIN_MANAGER_APP_PATH_HOST" ] || [ "$DOMAIN_MANAGER_APP_PATH_HOST" == "REPLACE_ME" ] || [ "$DOMAIN_MANAGER_APP_PATH_HOST" == "null" ]; then
-    update_env_var "DOMAIN_MANAGER_APP_PATH_HOST" "$DETECTED_PATH"
-    export DOMAIN_MANAGER_APP_PATH_HOST="$DETECTED_PATH"
+if [ -z "$DASHBOARD_APP_PATH_HOST" ] || [ "$DASHBOARD_APP_PATH_HOST" == "REPLACE_ME" ] || [ "$DASHBOARD_APP_PATH_HOST" == "null" ]; then
+    update_env_var "DASHBOARD_APP_PATH_HOST" "$DETECTED_PATH"
+    export DASHBOARD_APP_PATH_HOST="$DETECTED_PATH"
     echo "   ✅ Project path initialized: $DETECTED_PATH"
 else
     # Ensure current process has the value from .env, NOT the detected path in container
-    echo "   ✅ Using existing project path: $DOMAIN_MANAGER_APP_PATH_HOST"
+    echo "   ✅ Using existing project path: $DASHBOARD_APP_PATH_HOST"
 fi
 
 # Normalize CROWDSEC_ENABLE to lowercase
@@ -361,8 +363,26 @@ fi
 TMP_PROFILES=$(mktemp)
 cp "$PROFILES_BASE" "$TMP_PROFILES"
 
-# Check if CAPTCHA is fully configured
-if [ -n "$CROWDSEC_CAPTCHA_PROVIDER" ] && [ -n "$CROWDSEC_CAPTCHA_SITE_KEY" ] && [ -n "$CROWDSEC_CAPTCHA_SECRET_KEY" ]; then
+# Check if CAPTCHA registry has active configurations
+HAS_ACTIVE_CAPTCHAS=false
+CAPTCHA_KEYS_CSV="./config/crowdsec/captcha_keys.csv"
+CAPTCHA_KEYS_DIST="./config/crowdsec/captcha_keys.csv.dist"
+
+if [ ! -f "$CAPTCHA_KEYS_CSV" ]; then
+    if [ -f "$CAPTCHA_KEYS_DIST" ]; then
+        echo "   📄 Initializing captcha_keys.csv from template..."
+        cp "$CAPTCHA_KEYS_DIST" "$CAPTCHA_KEYS_CSV"
+    fi
+fi
+
+if [ -f "$CAPTCHA_KEYS_CSV" ]; then
+    # Filter out comment lines and empty lines, check if there is at least one row containing a comma
+    if grep -v -E '^(#|$|[[:space:]]*$)' "$CAPTCHA_KEYS_CSV" | grep -q ','; then
+        HAS_ACTIVE_CAPTCHAS=true
+    fi
+fi
+
+if [ "$HAS_ACTIVE_CAPTCHAS" = "true" ]; then
     cat >> "$TMP_PROFILES" << 'EOF'
 
 ---
@@ -381,9 +401,9 @@ decisions:
    duration: 4h
 on_success: break
 EOF
-    echo "   🛡️ CAPTCHA remediation profile is ENABLED."
+    echo "   🛡️ CAPTCHA remediation profile is ENABLED (active entries found in registry)."
 else
-    echo "   ℹ️ CAPTCHA variables are empty. CAPTCHA remediation is DISABLED."
+    echo "   ℹ️ CAPTCHA registry is empty. CAPTCHA remediation is DISABLED."
 fi
 
 # Append the fallback/default aggressive bans
@@ -564,7 +584,7 @@ fi
 # Export the resolver choice so Docker Compose can use it
 export TRAEFIK_CERT_RESOLVER
 
-# Persist to .env so container-initiated restarts (domain-manager UI)
+# Persist to .env so container-initiated restarts (dashboard UI)
 # produce identical Docker Compose config and avoid spurious recreations.
 update_env_var "TRAEFIK_CERT_RESOLVER" "$TRAEFIK_CERT_RESOLVER"
 
@@ -650,7 +670,7 @@ $PYTHON_CMD scripts/generate-config.py | sed 's/^/   /'
 $PYTHON_CMD scripts/generate-config.py | sed 's/^/   /'
 
 # Fix permissions if running internally (files created as root)
-if [[ "$DOMAIN_MANAGER_INTERNAL" == "true" ]]; then
+if [[ "$DASHBOARD_INTERNAL" == "true" ]]; then
     echo "   🔧 Internal run detected. Fixing permissions for generated files..."
     # We try to match the parent directory's ownership if possible, or just ensure readability
     # Ideally we would know the host UID/GID, but making them world-readable (644) for config files is usually safe enough for Traefik to read.
@@ -661,6 +681,9 @@ if [[ "$DOMAIN_MANAGER_INTERNAL" == "true" ]]; then
     find ./config/traefik -type f -name "*.yaml" -exec chmod 644 {} \;
     find ./config/traefik -type f -name "*.json" -exec chmod 600 {} \; # acme.json needs 600
     chmod 644 ./domains.csv
+    if [ -f "./config/crowdsec/captcha_keys.csv" ]; then
+        chmod 666 ./config/crowdsec/captcha_keys.csv
+    fi
     
     # Ensure acme.json is strictly 600 (override the find above if needed, though find catches json)
     # But acme.json should NOT be world readable? Traefik generally wants 600.
@@ -678,6 +701,9 @@ if [[ "$DOMAIN_MANAGER_INTERNAL" == "true" ]]; then
     if [ -n "$TARGET_UID" ] && [ -n "$TARGET_GID" ]; then
          chown -R "$TARGET_UID:$TARGET_GID" ./config/traefik/dynamic-config
          chown "$TARGET_UID:$TARGET_GID" ./domains.csv
+         if [ -f "./config/crowdsec/captcha_keys.csv" ]; then
+             chown "$TARGET_UID:$TARGET_GID" ./config/crowdsec/captcha_keys.csv
+         fi
          echo "      ✅ Ownership fixed to $TARGET_UID:$TARGET_GID"
     else
          echo "      ⚠️  Could not determine target ownership. Left as root but readable."
@@ -695,7 +721,7 @@ if [ "$TRAEFIK_ACME_ENV_TYPE" == "local" ]; then
     echo "   🔐 Local Mode detected. Automating certificate generation..."
     # If running internally (inside container), skip generation to preserve host trust.
     # If certs are missing, FAIL and tell the user to run them on the host.
-    if [[ "$DOMAIN_MANAGER_INTERNAL" == "true" ]]; then
+    if [[ "$DASHBOARD_INTERNAL" == "true" ]]; then
         CERTS_DIR="./config/traefik/certs-local-dev" # Define CERTS_DIR here for internal check
         if [ -f "$CERTS_DIR/local-cert.pem" ]; then
             echo "   ℹ️ Certificates already exist. Skipping internal generation to preserve host trust."
@@ -856,7 +882,7 @@ fi
 APACHE_FLAG_FILE=".apache_host_available"
 APACHE_CHECK_PORT="${APACHE_HOST_PORT:-8080}"
 
-if [[ "$DOMAIN_MANAGER_INTERNAL" == "true" ]]; then
+if [[ "$DASHBOARD_INTERNAL" == "true" ]]; then
     APACHE_CHECK_HOST="${APACHE_HOST_IP:-172.17.0.1}"
 else
     APACHE_CHECK_HOST="localhost"
@@ -998,8 +1024,8 @@ fi
 
 
 echo " --------------------------------------------------------"
-# If running inside domain-manager, we perform a 'Config Audit' first to detect shifts.
-if [[ "$DOMAIN_MANAGER_INTERNAL" == "true" ]]; then
+# If running inside dashboard, we perform a 'Config Audit' first to detect shifts.
+if [[ "$DASHBOARD_INTERNAL" == "true" ]]; then
     echo "   🔍 Auditing docker-compose configuration for drift..."
     # This helps us see which variables are causing recreations in the modal log
     $COMPOSE_CMD $COMPOSE_FILES config --quiet || echo "      ⚠️ Warning: Config validation failed."

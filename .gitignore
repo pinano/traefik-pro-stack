@@ -6,6 +6,9 @@
 # Domains CSV
 domains.csv
 
+# Captcha keys CSV
+config/crowdsec/captcha_keys.csv
+
 # Generated configuration files
 docker-compose-anubis-generated.yaml
 config/traefik/traefik-generated.yaml

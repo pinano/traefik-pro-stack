@@ -14,6 +14,7 @@ INPUT_FILE = 'domains.csv'
 BASE_FILENAME = 'docker-compose-anubis.yaml'
 OUTPUT_COMPOSE = 'docker-compose-anubis-generated.yaml'
 OUTPUT_TRAEFIK = 'config/traefik/dynamic-config/routers-generated.yaml'
+CAPTCHA_KEYS_FILE = 'config/crowdsec/captcha_keys.csv'
 
 # =============================================================================
 # ENVIRONMENT VARIABLES
@@ -23,14 +24,36 @@ CROWDSEC_API_KEY = os.getenv('CROWDSEC_API_KEY')
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD')
 CROWDSEC_ENABLE = os.getenv('CROWDSEC_ENABLE', 'true').lower() == 'true'
 CROWDSEC_APPSEC_ENABLE = os.getenv('CROWDSEC_APPSEC_ENABLE', 'true').lower() == 'true'
-CROWDSEC_CAPTCHA_PROVIDER = os.getenv('CROWDSEC_CAPTCHA_PROVIDER', '').strip()
-CROWDSEC_CAPTCHA_SITE_KEY = os.getenv('CROWDSEC_CAPTCHA_SITE_KEY', '').strip()
-CROWDSEC_CAPTCHA_SECRET_KEY = os.getenv('CROWDSEC_CAPTCHA_SECRET_KEY', '').strip()
-_grace_period = os.getenv('CROWDSEC_CAPTCHA_GRACE_PERIOD', '')
-CROWDSEC_CAPTCHA_GRACE_PERIOD = int(_grace_period) if _grace_period.strip() else 3600
+CROWDSEC_CAPTCHA_GRACE_PERIOD = 3600
 TRAEFIK_ENV_TYPE = os.getenv('TRAEFIK_ACME_ENV_TYPE', 'staging')
 IS_LOCAL_DEV = (TRAEFIK_ENV_TYPE == 'local')
 TRAEFIK_CERT_RESOLVER = os.getenv('TRAEFIK_CERT_RESOLVER', 'le')
+
+# =============================================================================
+# CAPTCHA REGISTRY LOAD
+# =============================================================================
+captcha_registry = {}
+if os.path.exists(CAPTCHA_KEYS_FILE):
+    try:
+        with open(CAPTCHA_KEYS_FILE, 'r', encoding='utf-8') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if not row: continue
+                row = [col.strip() for col in row]
+                if not row[0] or row[0].startswith('#'): continue
+                if len(row) >= 4:
+                    root_dom = row[0].lower()
+                    provider = row[1].lower()
+                    site_key = row[2]
+                    secret_key = row[3]
+                    if provider in ['turnstile', 'recaptcha', 'hcaptcha'] and site_key and secret_key:
+                        captcha_registry[root_dom] = {
+                            'provider': provider,
+                            'site_key': site_key,
+                            'secret_key': secret_key
+                        }
+    except Exception as e:
+        print(f"    ⚠️ Warning: Error loading {CAPTCHA_KEYS_FILE}: {e}")
 
 # Blocked Paths (Comma-separated list of regex patterns)
 BLOCKED_PATHS_STR = os.getenv('TRAEFIK_BLOCKED_PATHS', '').strip()
@@ -213,7 +236,11 @@ def process_router(entry, http_section, domain_to_cert_def):
 
     mw_list = []
     if CROWDSEC_ENABLE:
-        mw_list.append('crowdsec-check')
+        if root in captcha_registry:
+            safe_root = sanitize_name(root)
+            mw_list.append(f"crowdsec-check-{safe_root}")
+        else:
+            mw_list.append('crowdsec-check')
     
     # Protecting against Slowloris ASAP
     mw_list.append('global-buffering')
@@ -295,8 +322,8 @@ def process_router(entry, http_section, domain_to_cert_def):
     if GOOD_USER_AGENTS:
         bypass_router_name = f"good-user-agents-{safe_domain}"
         
-        # Create a copy of the middleware list MINUS crowdsec-check
-        bypass_mw_list = [mw for mw in mw_list if mw != 'crowdsec-check']
+        # Create a copy of the middleware list MINUS crowdsec-check (including any root-domain specific ones)
+        bypass_mw_list = [mw for mw in mw_list if not mw.startswith('crowdsec-check')]
         
         allowed_ua_rule = " || ".join([f"HeaderRegexp(`User-Agent`, `{p}`)" for p in GOOD_USER_AGENTS])
         
@@ -554,49 +581,63 @@ def generate_configs():
 
     # 1. CrowdSec API Check Plugin (The very first line of defense)
     if CROWDSEC_ENABLE:
+        # Base config for any CrowdSec middleware
+        base_crowdsec_config = {
+            'enabled': True,
+            'crowdsecLapiScheme': 'http',
+            'crowdsecLapiHost': 'crowdsec:8080',
+            'crowdsecLapiKey': CROWDSEC_API_KEY,
+            'crowdsecMode': 'stream',
+            # AppSec (WAF) — controlled by CROWDSEC_APPSEC_ENABLE
+            'crowdsecAppsecEnabled': CROWDSEC_APPSEC_ENABLE,
+            'crowdsecAppsecHost': 'crowdsec:7422',
+            'crowdsecAppsecFailureBlock': False,
+            'crowdsecAppsecUnreachableBlock': False,
+            'updateIntervalSeconds': CS_UPDATE_INTERVAL,
+            # Fail-open behavior: never block traffic if LAPI or Redis are unreachable/down
+            'updateMaxFailure': -1,
+            'redisCacheUnreachableBlock': False,
+            # Redis Caching (highly recommended for high traffic)
+            # We use the existing Redis service (Valkey) as backend
+            'redisCacheEnabled': True,
+            'redisCacheHost': 'redis:6379',
+            'redisCachePassword': REDIS_PASSWORD,
+            'redisCacheDatabase': "0",
+            'forwardedHeadersTrustedIPs': TRUSTED_IPS,
+            # Immediate Whitelist (Client IP)
+            # These IPs bypass LAPI stream checks entirely (no blocklist lookup).
+            'clientTrustedIPs': TRUSTED_IPS,
+            # AppSec Whitelist (L7)
+            # These IPs bypass AppSec inspection entirely.
+            'crowdsecAppsecTrustedIPs': TRUSTED_IPS
+        }
+
+        # Default middleware (No CAPTCHA keys, outright ban/block fallback)
         traefik_dynamic_conf['http']['middlewares']['crowdsec-check'] = {
             'plugin': {
-                'crowdsec': {
-                    'enabled': True,
-                    'crowdsecLapiScheme': 'http',
-                    'crowdsecLapiHost': 'crowdsec:8080',
-                    'crowdsecLapiKey': CROWDSEC_API_KEY,
-                    'crowdsecMode': 'stream',
-                    # AppSec (WAF) — controlled by CROWDSEC_APPSEC_ENABLE
-                    'crowdsecAppsecEnabled': CROWDSEC_APPSEC_ENABLE,
-                    'crowdsecAppsecHost': 'crowdsec:7422',
-                    'crowdsecAppsecFailureBlock': False,
-                    'crowdsecAppsecUnreachableBlock': False,
-                    'updateIntervalSeconds': CS_UPDATE_INTERVAL,
-                    # Fail-open behavior: never block traffic if LAPI or Redis are unreachable/down
-                    'updateMaxFailure': -1,
-                    'redisCacheUnreachableBlock': False,
-                    # Redis Caching (highly recommended for high traffic)
-                    # We use the existing Redis service (Valkey) as backend
-                    'redisCacheEnabled': True,
-                    'redisCacheHost': 'redis:6379',
-                    'redisCachePassword': REDIS_PASSWORD,
-                    'redisCacheDatabase': "0",
-                    'forwardedHeadersTrustedIPs': TRUSTED_IPS,
-                    # Immediate Whitelist (Client IP)
-                    # These IPs bypass LAPI stream checks entirely (no blocklist lookup).
-                    'clientTrustedIPs': TRUSTED_IPS,
-                    # AppSec Whitelist (L7)
-                    # These IPs bypass AppSec inspection entirely.
-                    'crowdsecAppsecTrustedIPs': TRUSTED_IPS
-
-                }
+                'crowdsec': base_crowdsec_config.copy()
             }
         }
-        
-        if CROWDSEC_CAPTCHA_PROVIDER:
-            traefik_dynamic_conf['http']['middlewares']['crowdsec-check']['plugin']['crowdsec'].update({
-                'captchaProvider': CROWDSEC_CAPTCHA_PROVIDER,
-                'captchaSiteKey': CROWDSEC_CAPTCHA_SITE_KEY,
-                'captchaSecretKey': CROWDSEC_CAPTCHA_SECRET_KEY,
+
+        # Generate domain-specific middlewares with CAPTCHA keys
+        for root_dom, captcha_info in captcha_registry.items():
+            safe_root = sanitize_name(root_dom)
+            mw_name = f"crowdsec-check-{safe_root}"
+            
+            domain_config = base_crowdsec_config.copy()
+            domain_config.update({
+                'captchaProvider': captcha_info['provider'],
+                'captchaSiteKey': captcha_info['site_key'],
+                'captchaSecretKey': captcha_info['secret_key'],
                 'captchaGracePeriodSeconds': CROWDSEC_CAPTCHA_GRACE_PERIOD,
                 'captchaHTMLFilePath': '/captcha.html',
             })
+            
+            traefik_dynamic_conf['http']['middlewares'][mw_name] = {
+                'plugin': {
+                    'crowdsec': domain_config
+                }
+            }
 
     # Blocked Paths Middleware (Conditional)
     if BLOCKED_PATHS:

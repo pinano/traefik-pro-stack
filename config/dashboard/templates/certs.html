@@ -134,18 +134,17 @@
     <div class="container">
         <header>
             <div class="logo">
-                <h1>Certificates Inspector</h1>
+                <div class="logo-title-row">
+                    <a href="{{ url_for('dashboard') }}" class="back-link" title="Back to Dashboard">
+                        <i data-lucide="arrow-left"></i>
+                    </a>
+                    <h1>Certificates Inspector</h1>
+                </div>
                 <div class="logo-subtitles">
                     <span>{{ domain }}</span>
                 </div>
             </div>
-            <div class="actions">
-                <div class="actions">
-                    <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
-                        <i data-lucide="layout-grid"></i> Dashboard
-                    </a>
-                </div>
-            </div>
+            <div class="actions"></div>
         </header>
 
         <main>
