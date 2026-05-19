@@ -26,6 +26,17 @@ const toastEl = document.getElementById('toast');
 
 const globalDomainDropdown = document.getElementById('global-domain-dropdown');
 
+// Helper to manage body padding when fixed top banners are visible
+function updateNotificationPadding() {
+    const hasUnsaved = unsavedBanner.classList.contains('show');
+    const hasDeploy = deployBanner.classList.contains('show');
+    if (hasUnsaved || hasDeploy) {
+        document.body.classList.add('has-notification');
+    } else {
+        document.body.classList.remove('has-notification');
+    }
+}
+
 // Helper to get root domain
 function getRootDomain(domain) {
     if (!domain) return '';
@@ -463,6 +474,7 @@ function checkForChanges() {
     } else {
         unsavedBanner.classList.remove('show');
     }
+    updateNotificationPadding();
 }
 
 // Validation before save
@@ -540,6 +552,7 @@ async function saveChanges() {
         deployBanner.classList.add('show');
         deployBannerText.textContent = "Changes saved. Ready to deploy.";
         deployBtn.disabled = false;
+        updateNotificationPadding();
         
         renderTables();
     } catch (err) {
@@ -576,6 +589,7 @@ function deployChanges() {
             logContainer.scrollTop = logContainer.scrollHeight;
             closeModalBtn.style.display = 'inline-block';
             deployBanner.classList.remove('show');
+            updateNotificationPadding();
             showToast('CAPTCHA configurations successfully applied in real-time!', 'success');
         }
 

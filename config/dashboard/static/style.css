@@ -1269,3 +1269,224 @@ button:disabled {
     position: relative;
     z-index: 50;
 }
+
+/* =============================================================================
+   INDEX / LANDING PAGE STYLES
+   ============================================================================= */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    padding: 2rem 0;
+}
+
+.app-card {
+    background: white;
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    transition: transform 0.2s, box-shadow 0.2s;
+    text-decoration: none;
+    color: inherit;
+    border: 1px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.app-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    border-color: var(--primary-color);
+}
+
+.app-icon {
+    width: 4rem;
+    height: 4rem;
+    margin-bottom: 1rem;
+    color: var(--primary-color);
+}
+
+.app-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 0.5rem;
+}
+
+.app-desc {
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+/* =============================================================================
+   CERTIFICATES INSPECTOR STYLES
+   ============================================================================= */
+.badge {
+    display: inline-block;
+    padding: 0.25em 0.4em;
+    font-size: 85%;
+    font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+    border-radius: 0.25rem;
+    margin-right: 0.25rem;
+    margin-bottom: 0.25rem;
+}
+
+.badge-info {
+    background-color: #e0f2fe;
+    color: #0369a1;
+}
+
+.badge-success {
+    background-color: #dcfce7;
+    color: #15803d;
+}
+
+.badge-warning {
+    background-color: #fef3c7;
+    color: #b45309;
+}
+
+.badge-danger {
+    background-color: #fee2e2;
+    color: #b91c1c;
+}
+
+.badge-superseded {
+    background-color: #f3f4f6;
+    color: #4b5563;
+}
+
+.summary-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    text-align: center;
+    flex: 1;
+    min-width: 0;
+}
+
+.summary-card h3 {
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+.summary-card .value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+.summary-container {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+    .summary-container {
+        gap: 0.5rem;
+    }
+
+    .summary-card {
+        padding: 1rem 0.5rem;
+    }
+
+    .summary-card h3 {
+        font-size: 0.7rem;
+    }
+
+    .summary-card .value {
+        font-size: 1.5rem;
+    }
+}
+
+.action-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 768px) {
+    #certs-table td:last-child {
+        background: var(--card-bg);
+        justify-content: flex-start;
+        padding-left: 45%;
+        padding-right: 0.35rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    #certs-table td:last-child:before {
+        content: attr(data-label);
+    }
+}
+
+/* =============================================================================
+   CAPTCHA KEYS MANAGER STYLES
+   ============================================================================= */
+#captcha-table th:nth-child(1),
+#captcha-table td:nth-child(1),
+#deleted-captcha-table th:nth-child(1),
+#deleted-captcha-table td:nth-child(1) {
+    width: 25%;
+}
+
+#captcha-table th:nth-child(2),
+#captcha-table td:nth-child(2),
+#deleted-captcha-table th:nth-child(2),
+#deleted-captcha-table td:nth-child(2) {
+    width: 20%;
+}
+
+#captcha-table th:nth-child(3),
+#captcha-table td:nth-child(3),
+#deleted-captcha-table th:nth-child(3),
+#deleted-captcha-table td:nth-child(3) {
+    width: 25%;
+}
+
+#captcha-table th:nth-child(4),
+#captcha-table td:nth-child(4),
+#deleted-captcha-table th:nth-child(4),
+#deleted-captcha-table td:nth-child(4) {
+    width: 25%;
+}
+
+#captcha-table th:nth-child(5),
+#captcha-table td:nth-child(5),
+#deleted-captcha-table th:nth-child(5),
+#deleted-captcha-table td:nth-child(5) {
+    width: 5%;
+    text-align: center;
+}
+
+select.data-input {
+    width: 100%;
+    padding: 0.35rem 0.5rem;
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.25rem;
+    color: var(--text-color);
+    font-size: 0.8125rem;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+select.data-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
