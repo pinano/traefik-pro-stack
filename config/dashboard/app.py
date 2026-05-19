@@ -476,7 +476,12 @@ def write_csv(data):
                 ])
             f.flush()
             os.fsync(f.fileno())
-        os.replace(tmp_path, DOMAINS_CSV_PATH)
+        import shutil
+        shutil.copyfile(tmp_path, DOMAINS_CSV_PATH)
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
     except Exception:
         # Clean up the temp file if anything went wrong
         try:
