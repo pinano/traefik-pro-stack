@@ -513,6 +513,31 @@ input:focus {
     margin-bottom: 2rem;
 }
 
+.remember-me-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.remember-me-group input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    cursor: pointer;
+}
+
+.remember-me-group label {
+    display: inline;
+    margin: 0;
+    margin-bottom: 0rem !important;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+
 .form-group {
     margin-bottom: 1.5rem;
 }
@@ -1075,7 +1100,8 @@ input:focus {
 }
 
 .deploy-needed-banner.is-restart {
-    background: linear-gradient(90deg, #dc2626, #f97316); /* Red to Orange */
+    background: linear-gradient(90deg, #dc2626, #f97316);
+    /* Red to Orange */
 }
 
 /* Adjust body padding so banner doesn't cover content when shown */
@@ -1130,19 +1156,32 @@ body.has-notification {
 }
 
 @keyframes pulse-deploy-restart {
-    0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); transform: scale(1); }
-    50% { box-shadow: 0 0 0 15px rgba(220, 38, 38, 0); transform: scale(1.05); }
-    100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); transform: scale(1); }
+    0% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7);
+        transform: scale(1);
+    }
+
+    50% {
+        box-shadow: 0 0 0 15px rgba(220, 38, 38, 0);
+        transform: scale(1.05);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+        transform: scale(1);
+    }
 }
 
 .btn-deploy-needed.is-restart {
-    background-color: #dc2626 !important; /* Red-600 */
+    background-color: #dc2626 !important;
+    /* Red-600 */
     border-color: #dc2626 !important;
     animation: pulse-deploy-restart 1.5s infinite;
 }
 
 .btn-deploy-needed.is-restart::after {
-    background-color: #facc15; /* Brighter yellow for red button */
+    background-color: #facc15;
+    /* Brighter yellow for red button */
 }
 
 

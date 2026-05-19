@@ -25,14 +25,14 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 log = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('DASHBOARD_SECRET_KEY', secrets.token_hex(32))
+app.secret_key = os.environ.get('FLASK_SECRET_KEY') or os.environ.get('DASHBOARD_SECRET_KEY') or secrets.token_hex(32)
 
 # --- Hardened Session Settings ---
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SECURE=True,  # In production via Traefik HTTPS
     SESSION_COOKIE_SAMESITE='Lax',
-    PERMANENT_SESSION_LIFETIME=1800, # 30 minutes
+    PERMANENT_SESSION_LIFETIME=2592000, # 30 days
     SESSION_COOKIE_PATH='/',  # Ensure cookie is valid for all subpaths
     # Reject incoming request bodies larger than 1 MB to prevent memory exhaustion attacks.
     MAX_CONTENT_LENGTH=1 * 1024 * 1024,
@@ -759,7 +759,7 @@ def login():
         if user_ok and pass_ok:
             session.clear() # Clear any existing session to prevent fixation
             session['logged_in'] = True
-            session.permanent = True
+            session.permanent = (request.form.get('remember') == 'on')
             
             # Validate next_url to prevent open-redirect attacks.
             # Reject anything with a netloc component (e.g. //evil.com or https://evil.com).
