@@ -796,7 +796,7 @@ def certs_view():
 
     # Iterate resolvers
     for resolver_name, resolver_data in acme_data.items():
-        if isinstance(resolver_data, dict) and 'Certificates' in resolver_data:
+        if isinstance(resolver_data, dict) and isinstance(resolver_data.get('Certificates'), list):
             for cert in resolver_data['Certificates']:
                 if 'domain' in cert:
                     # Ignore the 'main' and 'sans' from JSON keys as they might be stale

@@ -4,6 +4,8 @@ let currentData = [];
 let deletedData = [];
 let hasUnsavedChanges = false;
 let currentSort = { column: 'root_domain', direction: 'asc' };
+let confirmAction = 'delete';
+let rowIdToDelete = null;
 
 // Searchable Dropdown State
 let allRootDomains = [];
@@ -102,7 +104,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     confirmDeleteBtn.addEventListener('click', () => {
         confirmModal.classList.remove('show');
-        // Deletion logic is handled inline via deleteRow() called from captchaBody click handler
+        if (confirmAction === 'delete' && rowIdToDelete) {
+            deleteRow(rowIdToDelete);
+        } else if (confirmAction === 'permanent-delete' && rowIdToDelete) {
+            permanentlyDeleteRow(rowIdToDelete);
+        }
+        rowIdToDelete = null;
     });
 
     confirmDeployBtn.addEventListener('click', () => {
@@ -183,7 +190,22 @@ document.addEventListener('DOMContentLoaded', () => {
             const tr = deleteBtn.closest('tr');
             if (tr) {
                 const id = tr.dataset.id;
-                deleteRow(id);
+                const row = currentData.find(r => r._id === id);
+                if (row) {
+                    if (row.isNew) {
+                        deleteRow(id);
+                    } else {
+                        rowIdToDelete = id;
+                        confirmAction = 'delete';
+                        confirmModalTitle.textContent = 'Confirm Deletion';
+                        confirmMsg.textContent = `Are you sure you want to delete ${row.root_domain && !row.root_domain.startsWith('new-domain-') ? row.root_domain : 'this record'}?`;
+                        confirmDeleteBtn.textContent = 'Delete';
+                        confirmDeleteBtn.style.display = 'inline-flex';
+                        confirmDeployBtn.style.display = 'none';
+                        if (window.lucide) lucide.createIcons({ root: confirmModal });
+                        confirmModal.classList.add('show');
+                    }
+                }
             }
         }
     });
@@ -240,7 +262,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const permanentDeleteBtn = e.target.closest('.permanent-delete-btn');
         if (permanentDeleteBtn) {
             const tr = permanentDeleteBtn.closest('tr');
-            if (tr) permanentlyDeleteRow(tr.dataset.id);
+            if (tr) {
+                const id = tr.dataset.id;
+                const row = deletedData.find(r => r._id === id);
+                rowIdToDelete = id;
+                confirmAction = 'permanent-delete';
+                confirmModalTitle.textContent = 'Confirm Permanent Deletion';
+                confirmMsg.textContent = `Are you sure you want to PERMANENTLY delete ${row ? row.root_domain : 'this record'}? This cannot be undone.`;
+                confirmDeleteBtn.textContent = 'Delete';
+                confirmDeleteBtn.style.display = 'inline-flex';
+                confirmDeployBtn.style.display = 'none';
+                if (window.lucide) lucide.createIcons({ root: confirmModal });
+                confirmModal.classList.add('show');
+            }
         }
     });
 
@@ -634,6 +668,10 @@ async function saveChanges() {
         }
 
         showToast('Changes saved successfully. The system is ready to apply configurations.', 'success');
+
+        // Remove the isNew flag from all saved entries
+        currentData.forEach(r => { delete r.isNew; });
+        deletedData.forEach(r => { delete r.isNew; });
 
         // Rebuild initialData from both lists as the new baseline
         initialData = JSON.parse(JSON.stringify([...currentData, ...deletedData]));

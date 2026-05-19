@@ -26,6 +26,10 @@
                 </div>
                 <div class="logo-subtitles">
                     <span>{{ domain }}</span>
+                    <span class="subtitle-separator">|</span>
+                    <button id="help-btn" class="subtitle-link help-link-btn" title="Usage Instructions">
+                        <i data-lucide="help-circle"></i> Interface Help
+                    </button>
                 </div>
             </div>
             <div class="actions"></div>
@@ -150,6 +154,68 @@
         </main>
     </div>
 
+    <!-- Help Modal -->
+    <div id="help-modal" class="modal-overlay">
+        <div class="modal" style="max-width: 650px;">
+            <div class="modal-header">
+                <h2>Certificates Console Commands</h2>
+                <button id="close-help-btn" class="toast-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="help-section">
+                    <p style="margin-bottom: 1rem; color: var(--text-muted);">
+                        The stack provides several Makefile commands to manage, inspect, and clean SSL/TLS certificates directly from the console:
+                    </p>
+                    <ul class="help-list" style="list-style: none; padding-left: 0;">
+                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.75rem;">
+                            <div style="flex-shrink: 0; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; font-weight: bold; color: var(--primary-color);">
+                                make certs-info
+                            </div>
+                            <div style="margin-top: 2px;">
+                                <strong>Analyze Certificates (Summary):</strong> Compares active certificates in <code>acme.json</code> against the domains listed in <code>domains.csv</code> and prints a quick status summary.
+                            </div>
+                        </li>
+                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.75rem;">
+                            <div style="flex-shrink: 0; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; font-weight: bold; color: var(--primary-color);">
+                                make certs-inspect
+                            </div>
+                            <div style="margin-top: 2px;">
+                                <strong>Detailed Inspection:</strong> Performs a comprehensive comparison of certificates against <code>domains.csv</code>, listing all covered domains, SANs, status, and expiration dates.
+                            </div>
+                        </li>
+                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.75rem;">
+                            <div style="flex-shrink: 0; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; font-weight: bold; color: var(--primary-color);">
+                                make certs-watch
+                            </div>
+                            <div style="margin-top: 2px;">
+                                <strong>Monitor ACME Logs:</strong> Streams and filters Traefik container logs in real-time, focusing on ACME validation stages, challenge resolutions, and certification errors.
+                            </div>
+                        </li>
+                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.75rem;">
+                            <div style="flex-shrink: 0; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; font-weight: bold; color: var(--primary-color);">
+                                make certs-prune
+                            </div>
+                            <div style="margin-top: 2px;">
+                                <strong>Prune Unused (Dry-Run):</strong> Identifies and lists certificates inside <code>acme.json</code> that belong to domains no longer defined in <code>domains.csv</code>. Does not modify the file.
+                            </div>
+                        </li>
+                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
+                            <div style="flex-shrink: 0; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; font-weight: bold; color: var(--primary-color);">
+                                make certs-prune-force
+                            </div>
+                            <div style="margin-top: 2px;">
+                                <strong>Force Prune (Destructive):</strong> Permanently removes old/unused certificates from <code>acme.json</code> and hot-reloads Traefik to apply changes. Creates a backup automatically.
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="close-help-footer-btn" class="btn btn-primary">Got it!</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Initialize Lucide icons
         lucide.createIcons();
@@ -177,6 +243,21 @@
                     headerSpacer.style.display = 'none';
                 }
             });
+
+            // Help Modal Logic
+            const helpBtn = document.getElementById('help-btn');
+            const helpModal = document.getElementById('help-modal');
+            const closeHelpBtn = document.getElementById('close-help-btn');
+            const closeHelpFooterBtn = document.getElementById('close-help-footer-btn');
+
+            if (helpBtn && helpModal) {
+                helpBtn.addEventListener('click', () => {
+                    helpModal.classList.add('show');
+                });
+                const closeHelp = () => helpModal.classList.remove('show');
+                if (closeHelpBtn) closeHelpBtn.addEventListener('click', closeHelp);
+                if (closeHelpFooterBtn) closeHelpFooterBtn.addEventListener('click', closeHelp);
+            }
 
             const tableBody = document.getElementById('certs-body');
             const searchInput = document.getElementById('search-input');
