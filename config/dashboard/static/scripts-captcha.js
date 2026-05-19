@@ -133,6 +133,13 @@ document.addEventListener('DOMContentLoaded', () => {
     captchaBody.addEventListener('input', (e) => {
         const input = e.target;
         const tr = input.closest('tr');
+        
+        // Clear error highlights on editing
+        input.classList.remove('input-error');
+        if (tr && !tr.querySelector('.input-error')) {
+            tr.classList.remove('row-error');
+        }
+
         if (!tr) return;
         const id = tr.dataset.id;
         const row = currentData.find(r => r._id === id);
@@ -156,6 +163,13 @@ document.addEventListener('DOMContentLoaded', () => {
     captchaBody.addEventListener('change', (e) => {
         const input = e.target;
         const tr = input.closest('tr');
+        
+        // Clear error highlights on change
+        input.classList.remove('input-error');
+        if (tr && !tr.querySelector('.input-error')) {
+            tr.classList.remove('row-error');
+        }
+
         if (!tr) return;
         const id = tr.dataset.id;
         const row = currentData.find(r => r._id === id);
@@ -629,20 +643,52 @@ function checkForChanges() {
 function validateData() {
     const errors = [];
 
+    // Clear previous error highlighting
+    captchaBody.querySelectorAll('tr').forEach(tr => {
+        tr.classList.remove('row-error');
+        tr.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
+    });
+
     currentData.forEach((row, i) => {
         const dom = (row.root_domain || '').trim().toLowerCase();
+        const tr = captchaBody.querySelector(`tr[data-id="${row._id}"]`);
+        let rowHasError = false;
 
         if (!dom || dom.includes('new-domain-')) {
             errors.push(`Row ${i + 1}: Root Domain is required.`);
+            rowHasError = true;
+            if (tr) {
+                const input = tr.querySelector('.domain-input');
+                if (input) input.classList.add('input-error');
+            }
         } else if (!dom.includes('.') || dom.includes(' ') || dom.startsWith('.') || dom.endsWith('.')) {
             errors.push(`Row ${i + 1} ('${dom}'): Domain format is invalid. Must be a root domain (e.g. example.com).`);
+            rowHasError = true;
+            if (tr) {
+                const input = tr.querySelector('.domain-input');
+                if (input) input.classList.add('input-error');
+            }
         }
 
         if (!row.site_key || !row.site_key.trim()) {
             errors.push(`Row ${i + 1} ('${dom}'): Site Key cannot be empty.`);
+            rowHasError = true;
+            if (tr) {
+                const input = tr.querySelector('.site-key-input');
+                if (input) input.classList.add('input-error');
+            }
         }
         if (!row.secret_key || !row.secret_key.trim()) {
             errors.push(`Row ${i + 1} ('${dom}'): Secret Key cannot be empty.`);
+            rowHasError = true;
+            if (tr) {
+                const input = tr.querySelector('.secret-key-input');
+                if (input) input.classList.add('input-error');
+            }
+        }
+
+        if (rowHasError && tr) {
+            tr.classList.add('row-error');
         }
     });
 
@@ -686,6 +732,57 @@ async function saveChanges() {
 
         const result = await response.json();
         if (!response.ok) {
+            // Apply server-side errors to rows/inputs
+            if (result.errors && result.errors.length > 0) {
+                result.errors.forEach(err => {
+                    // Match pattern like "[domain] error description"
+                    const match = err.match(/^\[([^\]]+)\]\s*(.*)$/);
+                    if (match) {
+                        const domain = match[1].trim().toLowerCase();
+                        const msg = match[2];
+                        
+                        // Find row matching this domain
+                        const row = currentData.find(r => (r.root_domain || '').trim().toLowerCase() === domain);
+                        if (row) {
+                            const tr = captchaBody.querySelector(`tr[data-id="${row._id}"]`);
+                            if (tr) {
+                                tr.classList.add('row-error');
+                                
+                                // Which field has the error?
+                                if (msg.toLowerCase().includes('site key') || msg.toLowerCase().includes('sitekey')) {
+                                    const siteKeyInput = tr.querySelector('.site-key-input');
+                                    if (siteKeyInput) siteKeyInput.classList.add('input-error');
+                                } else if (msg.toLowerCase().includes('secret key') || msg.toLowerCase().includes('secretkey') || msg.toLowerCase().includes('clave secreta')) {
+                                    const secretKeyInput = tr.querySelector('.secret-key-input');
+                                    if (secretKeyInput) secretKeyInput.classList.add('input-error');
+                                } else if (msg.toLowerCase().includes('dominio') || msg.toLowerCase().includes('domain')) {
+                                    const domainInput = tr.querySelector('.domain-input');
+                                    if (domainInput) domainInput.classList.add('input-error');
+                                } else {
+                                    // Highlight both keys if unspecified
+                                    tr.querySelectorAll('.data-input').forEach(el => el.classList.add('input-error'));
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Apply duplicate domain errors if returned
+            if (result.duplicates && result.duplicates.length > 0) {
+                result.duplicates.forEach(domain => {
+                    const matchedRows = currentData.filter(r => (r.root_domain || '').trim().toLowerCase() === domain.trim().toLowerCase());
+                    matchedRows.forEach(row => {
+                        const tr = captchaBody.querySelector(`tr[data-id="${row._id}"]`);
+                        if (tr) {
+                            tr.classList.add('row-error');
+                            const domainInput = tr.querySelector('.domain-input');
+                            if (domainInput) domainInput.classList.add('input-error');
+                        }
+                    });
+                });
+            }
+
             showToast(result.message || 'Failed to save changes', 'danger', result.errors || []);
             saveBtn.disabled = false;
             return;
