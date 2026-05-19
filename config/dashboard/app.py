@@ -1,11 +1,13 @@
 
 import os
 import csv
+import hmac
 import subprocess
 import secrets
 import re
 import socket
 import logging
+import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, Response
 from flask_limiter import Limiter
@@ -16,6 +18,7 @@ import base64
 import datetime
 import tldextract
 from collections import defaultdict
+from urllib.parse import urlparse
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 log = logging.getLogger(__name__)
@@ -29,8 +32,38 @@ app.config.update(
     SESSION_COOKIE_SECURE=True,  # In production via Traefik HTTPS
     SESSION_COOKIE_SAMESITE='Lax',
     PERMANENT_SESSION_LIFETIME=1800, # 30 minutes
-    SESSION_COOKIE_PATH='/' # Ensure cookie is valid for all subpaths
+    SESSION_COOKIE_PATH='/',  # Ensure cookie is valid for all subpaths
+    # Reject incoming request bodies larger than 1 MB to prevent memory exhaustion attacks.
+    MAX_CONTENT_LENGTH=1 * 1024 * 1024,
 )
+
+@app.after_request
+def set_security_headers(response):
+    """Inject defensive HTTP response headers on every reply.
+
+    Traefik already adds these on the external edge via security-headers@file,
+    but we also set them here so that direct hits to port 5000 (e.g. from other
+    containers or during local development) are equally protected.
+    """
+    # Prevent browsers from MIME-sniffing the content type
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    # Deny embedding in any frame (clickjacking protection)
+    response.headers.setdefault('X-Frame-Options', 'DENY')
+    # Limit referrer information sent to third-party origins
+    response.headers.setdefault('Referrer-Policy', 'strict-origin-when-cross-origin')
+    # CSP: allow inline styles/scripts (required by current template structure) but
+    # restrict external resources to known trusted origins only.
+    response.headers.setdefault(
+        'Content-Security-Policy',
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://unpkg.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data:; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none';"
+    )
+    return response
 
 # Apply ProxyFix to handle X-Forwarded-For, X-Forwarded-Proto, X-Forwarded-Host, X-Forwarded-Prefix
 # x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1
@@ -408,40 +441,61 @@ def read_csv():
     return data
 
 def write_csv(data):
-    # Preserving comments is hard with simple csv writer.
-    # We will overwrite but try to keep the header.
+    """Atomically write domains.csv using a temp file + os.replace().
+
+    Writing directly to the target file truncates it immediately, meaning a
+    crash mid-write leaves an empty or corrupt CSV and wipes the entire Traefik
+    configuration.  os.replace() is atomic on POSIX — the old file stays intact
+    until the new one is fully written and flushed.
+    """
     header = "# domain, redirection, service_name, anubis_subdomain, rate, burst, concurrency"
-    
-    with open(DOMAINS_CSV_PATH, mode='w', encoding='utf-8', newline='') as f:
-        f.write(header + '\n\n')
-        writer = csv.writer(f)
-        for entry in data:
-            if not validate_domain_data(entry):
-                print(f"Skipping invalid entry: {entry}")
-                continue
+    dest_dir = os.path.dirname(DOMAINS_CSV_PATH)
+
+    tmp_fd, tmp_path = tempfile.mkstemp(dir=dest_dir, suffix='.tmp', prefix='domains_')
+    try:
+        with os.fdopen(tmp_fd, mode='w', encoding='utf-8', newline='') as f:
+            f.write(header + '\n\n')
+            writer = csv.writer(f)
+            for entry in data:
+                if not validate_domain_data(entry):
+                    log.warning("Skipping invalid entry during write: %s", entry.get('domain', '?'))
+                    continue
+
+                domain_val = entry['domain']
+                if not entry.get('enabled', True):
+                    domain_val = f"# {domain_val}"
             
-            domain_val = entry['domain']
-            if not entry.get('enabled', True):
-                domain_val = f"# {domain_val}"
-            
-            writer.writerow([
-                domain_val,
-                entry['redirection'],
-                entry['service_name'],
-                entry['anubis_subdomain'],
-                entry['rate'],
-                entry['burst'],
-                entry['concurrency']
-            ])
+                writer.writerow([
+                    domain_val,
+                    entry['redirection'],
+                    entry['service_name'],
+                    entry['anubis_subdomain'],
+                    entry['rate'],
+                    entry['burst'],
+                    entry['concurrency']
+                ])
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, DOMAINS_CSV_PATH)
+    except Exception:
+        # Clean up the temp file if anything went wrong
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
 def validate_captcha_data(entry):
+    """Validate a captcha entry. Disabled entries only need a valid domain."""
     domain = entry.get('root_domain', '').strip().lower()
+    if not domain or '.' not in domain or ' ' in domain:
+        return False
+    # Disabled (commented-out) entries don't need keys — they are preserved as stubs
+    if not entry.get('enabled', True):
+        return True
     provider = entry.get('provider', '').strip().lower()
     site_key = entry.get('site_key', '').strip()
     secret_key = entry.get('secret_key', '').strip()
-    
-    if not domain or '.' not in domain or ' ' in domain:
-        return False
     if provider not in ['recaptcha', 'turnstile', 'hcaptcha']:
         return False
     if not site_key or not secret_key:
@@ -449,6 +503,11 @@ def validate_captcha_data(entry):
     return True
 
 def read_captcha_csv():
+    """Read captcha_keys.csv and return all entries including disabled (commented) ones.
+
+    Disabled entries are prefixed with '#' in the CSV and are returned with
+    ``enabled=False`` — matching the same pattern as read_csv() for domains.
+    """
     data = []
     if not os.path.exists(CAPTCHA_CSV_PATH):
         return data
@@ -458,34 +517,69 @@ def read_captcha_csv():
             if not row:
                 continue
             first_col = row[0].strip()
+            enabled = True
+
             if first_col.startswith('#'):
-                continue
+                clean_content = first_col.lstrip('#').strip()
+                # Skip the file header line (e.g. "# root_domain, provider, ...")
+                if 'root_domain' in clean_content.lower():
+                    continue
+                # Skip blank/separator comments
+                if not clean_content or ' ' in clean_content:
+                    continue
+                # It's a disabled entry
+                enabled = False
+                row[0] = clean_content
+
             while len(row) < 4:
                 row.append('')
             entry = {
                 'root_domain': row[0].strip().lower(),
                 'provider': row[1].strip().lower(),
                 'site_key': row[2].strip(),
-                'secret_key': row[3].strip()
+                'secret_key': row[3].strip(),
+                'enabled': enabled
             }
             if validate_captcha_data(entry):
                 data.append(entry)
     return data
 
 def write_captcha_csv(data):
+    """Atomically write captcha_keys.csv using a temp file + os.replace().
+
+    Disabled entries (enabled=False) are written with a leading '# ' on the
+    root_domain column so they persist in the file but are ignored by CrowdSec.
+    """
     header = "# root_domain, provider, site_key, secret_key"
-    with open(CAPTCHA_CSV_PATH, mode='w', encoding='utf-8', newline='') as f:
-        f.write(header + '\n\n')
-        writer = csv.writer(f)
-        for entry in data:
-            if not validate_captcha_data(entry):
-                continue
-            writer.writerow([
-                entry['root_domain'].strip().lower(),
-                entry['provider'].strip().lower(),
-                entry['site_key'].strip(),
-                entry['secret_key'].strip()
-            ])
+    dest_dir = os.path.dirname(CAPTCHA_CSV_PATH)
+
+    tmp_fd, tmp_path = tempfile.mkstemp(dir=dest_dir, suffix='.tmp', prefix='captcha_')
+    try:
+        with os.fdopen(tmp_fd, mode='w', encoding='utf-8', newline='') as f:
+            f.write(header + '\n\n')
+            writer = csv.writer(f)
+            for entry in data:
+                if not validate_captcha_data(entry):
+                    log.warning("Skipping invalid captcha entry: %s", entry.get('root_domain', '?'))
+                    continue
+                root_domain_val = entry['root_domain'].strip().lower()
+                if not entry.get('enabled', True):
+                    root_domain_val = f"# {root_domain_val}"
+                writer.writerow([
+                    root_domain_val,
+                    entry.get('provider', '').strip().lower(),
+                    entry.get('site_key', '').strip(),
+                    entry.get('secret_key', '').strip()
+                ])
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, CAPTCHA_CSV_PATH)
+    except Exception:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
 def resolve_domain(domain):
     try:
@@ -600,17 +694,23 @@ def login():
                 except Exception:
                     pass
         
-        log.debug(f"LOGIN POST: User={user}, Next={next_url}")
+        log.debug("LOGIN POST: attempt received, Next=%s", next_url)
 
-        if user == ADMIN_USER and pw == ADMIN_PASS:
+        # Use hmac.compare_digest to prevent timing-based username/password enumeration.
+        user_ok = hmac.compare_digest(user, ADMIN_USER)
+        pass_ok = hmac.compare_digest(pw, ADMIN_PASS)
+        if user_ok and pass_ok:
             session.clear() # Clear any existing session to prevent fixation
             session['logged_in'] = True
             session.permanent = True
             
-            # Helper to validate next_url (prevent open redirects)
-            if next_url and next_url.startswith('/'):
-                 log.debug(f"Redirecting to {next_url}")
-                 return redirect(next_url)
+            # Validate next_url to prevent open-redirect attacks.
+            # Reject anything with a netloc component (e.g. //evil.com or https://evil.com).
+            if next_url:
+                parsed = urlparse(next_url)
+                if parsed.scheme in ('', 'https', 'http') and not parsed.netloc and parsed.path.startswith('/'):
+                    log.debug("Redirecting to %s", next_url)
+                    return redirect(next_url)
             
             log.debug("Redirecting to dashboard")
             return redirect(url_for('dashboard'))
@@ -839,7 +939,9 @@ def api_domains():
     
     if request.method == 'POST':
         data = request.json
-        
+        if not isinstance(data, list):
+            return jsonify({'status': 'error', 'message': 'Expected a JSON array'}), 400
+
         # Check for duplicates (only for enabled records)
         seen_domains = {}
         duplicates = []
@@ -911,10 +1013,15 @@ def api_captchas():
     
     if request.method == 'POST':
         data = request.json
-        
+        if not isinstance(data, list):
+            return jsonify({'status': 'error', 'message': 'Expected a JSON array'}), 400
+
+        # Only check active (enabled) entries for duplicates
         seen_domains = {}
         duplicates = []
         for entry in data:
+            if not entry.get('enabled', True):
+                continue  # Disabled entries can share domain names with no conflict
             domain = entry.get('root_domain', '').strip().lower()
             if not domain:
                 continue
@@ -922,25 +1029,26 @@ def api_captchas():
                 if domain not in duplicates:
                     duplicates.append(domain)
             seen_domains[domain] = True
-            
+
         if duplicates:
             return jsonify({
                 'status': 'error',
                 'message': f'Duplicate root domains found: {", ".join(duplicates)}',
                 'duplicates': duplicates
             }), 400
-            
+
+        # Only validate active entries for key completeness
         invalid_entries = []
         for entry in data:
             if not validate_captcha_data(entry):
                 invalid_entries.append(entry.get('root_domain', 'Unknown'))
-                
+
         if invalid_entries:
             return jsonify({
                 'status': 'error',
                 'message': f'Invalid credentials or domain format for: {", ".join(invalid_entries)}'
             }), 400
-            
+
         write_captcha_csv(data)
         return jsonify({'status': 'success'})
 

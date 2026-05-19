@@ -104,6 +104,17 @@ document.addEventListener('DOMContentLoaded', () => {
         return rootColorMap.get(rootDomain) || 'transparent';
     }
 
+    /** Escape user/server-supplied strings before injecting them via innerHTML. */
+    function escapeHtml(str) {
+        if (str == null) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     function showToast(message, type = 'info', persistent = false, details = []) {
         let content = '';
 
@@ -115,12 +126,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>`;
         }
 
-        content += `<div class="toast-body">${message}`;
+        content += `<div class="toast-body">${escapeHtml(message)}`;
 
         if (details.length > 0) {
             content += `<ul class="error-list">`;
             details.forEach(detail => {
-                content += `<li>${detail}</li>`;
+                content += `<li>${escapeHtml(detail)}</li>`;
             });
             content += `</ul>`;
         }
@@ -446,14 +457,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             tr.innerHTML = `
                 <td></td>
-                <td class="root-domain-cell" data-label="Root Domain">${root}</td>
-                <td data-label="Domain"><input type="text" class="data-input" value="${data.domain || ''}" disabled></td>
-                <td data-label="Redirection"><input type="text" class="data-input" value="${data.redirection || ''}" disabled></td>
-                <td data-label="Service"><input type="text" class="data-input" value="${data.service_name || ''}" disabled></td>
-                <td data-label="Anubis Subdomain"><input type="text" class="data-input" value="${data.anubis_subdomain || ''}" disabled></td>
-                <td data-label="Rate"><input type="text" class="data-input" value="${data.rate || ''}" disabled></td>
-                <td data-label="Burst"><input type="text" class="data-input" value="${data.burst || ''}" disabled></td>
-                <td data-label="Concurrency"><input type="text" class="data-input" value="${data.concurrency || ''}" disabled></td>
+                <td class="root-domain-cell" data-label="Root Domain">${escapeHtml(root)}</td>
+                <td data-label="Domain"><input type="text" class="data-input" value="${escapeHtml(data.domain || '')}" disabled></td>
+                <td data-label="Redirection"><input type="text" class="data-input" value="${escapeHtml(data.redirection || '')}" disabled></td>
+                <td data-label="Service"><input type="text" class="data-input" value="${escapeHtml(data.service_name || '')}" disabled></td>
+                <td data-label="Anubis Subdomain"><input type="text" class="data-input" value="${escapeHtml(data.anubis_subdomain || '')}" disabled></td>
+                <td data-label="Rate"><input type="text" class="data-input" value="${escapeHtml(data.rate || '')}" disabled></td>
+                <td data-label="Burst"><input type="text" class="data-input" value="${escapeHtml(data.burst || '')}" disabled></td>
+                <td data-label="Concurrency"><input type="text" class="data-input" value="${escapeHtml(data.concurrency || '')}" disabled></td>
                 <td>
                     <div style="display: flex; gap: 0.25rem; justify-content: center;">
                         <button class="btn btn-success btn-xs btn-compact restore-row-btn" title="Restore record">
@@ -547,7 +558,7 @@ document.addEventListener('DOMContentLoaded', () => {
             statusHtml = '<i data-lucide="check-circle" style="color: #059669; width: 1.2rem; height: 1.2rem;"></i>';
         } else if (data._status === 'invalid') {
             const errors = data._validation_errors || [];
-            statusHtml = `<i data-lucide="x-circle" style="color: #7f1d1d; width: 1.2rem; height: 1.2rem;" title="${errors.join('\n')}"></i>`;
+            statusHtml = `<i data-lucide="x-circle" style="color: #7f1d1d; width: 1.2rem; height: 1.2rem;" title="${escapeHtml(errors.join('\n'))}"></i>`;
             tr.classList.add('row-error');
         } else {
             statusHtml = '<i data-lucide="help-circle" style="color: #94a3b8; width: 1.2rem; height: 1.2rem;" title="Not validated"></i>';
@@ -555,16 +566,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         tr.innerHTML = `
             <td class="check-status-cell" style="text-align: center;">${statusHtml}</td>
-            <td class="root-domain-cell" data-label="Root Domain">${root || '-'}</td>
-            <td data-label="Domain"><input type="text" class="data-input" data-key="domain" value="${data.domain || ''}" placeholder="example.com"></td>
-            <td data-label="Redirection"><input type="text" class="data-input" data-key="redirection" value="${data.redirection || ''}" placeholder="www.example.com"></td>
+            <td class="root-domain-cell" data-label="Root Domain">${escapeHtml(root) || '-'}</td>
+            <td data-label="Domain"><input type="text" class="data-input" data-key="domain" value="${escapeHtml(data.domain || '')}" placeholder="example.com"></td>
+            <td data-label="Redirection"><input type="text" class="data-input" data-key="redirection" value="${escapeHtml(data.redirection || '')}" placeholder="www.example.com"></td>
             <td data-label="Service">
-                <input type="text" class="data-input service-input" data-key="service_name" value="${data.service_name || ''}" placeholder="Type or select service" autocomplete="off">
+                <input type="text" class="data-input service-input" data-key="service_name" value="${escapeHtml(data.service_name || '')}" placeholder="Type or select service" autocomplete="off">
             </td>
-            <td data-label="Anubis Subdomain"><input type="text" class="data-input" data-key="anubis_subdomain" value="${data.anubis_subdomain || ''}" placeholder="anubis"></td>
-            <td data-label="Rate"><input type="text" class="data-input" data-key="rate" value="${data.rate || ''}" placeholder="${defaultRateAvg}"></td>
-            <td data-label="Burst"><input type="text" class="data-input" data-key="burst" value="${data.burst || ''}" placeholder="${defaultRateBurst}"></td>
-            <td data-label="Concurrency"><input type="text" class="data-input" data-key="concurrency" value="${data.concurrency || ''}" placeholder="${defaultConcurrency}"></td>
+            <td data-label="Anubis Subdomain"><input type="text" class="data-input" data-key="anubis_subdomain" value="${escapeHtml(data.anubis_subdomain || '')}" placeholder="anubis"></td>
+            <td data-label="Rate"><input type="text" class="data-input" data-key="rate" value="${escapeHtml(data.rate || '')}" placeholder="${defaultRateAvg}"></td>
+            <td data-label="Burst"><input type="text" class="data-input" data-key="burst" value="${escapeHtml(data.burst || '')}" placeholder="${defaultRateBurst}"></td>
+            <td data-label="Concurrency"><input type="text" class="data-input" data-key="concurrency" value="${escapeHtml(data.concurrency || '')}" placeholder="${defaultConcurrency}"></td>
             <td>
                 <button class="btn btn-danger btn-sm remove-row-btn" title="Delete record">
                     <i data-lucide="trash-2"></i>

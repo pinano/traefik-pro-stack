@@ -67,6 +67,38 @@ document.addEventListener('DOMContentLoaded', () => {
         restartModal.classList.remove('show');
     });
 
+    // Confirmation modal buttons
+    const confirmModal = document.getElementById('confirm-modal');
+    const confirmModalTitle = document.getElementById('confirm-modal-title');
+    const confirmMsg = document.getElementById('confirm-msg');
+    const cancelConfirmBtn = document.getElementById('cancel-confirm-btn');
+    const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+    const confirmDeployBtn = document.getElementById('confirm-deploy-btn');
+
+    cancelConfirmBtn.addEventListener('click', () => confirmModal.classList.remove('show'));
+
+    confirmDeleteBtn.addEventListener('click', () => {
+        confirmModal.classList.remove('show');
+        // Deletion logic is handled inline via deleteRow() called from captchaBody click handler
+    });
+
+    confirmDeployBtn.addEventListener('click', () => {
+        confirmModal.classList.remove('show');
+        initiateStream(
+            `/dm-api/apply-config-stream?csrf_token=${csrfToken}`,
+            '✅ CAPTCHA configurations successfully applied in real-time!'
+        );
+    });
+
+    deployBtn.addEventListener('click', () => {
+        confirmModalTitle.textContent = 'Hot Reload — Zero Downtime';
+        confirmMsg.textContent = 'This will regenerate the Traefik dynamic config and apply CAPTCHA settings in-place. No containers will be stopped — traffic continues uninterrupted.';
+        confirmDeleteBtn.style.display = 'none';
+        confirmDeployBtn.style.display = 'inline-flex';
+        if (window.lucide) lucide.createIcons({ root: confirmModal });
+        confirmModal.classList.add('show');
+    });
+
     // Input changes event delegation
     captchaBody.addEventListener('input', (e) => {
         const input = e.target;
@@ -179,10 +211,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const restoreBtn = e.target.closest('.restore-row-btn');
         if (restoreBtn) {
             const tr = restoreBtn.closest('tr');
-            if (tr) {
-                const id = tr.dataset.id;
-                restoreRow(id);
-            }
+            if (tr) restoreRow(tr.dataset.id);
+        }
+
+        const permanentDeleteBtn = e.target.closest('.permanent-delete-btn');
+        if (permanentDeleteBtn) {
+            const tr = permanentDeleteBtn.closest('tr');
+            if (tr) permanentlyDeleteRow(tr.dataset.id);
         }
     });
 
@@ -204,6 +239,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+/** Escape user/server-supplied strings before injecting them via innerHTML. */
+function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // Toast Helper
 function showToast(message, type = 'success', errors = []) {
     toastEl.className = 'toast';
@@ -215,13 +261,13 @@ function showToast(message, type = 'success', errors = []) {
             <button onclick="hideToast()" class="toast-close" title="Dismiss">&times;</button>
         </div>
         <div class="toast-body">
-            <p>${message}</p>
+            <p>${escapeHtml(message)}</p>
     `;
     
     if (errors.length > 0) {
         html += '<ul class="error-list">';
         errors.forEach(err => {
-            html += `<li>${err}</li>`;
+            html += `<li>${escapeHtml(err)}</li>`;
         });
         html += '</ul>';
     }
@@ -254,16 +300,15 @@ async function loadCaptchas() {
         const response = await fetch('/dm-api/captchas');
         if (!response.ok) throw new Error('Failed to fetch data');
         const data = await response.json();
-        
-        // Assign internal IDs
-        data.forEach(d => {
-            if (!d._id) d._id = crypto.randomUUID();
-        });
 
-        initialData = JSON.parse(JSON.stringify(data)); // Deep clone
-        currentData = JSON.parse(JSON.stringify(data));
-        deletedData = [];
-        
+        // Assign internal IDs and split into active / disabled
+        data.forEach(d => { if (!d._id) d._id = crypto.randomUUID(); });
+
+        currentData = data.filter(d => d.enabled !== false);
+        deletedData  = data.filter(d => d.enabled === false);
+
+        initialData = JSON.parse(JSON.stringify(data)); // Full snapshot (active + disabled)
+
         renderTables();
         checkForChanges();
         lucide.createIcons();
@@ -337,7 +382,7 @@ function renderTables() {
 
             tr.innerHTML = `
                 <td>
-                    <input type="text" class="data-input domain-input" value="${visibleDomain}" placeholder="example.com" autocomplete="off">
+                    <input type="text" class="data-input domain-input" value="${escapeHtml(visibleDomain)}" placeholder="example.com" autocomplete="off">
                 </td>
                 <td>
                     <select class="data-input provider-select">
@@ -347,10 +392,10 @@ function renderTables() {
                     </select>
                 </td>
                 <td>
-                    <input type="text" class="data-input site-key-input" value="${row.site_key}" placeholder="Site Key">
+                    <input type="text" class="data-input site-key-input" value="${escapeHtml(row.site_key)}" placeholder="Site Key">
                 </td>
                 <td>
-                    <input type="text" class="data-input secret-key-input" value="${row.secret_key}" placeholder="Secret Key">
+                    <input type="text" class="data-input secret-key-input" value="${escapeHtml(row.secret_key)}" placeholder="Secret Key">
                 </td>
                 <td style="text-align: center;">
                     <button class="btn btn-danger btn-xs delete-row-btn" title="Delete record">
@@ -368,7 +413,7 @@ function renderTables() {
         deletedCaptchaBody.innerHTML = `
             <tr>
                 <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1rem;">
-                    No deleted keys in this session.
+                    No disabled CAPTCHA keys.
                 </td>
             </tr>
         `;
@@ -377,20 +422,25 @@ function renderTables() {
             const tr = document.createElement('tr');
             tr.dataset.id = row._id;
             tr.innerHTML = `
-                <td><input type="text" class="data-input" value="${row.root_domain}" disabled></td>
-                <td><input type="text" class="data-input" value="${row.provider}" disabled></td>
-                <td><input type="text" class="data-input" value="${row.site_key}" disabled></td>
-                <td><input type="text" class="data-input" value="${row.secret_key}" disabled></td>
+                <td><input type="text" class="data-input" value="${escapeHtml(row.root_domain)}" disabled></td>
+                <td><input type="text" class="data-input" value="${escapeHtml(row.provider)}" disabled></td>
+                <td><input type="text" class="data-input" value="${escapeHtml(row.site_key)}" disabled></td>
+                <td><input type="text" class="data-input" value="${escapeHtml(row.secret_key)}" disabled></td>
                 <td style="text-align: center;">
-                    <button class="btn btn-success btn-xs restore-row-btn" title="Restore record">
-                        <i data-lucide="rotate-ccw"></i>
-                    </button>
+                    <div style="display: flex; gap: 0.25rem; justify-content: center;">
+                        <button class="btn btn-success btn-xs restore-row-btn" title="Restore record">
+                            <i data-lucide="rotate-ccw"></i>
+                        </button>
+                        <button class="btn btn-danger btn-xs permanent-delete-btn" title="Delete permanently">
+                            <i data-lucide="trash-2"></i>
+                        </button>
+                    </div>
                 </td>
             `;
             deletedCaptchaBody.appendChild(tr);
         });
     }
-    
+
     lucide.createIcons();
 }
 
@@ -403,63 +453,82 @@ function addNewRow(atTop = false) {
         provider: 'turnstile',
         site_key: '',
         secret_key: '',
+        enabled: true,
         isNew: true
     };
-    
+
     if (atTop) {
         currentData.unshift(newEntry);
     } else {
         currentData.push(newEntry);
     }
-    
+
     renderTables();
     checkForChanges();
 }
 
-// Delete row (soft-delete, moving to deleted data)
+// Soft-delete: mark as disabled and move to deletedData
+// New (unsaved) rows are discarded immediately without moving to deleted list
 function deleteRow(id) {
     const rowIndex = currentData.findIndex(r => r._id === id);
     if (rowIndex > -1) {
-        const deletedRow = currentData.splice(rowIndex, 1)[0];
-        // Only save to deleted list if it wasn't a newly added unsaved row
-        if (!deletedRow.isNew) {
-            deletedData.push(deletedRow);
+        const row = currentData.splice(rowIndex, 1)[0];
+        if (!row.isNew) {
+            row.enabled = false;
+            deletedData.push(row);
         }
         renderTables();
         checkForChanges();
     }
 }
 
-// Restore a soft-deleted row
+// Restore: re-enable and move back to currentData
 function restoreRow(id) {
     const rowIndex = deletedData.findIndex(r => r._id === id);
     if (rowIndex > -1) {
-        const restoredRow = deletedData.splice(rowIndex, 1)[0];
-        currentData.push(restoredRow);
+        const row = deletedData.splice(rowIndex, 1)[0];
+        row.enabled = true;
+        currentData.push(row);
         renderTables();
         checkForChanges();
     }
 }
 
-// Check if current data deviates from initial data
+// Permanently remove from deletedData (won't be written to CSV)
+function permanentlyDeleteRow(id) {
+    const rowIndex = deletedData.findIndex(r => r._id === id);
+    if (rowIndex > -1) {
+        deletedData.splice(rowIndex, 1);
+        renderTables();
+        checkForChanges();
+    }
+}
+
+// Check if current state differs from the last saved state
 function checkForChanges() {
     let changed = false;
-    
-    if (currentData.length !== initialData.length || deletedData.length > 0) {
+
+    // Compare active + disabled counts against initial snapshot
+    const totalNow = currentData.length + deletedData.length;
+    const totalInit = initialData.length;
+
+    if (totalNow !== totalInit) {
         changed = true;
     } else {
+        // Check if any active row changed
         for (const row of currentData) {
-            const orig = initialData.find(o => o._id === row._id || o.root_domain === row.root_domain);
-            if (!orig) {
-                changed = true;
-                break;
-            }
-            if (orig.provider !== row.provider || 
-                orig.site_key !== row.site_key || 
+            const orig = initialData.find(o => o._id === row._id);
+            if (!orig || orig.enabled === false) { changed = true; break; }
+            if (orig.provider !== row.provider ||
+                orig.site_key !== row.site_key ||
                 orig.secret_key !== row.secret_key ||
-                orig.root_domain !== row.root_domain) {
-                changed = true;
-                break;
+                orig.root_domain !== row.root_domain) { changed = true; break; }
+        }
+        // Check if disabled list changed
+        if (!changed) {
+            for (const row of deletedData) {
+                const orig = initialData.find(o => o._id === row._id);
+                if (!orig || orig.enabled !== false) { changed = true; break; }
             }
         }
     }
@@ -477,21 +546,19 @@ function checkForChanges() {
     updateNotificationPadding();
 }
 
-// Validation before save
+// Validation before save (only for active rows)
 function validateData() {
     const errors = [];
-    
+
     currentData.forEach((row, i) => {
         const dom = (row.root_domain || '').trim().toLowerCase();
-        
-        // 1. Root Domain Validation
+
         if (!dom || dom.includes('new-domain-')) {
             errors.push(`Row ${i + 1}: Root Domain is required.`);
         } else if (!dom.includes('.') || dom.includes(' ') || dom.startsWith('.') || dom.endsWith('.')) {
             errors.push(`Row ${i + 1} ('${dom}'): Domain format is invalid. Must be a root domain (e.g. example.com).`);
         }
-        
-        // 2. Keys Validation
+
         if (!row.site_key || !row.site_key.trim()) {
             errors.push(`Row ${i + 1} ('${dom}'): Site Key cannot be empty.`);
         }
@@ -499,17 +566,18 @@ function validateData() {
             errors.push(`Row ${i + 1} ('${dom}'): Secret Key cannot be empty.`);
         }
     });
-    
+
     return errors;
 }
 
-// Helper to strip internal ids and get clean payload for API
+// Build the payload for a single row to send to the API
 function getCleanPayload(row) {
     return {
         root_domain: (row.root_domain || '').trim().toLowerCase(),
-        provider: (row.provider || '').trim().toLowerCase(),
-        site_key: (row.site_key || '').trim(),
-        secret_key: (row.secret_key || '').trim()
+        provider:    (row.provider    || '').trim().toLowerCase(),
+        site_key:    (row.site_key    || '').trim(),
+        secret_key:  (row.secret_key  || '').trim(),
+        enabled:     row.enabled !== false  // default true
     };
 }
 
@@ -526,7 +594,8 @@ async function saveChanges() {
     lucide.createIcons();
 
     try {
-        const payload = currentData.map(getCleanPayload);
+        // Send all entries: active (enabled=true) + disabled (enabled=false)
+        const payload = [...currentData, ...deletedData].map(getCleanPayload);
         const response = await fetch('/dm-api/captchas', {
             method: 'POST',
             headers: {
@@ -542,10 +611,9 @@ async function saveChanges() {
         }
 
         showToast('Changes saved successfully. The system is ready to apply configurations.', 'success');
-        
-        // Reset state
-        initialData = JSON.parse(JSON.stringify(currentData));
-        deletedData = [];
+
+        // Rebuild initialData from both lists as the new baseline
+        initialData = JSON.parse(JSON.stringify([...currentData, ...deletedData]));
         hasUnsavedChanges = false;
         
         unsavedBanner.classList.remove('show');
@@ -564,51 +632,56 @@ async function saveChanges() {
     }
 }
 
-// Deploy Changes via stream reload
+// Deploy Changes: show confirmation modal first (wired in DOMContentLoaded)
 function deployChanges() {
-    deployBtn.disabled = true;
+    // Handled entirely through the confirmDeployBtn listener in DOMContentLoaded.
+    // This stub is kept as a no-op so any legacy references don't break.
+}
+
+/**
+ * Launch a streaming SSE session and display output in the progress modal.
+ * Mirrors the initiateStream() pattern used in the Domain Manager.
+ *
+ * @param {string} streamUrl  - Full SSE endpoint URL (must include csrf_token query param)
+ * @param {string} successMsg - Message appended when the process exits with code 0
+ */
+function initiateStream(streamUrl, successMsg) {
+    const restartModalTitle = document.getElementById('restart-modal-title');
+    if (restartModalTitle) restartModalTitle.textContent = 'Hot Reload Config Progress';
+
     closeModalBtn.style.display = 'none';
-    logContainer.textContent = 'Connecting to deployment stream...';
+    logContainer.textContent = 'Connecting...\n';
     restartModal.classList.add('show');
 
-    // 1. Establish EventSource connection for streaming logs
-    const eventSource = new EventSource('/dm-api/apply-config-stream');
+    // Hide the deploy banner while the stream is running
+    deployBanner.classList.remove('show');
+    deployBtn.disabled = true;
+    updateNotificationPadding();
 
-    eventSource.onmessage = function(event) {
+    const eventSource = new EventSource(streamUrl);
+
+    eventSource.onmessage = (event) => {
         const line = event.data;
-        
-        // Append log line
-        logContainer.textContent += '\n' + line;
-        
-        // Keep scrolled to bottom
-        logContainer.scrollTop = logContainer.scrollHeight;
 
-        if (line.includes('[STREAM_DONE]')) {
+        if (line.trim() === '[Process finished with code 0]') {
+            logContainer.textContent += `\n${successMsg}\n`;
+            closeModalBtn.style.display = 'block';
             eventSource.close();
-            logContainer.textContent += '\n\n✨ CONFIGURATION HOT-RELOAD COMPLETED SUCCESSFULLY!';
-            logContainer.scrollTop = logContainer.scrollHeight;
-            closeModalBtn.style.display = 'inline-block';
-            deployBanner.classList.remove('show');
-            updateNotificationPadding();
-            showToast('CAPTCHA configurations successfully applied in real-time!', 'success');
-        }
-
-        if (line.includes('[STREAM_ERROR]')) {
-            eventSource.close();
-            logContainer.textContent += '\n\n❌ DEPLOYMENT FAILED. Check logs above.';
-            logContainer.scrollTop = logContainer.scrollHeight;
-            closeModalBtn.style.display = 'inline-block';
+        } else if (line.includes('[Process finished with code')) {
+            logContainer.textContent += `\n❌ ${line}\n`;
+            closeModalBtn.style.display = 'block';
             deployBtn.disabled = false;
-            showToast('Deployment failed. Please check the logs.', 'danger');
+            eventSource.close();
+        } else {
+            logContainer.textContent += line + '\n';
         }
+        logContainer.scrollTop = logContainer.scrollHeight;
     };
 
-    eventSource.onerror = function() {
+    eventSource.onerror = () => {
+        logContainer.textContent += '\n\n🔄 Connection closed. This is expected as Traefik reloads the new configuration.\n✅ The stack should be up in a few seconds.';
+        closeModalBtn.style.display = 'block';
         eventSource.close();
-        logContainer.textContent += '\n\n❌ Connection error or stream interrupted.';
-        logContainer.scrollTop = logContainer.scrollHeight;
-        closeModalBtn.style.display = 'inline-block';
-        deployBtn.disabled = false;
     };
 }
 

@@ -131,18 +131,21 @@
         </div>
     </div>
 
-    <!-- Confirmation Modal -->
+    <!-- Confirmation Modal (shared for delete and deploy actions) -->
     <div id="confirm-modal" class="modal-overlay">
         <div class="modal modal-sm">
             <div class="modal-header">
-                <h2 id="confirm-modal-title">Confirm Deletion</h2>
+                <h2 id="confirm-modal-title">Confirm Action</h2>
             </div>
             <div class="modal-body">
-                <p id="confirm-msg" style="color: var(--text-color);">Are you sure you want to delete these keys?</p>
+                <p id="confirm-msg" style="color: var(--text-color);">Are you sure?</p>
             </div>
             <div class="modal-footer">
-                <button id="cancel-delete-btn" class="btn btn-secondary">Cancel</button>
+                <button id="cancel-confirm-btn" class="btn btn-secondary">Cancel</button>
                 <button id="confirm-delete-btn" class="btn btn-danger">Delete</button>
+                <button id="confirm-deploy-btn" class="btn btn-apply" style="display:none;">
+                    <i data-lucide="rocket"></i> Apply
+                </button>
             </div>
         </div>
     </div>
