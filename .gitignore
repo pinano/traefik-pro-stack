@@ -14,6 +14,9 @@ docker-compose-anubis-generated.yaml
 config/traefik/traefik-generated.yaml
 config/traefik/dynamic-config/*
 config/crowdsec/parsers/ip-whitelist.yaml
+config/crowdsec/acquis.yaml
+config/crowdsec/profiles.yaml
+
 
 # Traefik certificates
 config/traefik/acme.json

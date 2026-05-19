@@ -161,10 +161,7 @@ if [[ "${CONTACT_POINT_EXISTS}" == "false" ]]; then
     fi
 else
     # Contact point exists — patch it to apply the latest message template.
-    # Extract the UID of the existing contact point.
-    EXISTING_UID=$(echo "${EXISTING}" \
-        | grep -o "\"uid\":\"[^\"]*\"" | head -1 \
-        | cut -d'"' -f4 || true)
+    EXISTING_UID=$(python3 -c "import sys, json; data = json.loads(sys.stdin.read()); print(next((cp['uid'] for cp in data if cp['name'] == '${CONTACT_POINT_NAME}'), ''))" <<< "${EXISTING}" 2>/dev/null || true)
 
     if [[ -n "${EXISTING_UID}" ]]; then
         info "Updating message template on existing '${CONTACT_POINT_NAME}' (uid: ${EXISTING_UID})..."
@@ -186,7 +183,7 @@ fi
 # ─── Set notification policy (only if not already routing to Telegram) ────────
 info "Checking notification policy..."
 CURRENT_POLICY=$(grafana_api "http://localhost:3000/api/v1/provisioning/policies")
-CURRENT_RECEIVER=$(echo "${CURRENT_POLICY}" | grep -o '"receiver":"[^"]*"' | head -1 | cut -d'"' -f4 || true)
+CURRENT_RECEIVER=$(python3 -c "import sys, json; data = json.loads(sys.stdin.read()); print(data.get('receiver', ''))" <<< "${CURRENT_POLICY}" 2>/dev/null || true)
 
 if [[ "${CURRENT_RECEIVER}" == "${CONTACT_POINT_NAME}" ]]; then
     success "Notification policy already routes to '${CONTACT_POINT_NAME}' — skipping."

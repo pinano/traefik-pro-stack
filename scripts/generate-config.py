@@ -1,10 +1,52 @@
-import tldextract
-import yaml
-import os
 import sys
+import os
+
+# Check for virtual environment redirection if dependencies are missing
+try:
+    import tldextract
+    import yaml
+except ImportError:
+    script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    for venv in ['.venv', 'venv']:
+        venv_python = os.path.join(script_dir, venv, 'bin', 'python3')
+        if os.path.exists(venv_python):
+            if venv_python != sys.executable:
+                os.execv(venv_python, [venv_python] + sys.argv)
+    print("❌ Error: Missing required dependencies 'tldextract' and/or 'pyyaml'.", file=sys.stderr)
+    print("👉 Please run 'make init' to set up the virtual environment.", file=sys.stderr)
+    sys.exit(1)
+
+def load_dotenv():
+    # Look for .env in current directory or parent directory
+    for path in ['.env', '../.env']:
+        if os.path.exists(path):
+            try:
+                with open(path, 'r') as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line or line.startswith('#'):
+                            continue
+                        if line.startswith('export '):
+                            line = line[7:]
+                        if '=' in line:
+                            key, val = line.split('=', 1)
+                            key = key.strip()
+                            val = val.strip()
+                            # Strip quotes if present
+                            if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+                                val = val[1:-1]
+                            if key not in os.environ:
+                                os.environ[key] = val
+            except Exception:
+                pass
+            break
+
+load_dotenv()
+
 import csv
 import re
 from collections import defaultdict
+
 
 # =============================================================================
 # CONSTANTS & FILE PATHS

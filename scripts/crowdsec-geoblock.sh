@@ -127,7 +127,7 @@ for RAW_COUNTRY in "${COUNTRIES[@]}"; do
 
         # Build a shell script with all cscli commands and run it in one docker exec
         # (avoids per-CIDR exec overhead — e.g. 1500+ execs for some countries)
-        TMPSCRIPT=$(mktemp /tmp/geoblock_ban_XXXXXX.sh)
+        TMPSCRIPT=$(mktemp /tmp/geoblock_ban_XXXXXX)
         echo '#!/bin/sh' > "$TMPSCRIPT"
         while IFS= read -r CIDR; do
             [[ -z "$CIDR" || "$CIDR" == \#* ]] && continue
@@ -162,7 +162,7 @@ for RAW_COUNTRY in "${COUNTRIES[@]}"; do
         else
             # Fallback: delete range-by-range in one docker exec
             warn "Bulk delete by reason failed or matched nothing — trying per-range fallback..."
-            TMPSCRIPT=$(mktemp /tmp/geoblock_unban_XXXXXX.sh)
+            TMPSCRIPT=$(mktemp /tmp/geoblock_unban_XXXXXX)
             echo '#!/bin/sh' > "$TMPSCRIPT"
             while IFS= read -r CIDR; do
                 [[ -z "$CIDR" || "$CIDR" == \#* ]] && continue

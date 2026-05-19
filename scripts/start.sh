@@ -667,7 +667,6 @@ fi
 
 $PYTHON_CMD scripts/generate-config.py | sed 's/^/   /'
 
-$PYTHON_CMD scripts/generate-config.py | sed 's/^/   /'
 
 # Fix permissions if running internally (files created as root)
 if [[ "$DASHBOARD_INTERNAL" == "true" ]]; then
