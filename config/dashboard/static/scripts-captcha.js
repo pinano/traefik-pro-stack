@@ -503,6 +503,10 @@ function renderTables() {
 
 // Add a brand new empty row
 function addNewRow(atTop = false) {
+    // Reset active sort so the top/bottom placement is preserved visually
+    currentSort.column = null;
+    currentSort.direction = 'asc';
+
     const tempDomain = `new-domain-${Date.now()}.com`;
     const newEntry = {
         _id: crypto.randomUUID(),
@@ -522,6 +526,19 @@ function addNewRow(atTop = false) {
 
     renderTables();
     checkForChanges();
+
+    // Focus the newly added row's domain input and scroll it into view
+    setTimeout(() => {
+        const tr = captchaBody.querySelector(`tr[data-id="${newEntry._id}"]`);
+        if (tr) {
+            const input = tr.querySelector('.domain-input');
+            if (input) {
+                input.focus();
+                input.select();
+            }
+            tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }, 50);
 }
 
 // Soft-delete: mark as disabled and move to deletedData
