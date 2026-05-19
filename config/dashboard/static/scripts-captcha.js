@@ -47,6 +47,29 @@ function getRootDomain(domain) {
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
+    // Header Sticky Logic
+    const header = document.querySelector('header');
+    let headerSpacer = document.createElement('div');
+    headerSpacer.className = 'header-spacer';
+    header.after(headerSpacer);
+
+    window.addEventListener('scroll', () => {
+        if (window.innerWidth > 768) { // Only on desktop
+            const stickyThreshold = 50;
+            if (window.scrollY > stickyThreshold) {
+                header.classList.add('header-scrolled');
+                headerSpacer.style.display = 'block';
+                headerSpacer.style.height = header.offsetHeight + 'px';
+            } else {
+                header.classList.remove('header-scrolled');
+                headerSpacer.style.display = 'none';
+            }
+        } else {
+            header.classList.remove('header-scrolled');
+            headerSpacer.style.display = 'none';
+        }
+    });
+
     loadCaptchas();
 
     document.getElementById('add-row-btn').addEventListener('click', () => addNewRow());
