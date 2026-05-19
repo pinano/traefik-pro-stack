@@ -21,15 +21,19 @@ NC='\033[0m'
 
 echo "🔍 Starting DNS verification check..."
 
-# Function to send Telegram alert
-send_telegram() {
-    MSG="$1"
-    # Use backticks instead of square brackets for SERVER_DOMAIN to avoid Markdown parsing issues
-    curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-        -d chat_id="${TELEGRAM_RECIPIENT_ID}" \
-        -d text="🌐 *DNS ALERT* 🌐%0A[\`${SERVER_DOMAIN}\`]%0A%0A${MSG}" \
-        -d parse_mode="Markdown" > /dev/null
-}
+# Guard: if Telegram credentials are not configured, degrade gracefully
+if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_RECIPIENT_ID" ]; then
+    echo "⚠️  Warning: Telegram credentials not configured — alerts will be logged locally only."
+    send_telegram() { echo "[TELEGRAM DISABLED] $1"; }
+else
+    send_telegram() {
+        MSG="$1"
+        curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_RECIPIENT_ID}" \
+            -d text="🌐 *DNS ALERT* 🌐%0A[\`${SERVER_DOMAIN}\`]%0A%0A${MSG}" \
+            -d parse_mode="Markdown" > /dev/null
+    }
+fi
 
 # Function to check a single domain's DNS
 # Returns: 0 if OK, 1 if no A record, 2 if IP mismatch
@@ -37,7 +41,7 @@ send_telegram() {
 check_domain_dns() {
     local domain="$1"
     RESOLVED_IP=$(dig +short A "$domain" 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
-    
+
     if [ -z "$RESOLVED_IP" ]; then
         return 1  # No A record
     elif [ "$RESOLVED_IP" != "$HOST_IP" ]; then
@@ -73,6 +77,14 @@ if [ -z "$TRAEFIK_LISTEN_IP" ] || [ "$TRAEFIK_LISTEN_IP" = "0.0.0.0" ]; then
         send_telegram "Could not detect public IP for DNS verification."
         exit 1
     fi
+    # Validate that the detected value is a proper IPv4 address.
+    # A CDN outage or captcha page could return HTML instead of an IP,
+    # causing false-positive DNS alerts for every single domain.
+    if ! echo "$HOST_IP" | grep -qE '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'; then
+        echo "❌ Error: Detected value '$HOST_IP' is not a valid IPv4 address. Aborting."
+        send_telegram "Could not detect a valid public IPv4 address for DNS verification (got unexpected response from IP detection service)."
+        exit 1
+    fi
     echo "🌐 Detected public IP: $HOST_IP"
 else
     HOST_IP="$TRAEFIK_LISTEN_IP"
@@ -95,10 +107,10 @@ while IFS=, read -r domain rest || [ -n "$domain" ]; do
     esac
 
     TOTAL=$((TOTAL + 1))
-    
+
     check_domain_dns "$domain"
     result=$?
-    
+
     if [ $result -eq 1 ]; then
         printf '%b\n' "${YELLOW}[WARN] $domain - No A record found (will recheck)${NC}"
         FAILED_DOMAINS="${FAILED_DOMAINS}${domain}|"
@@ -120,20 +132,21 @@ if [ -n "$FAILED_DOMAINS" ]; then
     echo ""
     printf '%b\n' "${CYAN}⏳ Waiting ${DNS_RECHECK_DELAY} seconds before double-checking failed domains...${NC}"
     sleep "$DNS_RECHECK_DELAY"
-    
+
     # Unique temp file for collecting errors from the subshell
     DNS_ERRORS_FILE=$(mktemp /tmp/dns_errors_XXXXXX.txt)
-    
+    trap 'rm -f "$DNS_ERRORS_FILE"' EXIT INT TERM
+
     echo ""
     echo "📋 Second pass: Double-checking failed domains..."
-    
+
     # Parse the failed domains list
     echo "$FAILED_DOMAINS" | tr '|' '\n' | while read -r domain; do
         [ -z "$domain" ] && continue
-        
+
         check_domain_dns "$domain"
         result=$?
-        
+
         if [ $result -eq 1 ]; then
             printf '%b\n' "${RED}[FAIL] $domain - No A record found (confirmed)${NC}"
             # Write to temp file since we're in a subshell
@@ -145,7 +158,7 @@ if [ -n "$FAILED_DOMAINS" ]; then
             printf '%b\n' "${GREEN}[OK] $domain -> $RESOLVED_IP (recovered)${NC}"
         fi
     done
-    
+
     # Read errors from unique temp file
     if [ -f "$DNS_ERRORS_FILE" ]; then
         MISMATCHED_DOMAINS=$(cat "$DNS_ERRORS_FILE")

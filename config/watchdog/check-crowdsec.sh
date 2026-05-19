@@ -15,17 +15,32 @@ GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 NC='\033[0m'
 
+# Temp file paths declared here so the cleanup trap can always reference them,
+# even if the script exits before they are created.
+GROUP_DIR=""
+BOUNCER_LIST_FILE=""
+
+cleanup() {
+    rm -rf "$GROUP_DIR"
+    rm -f  "$BOUNCER_LIST_FILE"
+}
+trap cleanup EXIT INT TERM
+
 echo "🛡️ Starting CrowdSec health check..."
 
-# Function to send Telegram alert
-send_telegram() {
-    MSG="$1"
-    # Use backticks instead of square brackets for SERVER_DOMAIN to avoid Markdown parsing issues
-    curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-        -d chat_id="${TELEGRAM_RECIPIENT_ID}" \
-        -d text="🛡️ *CROWDSEC ALERT* 🛡️%0A[\`${SERVER_DOMAIN}\`]%0A%0A${MSG}" \
-        -d parse_mode="Markdown" > /dev/null
-}
+# Guard: if Telegram credentials are not configured, degrade gracefully
+if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_RECIPIENT_ID" ]; then
+    echo "⚠️  Warning: Telegram credentials not configured — alerts will be logged locally only."
+    send_telegram() { echo "[TELEGRAM DISABLED] $1"; }
+else
+    send_telegram() {
+        MSG="$1"
+        curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -d chat_id="${TELEGRAM_RECIPIENT_ID}" \
+            -d text="🛡️ *CROWDSEC ALERT* 🛡️%0A[\`${SERVER_DOMAIN}\`]%0A%0A${MSG}" \
+            -d parse_mode="Markdown" > /dev/null
+    }
+fi
 
 # Verify docker socket is available
 if [ ! -S /var/run/docker.sock ]; then
@@ -42,7 +57,7 @@ REAL_CONTAINER_ID=""
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     # Try finding by label first (more robust with dynamic naming)
     REAL_CONTAINER_ID=$(docker ps -aq --filter "label=com.docker.compose.service=crowdsec" | head -n 1)
-    
+
     # If not found by label, fallback to name for custom non-compose setups
     if [ -z "$REAL_CONTAINER_ID" ]; then
         REAL_CONTAINER_ID=$(docker ps -aqf "name=$CROWDSEC_CONTAINER" | head -n 1)
@@ -52,7 +67,7 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
         CONTAINER_STATUS=$(docker inspect -f '{{.State.Status}}' "$REAL_CONTAINER_ID" 2>/dev/null)
         break
     fi
-    
+
     RETRY_COUNT=$((RETRY_COUNT + 1))
     if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
         printf '%b\n' "${YELLOW}⚠️ Warning: CrowdSec container not found (Attempt $RETRY_COUNT/$MAX_RETRIES). Retrying in 2s...${NC}"
@@ -84,7 +99,10 @@ LAPI_EXIT_CODE=$?
 if [ $LAPI_EXIT_CODE -ne 0 ]; then
     printf '%b\n' "${RED}❌ CrowdSec LAPI is not healthy!${NC}"
     echo "$LAPI_STATUS"
-    send_telegram "CrowdSec LAPI is *not healthy*!%0A%0AError output:%0A\`\`\`%0A$(echo "$LAPI_STATUS" | head -5)%0A\`\`\`%0A👉 *Action Required:* Check CrowdSec logs, and if necessary, restart the container (e.g., \`make restart crowdsec\`)."
+    # Strip Markdown special characters from LAPI output before embedding in the alert
+    # to prevent broken formatting or unexpected rendering in Telegram.
+    LAPI_SAFE=$(echo "$LAPI_STATUS" | head -5 | sed 's/[*_`\[\]]/\\&/g')
+    send_telegram "CrowdSec LAPI is *not healthy*!%0A%0AError output:%0A\`\`\`%0A${LAPI_SAFE}%0A\`\`\`%0A👉 *Action Required:* Check CrowdSec logs, and if necessary, restart the container (e.g., \`make restart crowdsec\`)."
     exit 1
 fi
 
@@ -99,14 +117,14 @@ if [ "$BOUNCER_COUNT" = "0" ] || [ -z "$BOUNCER_COUNT" ]; then
     send_telegram "No bouncers are registered with CrowdSec!%0A%0A👉 *Action Required:* Register the Traefik bouncer to enable protection. If they should be registered, try restarting the container (e.g., \`make restart crowdsec\`)."
 else
     printf '%b\n' "${GREEN}✅ $BOUNCER_COUNT bouncer(s) registered${NC}"
-    
+
     CURRENT_TIME=$(date +%s)
-    STALE_THRESHOLD=600 # 10 minutes (to avoid false positives with Traefik plugins)
+    STALE_THRESHOLD=600    # 10 minutes (to avoid false positives with Traefik plugins)
     PRUNE_THRESHOLD=172800 # 48 hours (to cleanup very old stale entries)
-    
+
     # Use a temp directory to group bouncers
     GROUP_DIR=$(mktemp -d /tmp/crowdsec_bouncers_XXXXXX)
-    
+
     # Process bouncers and group them by base name
     # NOTE: We read into a temp file first to avoid subshell variable scope issues
     BOUNCER_LIST_FILE=$(mktemp /tmp/crowdsec_list_XXXXXX)
@@ -115,15 +133,16 @@ else
     while IFS='|' read -r full_name last_pull created_at; do
         # Extract base name (e.g., traefik-bouncer from traefik-bouncer@172.19.0.6)
         base_name=$(echo "$full_name" | cut -d'@' -f1)
-        
+
         IS_STALE=1
         IS_REALLY_OLD=0
-        
+        LAST_PULL_TS=""
+
         if [ -n "$last_pull" ] && [ "$last_pull" != "null" ]; then
             # Handle possible multiple instances by taking the first one if jq returned multiple
             last_pull_actual=$(echo "$last_pull" | head -n 1)
             LAST_PULL_TS=$(date -d "$last_pull_actual" +%s 2>/dev/null)
-            
+
             # Only proceed if we got a valid timestamp
             if [ -n "$LAST_PULL_TS" ] && echo "$LAST_PULL_TS" | grep -q '^[0-9]\+$'; then
                 DIFF=$((CURRENT_TIME - LAST_PULL_TS))
@@ -143,9 +162,11 @@ else
             fi
         fi
 
-        # Auto-prune very old bouncers — do this BEFORE recording group status
+        # Auto-prune very old bouncers — do this BEFORE recording group status.
+        # Guard LAST_PULL_TS: if it's empty (last_pull was null), use 0 to avoid arithmetic errors.
         if [ $IS_REALLY_OLD -eq 1 ]; then
-            DIFF_H=$((( CURRENT_TIME - LAST_PULL_TS ) / 3600))
+            _lpts=${LAST_PULL_TS:-0}
+            DIFF_H=$(( (_lpts > 0) ? (CURRENT_TIME - _lpts) / 3600 : 0 ))
             printf '%b\n' "${YELLOW}🧹 Auto-pruning very old bouncer: $full_name (last pull: ${DIFF_H}h ago)${NC}"
             docker exec "$CROWDSEC_CONTAINER" cscli bouncers delete "$full_name" > /dev/null 2>&1
             continue # Skip to next bouncer — don't record this one in group status
@@ -159,20 +180,21 @@ else
         fi
     done < "$BOUNCER_LIST_FILE"
     rm -f "$BOUNCER_LIST_FILE"
-    
+    BOUNCER_LIST_FILE=""
+
     # Evaluate groups and build alert message
     STALE_ALERTS=""
     for group_file in "$GROUP_DIR"/*.stale_list; do
         [ ! -f "$group_file" ] && continue
-        
+
         base_name=$(basename "$group_file" .stale_list)
-        
+
         # Only alert if there are NO active instances in this group
         if [ ! -f "$GROUP_DIR/${base_name}.active" ]; then
             while read -r name; do
                 # Find the specific minutes for this name to include in alert
                 last_pull=$(echo "$BOUNCERS" | jq -r ".[] | select(.name==\"$name\") | .last_pull" | head -n 1)
-                
+
                 MSG_TIME=""
                 if [ -n "$last_pull" ] && [ "$last_pull" != "null" ]; then
                     LAST_PULL_TS=$(date -d "$last_pull" +%s 2>/dev/null)
@@ -185,7 +207,7 @@ else
                 else
                     MSG_TIME="never"
                 fi
-                
+
                 STALE_ALERTS="${STALE_ALERTS}• *$name*: last pull was ${MSG_TIME}%0A"
                 printf '%b\n' "${YELLOW}⚠️ Bouncer '$name' is STALE (last pull: ${MSG_TIME})${NC}"
             done < "$group_file"
@@ -193,12 +215,13 @@ else
             printf '%b\n' "${GREEN}✅ Group '$base_name' is active (some instances are stale but at least one is healthy)${NC}"
         fi
     done
-    
+
     if [ -n "$STALE_ALERTS" ]; then
         send_telegram "Some bouncers appear to be stale:%0A%0A${STALE_ALERTS}%0A👉 *Action Required:* Access the host to check CrowdSec log/status. If the issue persists, try restarting it (e.g., \`make restart crowdsec\`)."
     fi
-    
+
     rm -rf "$GROUP_DIR"
+    GROUP_DIR=""
 fi
 
 # Get current ban statistics
