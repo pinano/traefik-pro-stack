@@ -687,7 +687,6 @@ def login():
             # Extract path from referrer if it belongs to our domain
             if DOMAIN in referrer:
                 try:
-                    from urllib.parse import urlparse
                     parsed = urlparse(referrer)
                     if parsed.path and parsed.path != '/login':
                         next_url = parsed.path
