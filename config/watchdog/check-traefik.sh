@@ -33,22 +33,32 @@ else
     }
 fi
 
-# Fetch rawdata from Traefik API (internal port 8080)
-# We set a max time/timeout to avoid hanging
+# Fetch rawdata from Traefik API (internal port 8080) with retries
+# During startup, Traefik might take a short while to initialize the API provider.
 TRAEFIK_API_URL="http://traefik:8080/api/rawdata"
-RAWDATA=$(curl -s --max-time 10 "$TRAEFIK_API_URL")
-CURL_STATUS=$?
+MAX_RETRIES=6
+RETRY_COUNT=0
+RAWDATA=""
 
-if [ $CURL_STATUS -ne 0 ] || [ -z "$RAWDATA" ]; then
-    printf '%b\n' "${RED}❌ Error: Could not connect to Traefik API at $TRAEFIK_API_URL${NC}"
-    send_telegram "Could not connect to Traefik API at \`${TRAEFIK_API_URL}\`!%0A👉 *Action Required:* Check if Traefik is running and has the API enabled on port 8080. If necessary, restart Traefik (\`make restart traefik\`)."
-    exit 1
-fi
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+    RAWDATA=$(curl -s --max-time 10 "$TRAEFIK_API_URL")
+    CURL_STATUS=$?
+    
+    # Check if curl succeeded and the response is valid JSON
+    if [ $CURL_STATUS -eq 0 ] && [ -n "$RAWDATA" ] && echo "$RAWDATA" | jq empty 2>/dev/null; then
+        break
+    fi
+    
+    RETRY_COUNT=$((RETRY_COUNT + 1))
+    if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+        printf '%b\n' "${YELLOW}⚠️ Warning: Traefik API not ready or invalid response (Attempt $RETRY_COUNT/$MAX_RETRIES). Retrying in 10s...${NC}"
+        sleep 10
+    fi
+done
 
-# Verify it is valid JSON
-if ! echo "$RAWDATA" | jq empty 2>/dev/null; then
-    printf '%b\n' "${RED}❌ Error: Received invalid JSON from Traefik API${NC}"
-    send_telegram "Traefik API returned invalid JSON response!%0A👉 *Action Required:* Inspect Traefik container logs."
+if [ -z "$RAWDATA" ] || ! echo "$RAWDATA" | jq empty 2>/dev/null; then
+    printf '%b\n' "${RED}❌ Error: Could not retrieve valid configuration from Traefik API after $MAX_RETRIES attempts.${NC}"
+    send_telegram "Could not retrieve valid configuration from Traefik API!%0A👉 *Action Required:* Check if Traefik is running and has the API enabled on port 8080."
     exit 1
 fi
 
