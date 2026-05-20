@@ -35,8 +35,16 @@ fi
 
 if [ ! -f "$ACME_FILE" ]; then
     echo "❌ Error: $ACME_FILE not found."
+    send_telegram "ACME certificate file \`$ACME_FILE\` not found! Traefik might not be running or volume mounts are misconfigured."
     exit 1
 fi
+
+if ! jq empty "$ACME_FILE" 2>/dev/null; then
+    echo "❌ Error: $ACME_FILE contains invalid JSON."
+    send_telegram "ACME certificate file \`$ACME_FILE\` contains invalid JSON! It might be corrupted."
+    exit 1
+fi
+
 
 # Extract all certificates (base64 encoded) from JSON into a temp file.
 # Using a temp file instead of a variable avoids two problems:
@@ -76,6 +84,29 @@ get_root_domain() {
     fi
 }
 
+# Helper to check if an expected domain matches a certificate domain (including wildcard support)
+match_wildcard() {
+    local expected="$1"
+    local cert_dom="$2"
+    
+    if [ "$expected" = "$cert_dom" ]; then
+        return 0
+    fi
+    
+    if echo "$cert_dom" | grep -q '^\*\.'; then
+        local suffix=$(echo "$cert_dom" | cut -c 3-)
+        local without_suffix=${expected%.$suffix}
+        if [ "$without_suffix" != "$expected" ] && [ -n "$without_suffix" ]; then
+            if ! echo "$without_suffix" | grep -q '\.'; then
+                return 0
+            fi
+        fi
+    fi
+    
+    return 1
+}
+
+
 # Load expected domains (from domains.csv and environment)
 EXPECTED_DOMAINS=""
 if [ -f "/domains.csv" ]; then
@@ -114,6 +145,9 @@ EXPECTED_DOMAINS=$(echo $EXPECTED_DOMAINS | tr ' ' '\n' | sort -u)
 COUNT=0
 ERRORS=0
 
+# Keep track of domains found in certificates
+FOUND_DOMAINS=""
+
 while IFS= read -r CERT_B64; do
     [ -z "$CERT_B64" ] && continue
 
@@ -127,45 +161,84 @@ while IFS= read -r CERT_B64; do
 
     # Clean whitespaces with xargs after trimming the openssl string
     END_DATE_STR=$(echo "$CERT_TEXT" | grep "notAfter=" | cut -d= -f2 | xargs)
-    DOMAIN=$(echo "$CERT_B64" | base64 -d | openssl x509 -noout -subject -nameopt RFC2253 | sed -n 's/^subject=CN=\([^,]*\).*$/\1/p')
+    CN=$(echo "$CERT_B64" | base64 -d | openssl x509 -noout -subject -nameopt RFC2253 | sed -n 's/^subject=CN=\([^,]*\).*$/\1/p')
+    SANS=$(echo "$CERT_B64" | base64 -d | openssl x509 -noout -ext subjectAltName 2>/dev/null | grep -oE 'DNS:[^, ]+' | cut -d: -f2)
+
+    # Combine CN and SANs to get all domains in this cert
+    DOMAINS_IN_CERT=$(printf "%s\n%s" "$CN" "$SANS" | grep -v '^$' | sort -u | xargs)
 
     # Convert date to timestamp with date (GNU date from coreutils) which supports the -d flag.
     EXP_DATE=$(date -d "$END_DATE_STR" +%s 2>/dev/null)
 
     # Fallback for systems where date -d fails or formats differ
     if [ -z "$EXP_DATE" ]; then
-        echo "⚠️ Warning: Could not parse date for $DOMAIN ($END_DATE_STR). Check 'date' command compatibility."
+        echo "⚠️ Warning: Could not parse date for $CN ($END_DATE_STR). Check 'date' command compatibility."
         continue
     fi
 
     DIFF=$((EXP_DATE - CURRENT_DATE))
 
-    # Check if domain is expected
+    # Check if this certificate covers any of our expected domains
     IS_EXPECTED=false
+    COVERED_EXPECTED_DOMAINS=""
     for ED in $EXPECTED_DOMAINS; do
-        if [ "$DOMAIN" = "$ED" ]; then
-            IS_EXPECTED=true
-            break
-        fi
+        for DIC in $DOMAINS_IN_CERT; do
+            if match_wildcard "$ED" "$DIC"; then
+                IS_EXPECTED=true
+                FOUND_DOMAINS="$FOUND_DOMAINS $ED"
+                COVERED_EXPECTED_DOMAINS="$COVERED_EXPECTED_DOMAINS $ED"
+                break # Move to next expected domain
+            fi
+        done
     done
 
+    # If it covers none of our expected domains, skip it
     if [ "$IS_EXPECTED" = "false" ]; then
-        printf '%b\n' "${NC}[SKIP] $DOMAIN (not in expected list)${NC}"
+        printf '%b\n' "${NC}[SKIP] $CN (does not cover any expected domains)${NC}"
         continue
     fi
 
+    DISPLAY_DOMAINS=$(echo "$COVERED_EXPECTED_DOMAINS" | xargs | tr ' ' ',')
+
     if [ $DIFF -lt $WARNING_SECONDS ]; then
         DAYS_LEFT=$((DIFF / 86400))
-        printf '%b\n' "${RED}[DANGER] $DOMAIN expires in $DAYS_LEFT days ($END_DATE_STR)${NC}"
+        printf '%b\n' "${RED}[DANGER] Cert covering [$DISPLAY_DOMAINS] expires in $DAYS_LEFT days ($END_DATE_STR)${NC}"
 
         # Send Telegram alert
-        MESSAGE="The certificate for *${DOMAIN}* expires in *${DAYS_LEFT} days* (threshold: ${WATCHDOG_CERT_DAYS_WARNING} days).%0AAutomatic renewal has failed or is delayed.%0A👉 *Action Required:* Review Traefik renewal process immediately."
+        MESSAGE="The certificate covering *${DISPLAY_DOMAINS}* expires in *${DAYS_LEFT} days* (threshold: ${WATCHDOG_CERT_DAYS_WARNING} days).%0AAutomatic renewal has failed or is delayed.%0A👉 *Action Required:* Review Traefik renewal process immediately."
         send_telegram "$MESSAGE"
         ERRORS=$((ERRORS + 1))
     else
-        printf '%b\n' "${GREEN}[OK] $DOMAIN ($((DIFF / 86400)) days left)${NC}"
+        printf '%b\n' "${GREEN}[OK] Cert covering [$DISPLAY_DOMAINS] ($((DIFF / 86400)) days left)${NC}"
     fi
     COUNT=$((COUNT + 1))
 done < "$CERTS_FILE"
 
-echo "✅ Audit finished. $COUNT certificates checked. $ERRORS alerts sent."
+# Clean up lists of domains
+FOUND_DOMAINS=$(echo $FOUND_DOMAINS | tr ' ' '\n' | sort -u)
+
+# Find missing expected domains
+MISSING_DOMAINS=""
+MISSING_COUNT=0
+for ED in $EXPECTED_DOMAINS; do
+    FOUND=false
+    for FD in $FOUND_DOMAINS; do
+        if [ "$ED" = "$FD" ]; then
+            FOUND=true
+            break
+        fi
+    done
+    if [ "$FOUND" = "false" ]; then
+        MISSING_DOMAINS="${MISSING_DOMAINS}• *${ED}*%0A"
+        MISSING_COUNT=$((MISSING_COUNT + 1))
+        printf '%b\n' "${RED}[MISSING] Expected domain $ED has no certificate in acme.json!${NC}"
+    fi
+done
+
+if [ $MISSING_COUNT -gt 0 ]; then
+    MESSAGE="Found *${MISSING_COUNT}* expected domain(s) with *no SSL certificates* in acme.json:%0A%0A${MISSING_DOMAINS}%0ATraefik may have failed to resolve or obtain certificates for them.%0A👉 *Action Required:* Check Traefik logs to debug certificate generation."
+    send_telegram "$MESSAGE"
+    ERRORS=$((ERRORS + MISSING_COUNT))
+fi
+
+echo "✅ Audit finished. $COUNT certificates checked. $MISSING_COUNT missing domains. $ERRORS alerts sent."

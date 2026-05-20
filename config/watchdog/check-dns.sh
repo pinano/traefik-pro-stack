@@ -66,15 +66,24 @@ get_root_domain() {
 # Sets RESOLVED_IP variable with the resolved IP
 check_domain_dns() {
     local domain="$1"
-    RESOLVED_IP=$(dig +short A "$domain" 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+    RESOLVED_IPS=$(dig +short A "$domain" 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$')
 
-    if [ -z "$RESOLVED_IP" ]; then
+    if [ -z "$RESOLVED_IPS" ]; then
+        RESOLVED_IP=""
         return 1  # No A record
-    elif [ "$RESOLVED_IP" != "$HOST_IP" ]; then
-        return 2  # IP mismatch
-    else
-        return 0  # OK
     fi
+
+    # Check if host IP is in the list of resolved IPs
+    for ip in $RESOLVED_IPS; do
+        if [ "$ip" = "$HOST_IP" ]; then
+            RESOLVED_IP="$ip"
+            return 0  # Matches
+        fi
+    done
+
+    # If no match, set RESOLVED_IP to the first one for the alert message
+    RESOLVED_IP=$(echo "$RESOLVED_IPS" | head -n 1)
+    return 2  # IP mismatch
 }
 
 verify_dns_for_domain() {

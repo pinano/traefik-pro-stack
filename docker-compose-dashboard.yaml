@@ -116,6 +116,7 @@ services:
     # Run all check scripts in parallel with independent intervals
     # check-certs.sh: every 24h, check-dns.sh: every WATCHDOG_DNS_CHECK_INTERVAL
     # check-crowdsec.sh: every WATCHDOG_CROWDSEC_CHECK_INTERVAL (default 1h)
+    # check-system.sh: every WATCHDOG_SYSTEM_CHECK_INTERVAL (default 5m)
     entrypoint: >
       sh -c "
         # Trap SIGTERM/INT to kill all background jobs on stop
@@ -136,6 +137,12 @@ services:
         else
           echo 'CrowdSec check DISABLED.';
         fi) &
+        # Start System check loop in background
+        (while true; do
+          sh /check-system.sh;
+          echo \"System check: sleeping for $${WATCHDOG_SYSTEM_CHECK_INTERVAL:-300}s...\";
+          sleep $${WATCHDOG_SYSTEM_CHECK_INTERVAL:-300};
+        done) &
         # Start DNS check loop in foreground (wait for background jobs too)
         while true; do
           sh /check-dns.sh;
@@ -148,6 +155,7 @@ services:
       - ./config/watchdog/check-certs.sh:/check-certs.sh:ro
       - ./config/watchdog/check-dns.sh:/check-dns.sh:ro
       - ./config/watchdog/check-crowdsec.sh:/check-crowdsec.sh:ro
+      - ./config/watchdog/check-system.sh:/check-system.sh:ro
       - ./domains.csv:/domains.csv:ro
       # Docker socket for CrowdSec container inspection
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -160,9 +168,12 @@ services:
       - TRAEFIK_LISTEN_IP=${TRAEFIK_LISTEN_IP}
       - WATCHDOG_DNS_CHECK_INTERVAL=${WATCHDOG_DNS_CHECK_INTERVAL:-21600}
       - WATCHDOG_CROWDSEC_CHECK_INTERVAL=${WATCHDOG_CROWDSEC_CHECK_INTERVAL:-3600}
+      - WATCHDOG_SYSTEM_CHECK_INTERVAL=${WATCHDOG_SYSTEM_CHECK_INTERVAL:-300}
       - CROWDSEC_CONTAINER=crowdsec
       - DASHBOARD_SUBDOMAIN=${DASHBOARD_SUBDOMAIN}
       - CROWDSEC_ENABLE=${CROWDSEC_ENABLE:-true}
+      - PROJECT_NAME=${PROJECT_NAME}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
     deploy:
       resources:
         limits:
