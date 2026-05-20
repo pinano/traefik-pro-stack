@@ -57,7 +57,6 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ./config/redis/redis.conf:/redis.conf:ro
-      - ./data/redis:/data
     networks:
       - anubis-backend
       - traefik
