@@ -22,7 +22,7 @@ else
         MSG="$1"
         curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_RECIPIENT_ID}" \
-            -d text="🐕 *WATCHDOG - ⚠️ SSL Alert*%0A[\`${SERVER_DOMAIN}\`]%0A%0A${MSG}" \
+            -d text="⚠️ *WATCHDOG - SSL Alert*%0A🌐 *${SERVER_DOMAIN}*%0A%0A${MSG}" \
             -d parse_mode="Markdown" > /dev/null
     }
 fi
