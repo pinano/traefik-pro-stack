@@ -34,7 +34,7 @@ else
         MSG="$1"
         curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_RECIPIENT_ID}" \
-            -d text="🖥️ *SYSTEM ALERT* 🖥️%0A[\`${SERVER_DOMAIN}\`]%0A%0A${MSG}" \
+            -d text="🐕 *WATCHDOG - 🖥️ System Alert*%0A[\`${SERVER_DOMAIN}\`]%0A%0A${MSG}" \
             -d parse_mode="Markdown" > /dev/null
     }
 fi
@@ -42,7 +42,7 @@ fi
 # Verify docker socket is available
 if [ ! -S /var/run/docker.sock ]; then
     printf '%b\n' "${RED}❌ Error: Docker socket not available.${NC}"
-    send_telegram "Docker socket is not available inside the watchdog container!"
+    send_telegram "Docker socket is not available inside the watchdog container!%0A👉 *Action Required:* Verify that \`/var/run/docker.sock\` is correctly mounted in the watchdog service volume configuration."
     exit 1
 fi
 

@@ -110,13 +110,11 @@ fi
 # We use jq --arg to pass the template as a safe JSON string, avoiding the
 # shell quoting hell caused by Go's {{ if eq .Status "firing" }} syntax.
 read -r -d '' TELEGRAM_TEMPLATE << 'GOTEMPLATE' || true
-{{ if eq .Status "firing" }}{{ if eq (index .Alerts 0).Labels.severity "warning" }}🟠{{ else }}🔴{{ end }}{{ else }}✅{{ end }} <b>{{ if eq .Status "firing" }}FIRING{{ else }}RESOLVED{{ end }}</b> — {{ (index .Alerts 0).Labels.host }}
+{{ if eq .Status "firing" }}{{ if eq (index .Alerts 0).Labels.severity "warning" }}📊 <b>GRAFANA - 🟠 Warning: {{ (index .Alerts 0).Labels.alertname }}</b>{{ else }}📊 <b>GRAFANA - 🔴 Critical: {{ (index .Alerts 0).Labels.alertname }}</b>{{ end }}{{ else }}📊 <b>GRAFANA - 🟢 Resolved: {{ (index .Alerts 0).Labels.alertname }}</b>{{ end }}
+[<code>{{ (index .Alerts 0).Labels.host }}</code>]
 
-{{ range .Alerts }}
-<b>{{ .Labels.alertname }}</b>: <i>{{ .Annotations.description }}</i>
-
+{{ range .Alerts }}• <b>{{ .Labels.alertname }}</b>: <i>{{ .Annotations.description }}</i>
 🚦 <b>Severity:</b> {{ .Labels.severity }}
-
 {{ if .GeneratorURL }}🔗 <a href="{{ .GeneratorURL }}">View Alert</a>{{ end }}{{ if .SilenceURL }}  ·  🔕 <a href="{{ .SilenceURL }}">Silence</a>{{ end }}
 {{ end }}
 GOTEMPLATE

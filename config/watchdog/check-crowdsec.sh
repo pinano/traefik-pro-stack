@@ -37,7 +37,7 @@ else
         MSG="$1"
         curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_RECIPIENT_ID}" \
-            -d text="🛡️ *CROWDSEC ALERT* 🛡️%0A[\`${SERVER_DOMAIN}\`]%0A%0A${MSG}" \
+            -d text="🐕 *WATCHDOG - 🛡️ CrowdSec Alert*%0A[\`${SERVER_DOMAIN}\`]%0A%0A${MSG}" \
             -d parse_mode="Markdown" > /dev/null
     }
 fi

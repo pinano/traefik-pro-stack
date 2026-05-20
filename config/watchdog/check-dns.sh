@@ -30,7 +30,7 @@ else
         MSG="$1"
         curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_RECIPIENT_ID}" \
-            -d text="🌐 *DNS ALERT* 🌐%0A[\`${SERVER_DOMAIN}\`]%0A%0A${MSG}" \
+            -d text="🐕 *WATCHDOG - 🌐 DNS Alert*%0A[\`${SERVER_DOMAIN}\`]%0A%0A${MSG}" \
             -d parse_mode="Markdown" > /dev/null
     }
 fi
@@ -126,7 +126,7 @@ if [ -z "$TRAEFIK_LISTEN_IP" ] || [ "$TRAEFIK_LISTEN_IP" = "0.0.0.0" ]; then
     fi
     if [ -z "$HOST_IP" ]; then
         echo "❌ Error: Could not detect public IP."
-        send_telegram "Could not detect public IP for DNS verification."
+        send_telegram "Could not detect public IP for DNS verification!%0A👉 *Action Required:* Check the internet connectivity of the host and verify that public IP APIs (ifconfig.me, icanhazip.com) are accessible."
         exit 1
     fi
     # Validate that the detected value is a proper IPv4 address.
@@ -134,7 +134,7 @@ if [ -z "$TRAEFIK_LISTEN_IP" ] || [ "$TRAEFIK_LISTEN_IP" = "0.0.0.0" ]; then
     # causing false-positive DNS alerts for every single domain.
     if ! echo "$HOST_IP" | grep -qE '^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'; then
         echo "❌ Error: Detected value '$HOST_IP' is not a valid IPv4 address. Aborting."
-        send_telegram "Could not detect a valid public IPv4 address for DNS verification (got unexpected response from IP detection service)."
+        send_telegram "Could not detect a valid public IPv4 address for DNS verification (got unexpected response from IP detection service).%0A👉 *Action Required:* Inspect the network connectivity or verify if outgoing HTTP requests are blocked or being intercepted by a captcha page."
         exit 1
     fi
     echo "🌐 Detected public IP: $HOST_IP"

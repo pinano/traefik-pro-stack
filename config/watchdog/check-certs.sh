@@ -22,7 +22,7 @@ else
         MSG="$1"
         curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_RECIPIENT_ID}" \
-            -d text="⚠️ *SSL ALERT* ⚠️%0A[\`${SERVER_DOMAIN}\`]%0A%0A${MSG}" \
+            -d text="🐕 *WATCHDOG - ⚠️ SSL Alert*%0A[\`${SERVER_DOMAIN}\`]%0A%0A${MSG}" \
             -d parse_mode="Markdown" > /dev/null
     }
 fi
@@ -35,13 +35,13 @@ fi
 
 if [ ! -f "$ACME_FILE" ]; then
     echo "❌ Error: $ACME_FILE not found."
-    send_telegram "ACME certificate file \`$ACME_FILE\` not found! Traefik might not be running or volume mounts are misconfigured."
+    send_telegram "ACME certificate file \`$ACME_FILE\` not found!%0A👉 *Action Required:* Verify that Traefik is running and the acme.json volume is correctly mapped."
     exit 1
 fi
 
 if ! jq empty "$ACME_FILE" 2>/dev/null; then
     echo "❌ Error: $ACME_FILE contains invalid JSON."
-    send_telegram "ACME certificate file \`$ACME_FILE\` contains invalid JSON! It might be corrupted."
+    send_telegram "ACME certificate file \`$ACME_FILE\` contains invalid JSON!%0A👉 *Action Required:* Inspect the acme.json file to locate and repair corrupted data."
     exit 1
 fi
 

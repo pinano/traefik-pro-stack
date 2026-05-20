@@ -56,8 +56,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: 0.10
-          memory: 32M
+          cpus: '${ANUBIS_ASSETS_CPU_LIMIT:-0.10}'
+          memory: '${ANUBIS_ASSETS_MEM_LIMIT:-64M}'
     networks:
       - traefik
     labels:
