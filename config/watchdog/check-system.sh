@@ -67,13 +67,20 @@ else
     for cid in $CONTAINER_IDS; do
         # Inspect container details using jq to handle missing fields (like healthcheck) safely
         C_INFO=$(docker inspect "$cid" | jq -r '.[0] | [ .Name, .Config.Labels["com.docker.compose.service"], .State.Status, (.State.Health.Status // "none"), .RestartCount ] | join("|")' 2>/dev/null)
-        [ -z "$C_INFO" ] && continue
+        if [ -z "$C_INFO" ] || [ "$C_INFO" = "|||none|" ]; then
+            continue
+        fi
         
         c_name=$(echo "$C_INFO" | cut -d'|' -f1 | sed 's/^\///')
         c_service=$(echo "$C_INFO" | cut -d'|' -f2)
         c_status=$(echo "$C_INFO" | cut -d'|' -f3)
         c_health=$(echo "$C_INFO" | cut -d'|' -f4)
         c_restarts=$(echo "$C_INFO" | cut -d'|' -f5)
+        
+        # Skip if container is invalid or was removed during execution
+        if [ -z "$c_name" ] || [ -z "$c_status" ]; then
+            continue
+        fi
         
         # 1a. Check Running Status
         # Ignore ctop since it's run on-demand
