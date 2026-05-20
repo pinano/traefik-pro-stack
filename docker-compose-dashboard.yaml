@@ -113,10 +113,13 @@ services:
   watchdog:
     build: ./config/watchdog
     restart: unless-stopped
+    networks:
+      - traefik
     # Run all check scripts in parallel with independent intervals
     # check-certs.sh: every 24h, check-dns.sh: every WATCHDOG_DNS_CHECK_INTERVAL
     # check-crowdsec.sh: every WATCHDOG_CROWDSEC_CHECK_INTERVAL (default 1h)
     # check-system.sh: every WATCHDOG_SYSTEM_CHECK_INTERVAL (default 5m)
+    # check-traefik.sh: every WATCHDOG_TRAEFIK_CHECK_INTERVAL (default 5m)
     entrypoint: >
       sh -c "
         # Trap SIGTERM/INT to kill all background jobs on stop
@@ -143,6 +146,12 @@ services:
           echo \"System check: sleeping for $${WATCHDOG_SYSTEM_CHECK_INTERVAL:-300}s...\";
           sleep $${WATCHDOG_SYSTEM_CHECK_INTERVAL:-300};
         done) &
+        # Start Traefik check loop in background
+        (while true; do
+          sh /check-traefik.sh;
+          echo \"Traefik check: sleeping for $${WATCHDOG_TRAEFIK_CHECK_INTERVAL:-300}s...\";
+          sleep $${WATCHDOG_TRAEFIK_CHECK_INTERVAL:-300};
+        done) &
         # Start DNS check loop in foreground (wait for background jobs too)
         while true; do
           sh /check-dns.sh;
@@ -156,6 +165,7 @@ services:
       - ./config/watchdog/check-dns.sh:/check-dns.sh:ro
       - ./config/watchdog/check-crowdsec.sh:/check-crowdsec.sh:ro
       - ./config/watchdog/check-system.sh:/check-system.sh:ro
+      - ./config/watchdog/check-traefik.sh:/check-traefik.sh:ro
       - ./domains.csv:/domains.csv:ro
       # Docker socket for CrowdSec container inspection
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -169,6 +179,7 @@ services:
       - WATCHDOG_DNS_CHECK_INTERVAL=${WATCHDOG_DNS_CHECK_INTERVAL:-21600}
       - WATCHDOG_CROWDSEC_CHECK_INTERVAL=${WATCHDOG_CROWDSEC_CHECK_INTERVAL:-3600}
       - WATCHDOG_SYSTEM_CHECK_INTERVAL=${WATCHDOG_SYSTEM_CHECK_INTERVAL:-300}
+      - WATCHDOG_TRAEFIK_CHECK_INTERVAL=${WATCHDOG_TRAEFIK_CHECK_INTERVAL:-300}
       - CROWDSEC_CONTAINER=crowdsec
       - DASHBOARD_SUBDOMAIN=${DASHBOARD_SUBDOMAIN}
       - CROWDSEC_ENABLE=${CROWDSEC_ENABLE:-true}

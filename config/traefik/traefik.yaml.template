@@ -1,5 +1,6 @@
 api:
-  insecure: false
+  dashboard: true
+  insecure: true
 
 # Enable ping for healthcheck
 ping: {}
