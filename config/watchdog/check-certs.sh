@@ -50,11 +50,52 @@ jq -r '.. | .Certificates? | select(. != null) | .[] | .certificate' "$ACME_FILE
 CURRENT_DATE=$(date +%s)
 WARNING_SECONDS=$((WATCHDOG_CERT_DAYS_WARNING * 86400))
 
+# Helper to extract root domain (e.g. sub.example.com -> example.com)
+# Handles common double TLDs (co.uk, com.es, com.br, etc.)
+get_root_domain() {
+    local input_domain="$1"
+    # Lowercase the domain
+    input_domain=$(echo "$input_domain" | tr '[:upper:]' '[:lower:]')
+    
+    # Check if domain has at least 3 parts (e.g. a.b.c)
+    local dots_count=$(echo "$input_domain" | tr -cd '.' | wc -c)
+    if [ "$dots_count" -lt 2 ]; then
+        echo "$input_domain"
+        return
+    fi
+    
+    # Check for common two-part TLDs (e.g. .co.uk, .com.es, etc.)
+    if echo "$input_domain" | grep -qE '\.(co|com|org|net|edu|gov|mil|nom|biz|info)\.[a-z]{2,3}$'; then
+        if [ "$dots_count" -ge 3 ]; then
+            echo "$input_domain" | awk -F. '{print $(NF-2)"."$(NF-1)"."$NF}'
+        else
+            echo "$input_domain"
+        fi
+    else
+        echo "$input_domain" | awk -F. '{print $(NF-1)"."$NF}'
+    fi
+}
+
 # Load expected domains (from domains.csv and environment)
 EXPECTED_DOMAINS=""
 if [ -f "/domains.csv" ]; then
-    # Get first column, skip comments, remove quotes/spaces
-    EXPECTED_DOMAINS=$(grep -v '^#' /domains.csv | cut -d, -f1 | tr -d ' "' | tr '[:upper:]' '[:lower:]')
+    while IFS=, read -r domain redir svc anubis_sub rest || [ -n "$domain" ]; do
+        # Strip spaces and quotes
+        domain=$(echo "$domain" | tr -d ' "')
+        # Skip comments and empty lines
+        case "$domain" in
+            ""|"#"*) continue ;;
+        esac
+        domain=$(echo "$domain" | tr '[:upper:]' '[:lower:]')
+        EXPECTED_DOMAINS="$EXPECTED_DOMAINS $domain"
+        
+        # Parse anubis subdomain if present
+        anubis_sub=$(echo "$anubis_sub" | tr -d ' "')
+        if [ -n "$anubis_sub" ]; then
+            root_dom=$(get_root_domain "$domain")
+            EXPECTED_DOMAINS="$EXPECTED_DOMAINS ${anubis_sub}.${root_dom}"
+        fi
+    done < "/domains.csv"
 fi
 
 # Add system domains

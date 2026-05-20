@@ -253,22 +253,46 @@ def build_compose_env():
     return env
 
 def validate_domain_data(entry):
-    # Strict validation to ensure no malicious content in CSV or shell injection
-    # We restrict characters to alphanumeric, basic domain/path symbols
-    allowed_pattern = re.compile(r'^[a-zA-Z0-9\.\-\_\/]+$')
+    # Strict validation to ensure no malicious content in CSV or shell injection.
+    # We apply specific regex patterns to each type of field.
     
-    # Text fields that shouldn't contain weird characters
-    fields_to_check = ['domain', 'redirection', 'service_name', 'anubis_subdomain']
+    # Domain: Standard FQDN format (no slashes, no spaces, requires at least one dot)
+    domain_pattern = re.compile(r'^[a-zA-Z0-9][-a-zA-Z0-9\.]*\.[a-zA-Z0-9][-a-zA-Z0-9]*[a-zA-Z0-9]$')
     
-    if not entry.get('domain') or not entry.get('service_name'): 
+    # Redirection: Allows standard URLs, including http/https prefix, path, query parameters, anchors, and encoding
+    redir_pattern = re.compile(r'^[a-zA-Z0-9\.\-\_\/\:\?\&\=\#\%\+]+$')
+    
+    # Service Name: Docker service names can only contain alphanumeric, hyphens, and underscores
+    service_pattern = re.compile(r'^[a-zA-Z0-9\-\_]+$')
+    
+    # Anubis Subdomain: Standard subdomain label (alphanumeric and hyphens only)
+    anubis_pattern = re.compile(r'^[a-zA-Z0-9\-]+$')
+    
+    domain = entry.get('domain', '').strip()
+    service_name = entry.get('service_name', '').strip()
+    
+    if not domain or not service_name:
         return False # Domain and Service are mandatory
         
-    for field in fields_to_check:
-        val = entry.get(field, '')
-        if val and not allowed_pattern.match(str(val)):
-            return False
-            
-    # Numeric fields
+    # Validate Domain
+    if not domain_pattern.match(domain):
+        return False
+        
+    # Validate Service Name
+    if not service_pattern.match(service_name):
+        return False
+        
+    # Validate Redirection (if present)
+    redir = entry.get('redirection', '').strip()
+    if redir and not redir_pattern.match(redir):
+        return False
+        
+    # Validate Anubis Subdomain (if present)
+    anubis = entry.get('anubis_subdomain', '').strip()
+    if anubis and not anubis_pattern.match(anubis):
+        return False
+        
+    # Numeric fields: must be purely digits if provided
     for field in ['rate', 'burst', 'concurrency']:
         val = entry.get(field, '')
         if val and not str(val).isdigit():
@@ -542,7 +566,9 @@ def verify_secret_key_online(provider, secret_key):
 def validate_captcha_data(entry):
     """Validate a captcha entry. Disabled entries only need a valid domain."""
     domain = entry.get('root_domain', '').strip().lower()
-    if not domain or '.' not in domain or ' ' in domain:
+    # Use standard FQDN regex check to ensure no HTML tags or space characters
+    domain_pattern = re.compile(r'^[a-zA-Z0-9][-a-zA-Z0-9\.]*\.[a-zA-Z0-9][-a-zA-Z0-9]*[a-zA-Z0-9]$')
+    if not domain or not domain_pattern.match(domain):
         return False
     # Disabled (commented-out) entries don't need keys — they are preserved as stubs
     if not entry.get('enabled', True):
@@ -1107,10 +1133,18 @@ def api_captchas():
         entries_to_verify = []
 
         for entry in data:
+            domain = entry.get('root_domain', '').strip().lower()
+            
+            # Domain format check for all entries (enabled or disabled)
+            domain_pattern = re.compile(r'^[a-zA-Z0-9][-a-zA-Z0-9\.]*\.[a-zA-Z0-9][-a-zA-Z0-9]*[a-zA-Z0-9]$')
+            if not domain or not domain_pattern.match(domain):
+                errors.append(f"[{domain or 'Vacío'}] El dominio es inválido o está vacío.")
+                continue
+
+            # Skip key validation for disabled entries
             if not entry.get('enabled', True):
                 continue
 
-            domain = entry.get('root_domain', '').strip().lower()
             provider = entry.get('provider', '').strip().lower()
             site_key = entry.get('site_key', '').strip()
             secret_key = entry.get('secret_key', '').strip()
@@ -1119,7 +1153,7 @@ def api_captchas():
 
             # Basic structure validation (empty keys, etc.)
             if not validate_captcha_data(entry):
-                errors.append(f"[{domain}] Faltan la Site Key, la Secret Key o el dominio es inválido.")
+                errors.append(f"[{domain}] Faltan la Site Key o la Secret Key.")
                 has_structural_error = True
                 continue
 

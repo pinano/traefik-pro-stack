@@ -35,6 +35,32 @@ else
     }
 fi
 
+# Helper to extract root domain (e.g. sub.example.com -> example.com)
+# Handles common double TLDs (co.uk, com.es, com.br, etc.)
+get_root_domain() {
+    local input_domain="$1"
+    # Lowercase the domain
+    input_domain=$(echo "$input_domain" | tr '[:upper:]' '[:lower:]')
+    
+    # Check if domain has at least 3 parts (e.g. a.b.c)
+    local dots_count=$(echo "$input_domain" | tr -cd '.' | wc -c)
+    if [ "$dots_count" -lt 2 ]; then
+        echo "$input_domain"
+        return
+    fi
+    
+    # Check for common two-part TLDs (e.g. .co.uk, .com.es, etc.)
+    if echo "$input_domain" | grep -qE '\.(co|com|org|net|edu|gov|mil|nom|biz|info)\.[a-z]{2,3}$'; then
+        if [ "$dots_count" -ge 3 ]; then
+            echo "$input_domain" | awk -F. '{print $(NF-2)"."$(NF-1)"."$NF}'
+        else
+            echo "$input_domain"
+        fi
+    else
+        echo "$input_domain" | awk -F. '{print $(NF-1)"."$NF}'
+    fi
+}
+
 # Function to check a single domain's DNS
 # Returns: 0 if OK, 1 if no A record, 2 if IP mismatch
 # Sets RESOLVED_IP variable with the resolved IP
@@ -48,6 +74,23 @@ check_domain_dns() {
         return 2  # IP mismatch
     else
         return 0  # OK
+    fi
+}
+
+verify_dns_for_domain() {
+    local d="$1"
+    check_domain_dns "$d"
+    local res=$?
+    if [ $res -eq 1 ]; then
+        printf '%b\n' "${YELLOW}[WARN] $d - No A record found (will recheck)${NC}"
+        FAILED_DOMAINS="${FAILED_DOMAINS}${d}|"
+        FAILED_REASONS="${FAILED_REASONS}no_record|"
+    elif [ $res -eq 2 ]; then
+        printf '%b\n' "${YELLOW}[WARN] $d -> $RESOLVED_IP (expected: $HOST_IP) (will recheck)${NC}"
+        FAILED_DOMAINS="${FAILED_DOMAINS}${d}|"
+        FAILED_REASONS="${FAILED_REASONS}mismatch:${RESOLVED_IP}|"
+    else
+        printf '%b\n' "${GREEN}[OK] $d -> $RESOLVED_IP${NC}"
     fi
 }
 
@@ -99,7 +142,7 @@ FAILED_REASONS=""  # Parallel list of failure reasons
 # First pass: Read domains from CSV and check each one
 echo ""
 echo "📋 First pass: Initial DNS check..."
-while IFS=, read -r domain rest || [ -n "$domain" ]; do
+while IFS=, read -r domain redir svc anubis_sub rest || [ -n "$domain" ]; do
     # Skip empty lines and comments
     domain=$(echo "$domain" | xargs)
     case "$domain" in
@@ -107,20 +150,14 @@ while IFS=, read -r domain rest || [ -n "$domain" ]; do
     esac
 
     TOTAL=$((TOTAL + 1))
+    verify_dns_for_domain "$domain"
 
-    check_domain_dns "$domain"
-    result=$?
-
-    if [ $result -eq 1 ]; then
-        printf '%b\n' "${YELLOW}[WARN] $domain - No A record found (will recheck)${NC}"
-        FAILED_DOMAINS="${FAILED_DOMAINS}${domain}|"
-        FAILED_REASONS="${FAILED_REASONS}no_record|"
-    elif [ $result -eq 2 ]; then
-        printf '%b\n' "${YELLOW}[WARN] $domain -> $RESOLVED_IP (expected: $HOST_IP) (will recheck)${NC}"
-        FAILED_DOMAINS="${FAILED_DOMAINS}${domain}|"
-        FAILED_REASONS="${FAILED_REASONS}mismatch:${RESOLVED_IP}|"
-    else
-        printf '%b\n' "${GREEN}[OK] $domain -> $RESOLVED_IP${NC}"
+    # Check for Anubis subdomain if configured
+    anubis_sub=$(echo "$anubis_sub" | xargs)
+    if [ -n "$anubis_sub" ]; then
+        root_dom=$(get_root_domain "$domain")
+        TOTAL=$((TOTAL + 1))
+        verify_dns_for_domain "${anubis_sub}.${root_dom}"
     fi
 done < "$DOMAINS_FILE"
 
