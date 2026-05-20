@@ -43,6 +43,10 @@ services:
       # Middleware: SSO + StripPrefix (Error middleware MUST be first to catch 401 from Auth)
       - "traefik.http.routers.traefik.middlewares=dashboard-error@docker,dashboard-auth@docker,traefik-strip"
       - "traefik.http.middlewares.traefik-strip.stripprefix.prefixes=/traefik"
+      # Watchdog internal API router (only accessible on internal port 8080)
+      - "traefik.http.routers.watchdog-api.rule=PathPrefix(`/api`)"
+      - "traefik.http.routers.watchdog-api.entrypoints=traefik"
+      - "traefik.http.routers.watchdog-api.service=api@internal"
     deploy:
       resources:
         reservations:
