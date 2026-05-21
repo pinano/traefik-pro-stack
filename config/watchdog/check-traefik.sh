@@ -64,15 +64,16 @@ fi
 
 # Parse errors (HTTP & TCP/UDP routers, services, middlewares)
 ERRORS=$(echo "$RAWDATA" | jq -r '
+  def format_err: if type=="array" then join("; ") else . end | gsub("[\"\\[\\]]"; "");
   (
-    [(.routers // {}) | to_entries[] | select(.value.status == "error" or .value.error != null) | "• Router \(.key): \(.value.error // "Configuration error")"] +
-    [(.services // {}) | to_entries[] | select(.value.status == "error" or .value.error != null) | "• Service \(.key): \(.value.error // "Configuration error")"] +
-    [(.middlewares // {}) | to_entries[] | select(.value.status == "error" or .value.error != null) | "• Middleware \(.key): \(.value.error // "Configuration error")"] +
-    [((.tcp // {}).routers // {}) | to_entries[] | select(.value.status == "error" or .value.error != null) | "• TCP Router \(.key): \(.value.error // "Configuration error")"] +
-    [((.tcp // {}).services // {}) | to_entries[] | select(.value.status == "error" or .value.error != null) | "• TCP Service \(.key): \(.value.error // "Configuration error")"] +
-    [((.tcp // {}).middlewares // {}) | to_entries[] | select(.value.status == "error" or .value.error != null) | "• TCP Middleware \(.key): \(.value.error // "Configuration error")"] +
-    [((.udp // {}).routers // {}) | to_entries[] | select(.value.status == "error" or .value.error != null) | "• UDP Router \(.key): \(.value.error // "Configuration error")"] +
-    [((.udp // {}).services // {}) | to_entries[] | select(.value.status == "error" or .value.error != null) | "• UDP Service \(.key): \(.value.error // "Configuration error")"]
+    [(.routers // {}) | to_entries[] | select(.value.status == "error" or .value.error != null) | "🔸 *Router* \(.key): \(.value.error | format_err // "Configuration error")"] +
+    [(.services // {}) | to_entries[] | select(.value.status == "error" or .value.error != null) | "🔸 *Service* \(.key): \(.value.error | format_err // "Configuration error")"] +
+    [(.middlewares // {}) | to_entries[] | select(.value.status == "error" or .value.error != null) | "🔸 *Middleware* \(.key): \(.value.error | format_err // "Configuration error")"] +
+    [((.tcp // {}).routers // {}) | to_entries[] | select(.value.status == "error" or .value.error != null) | "🔸 *TCP Router* \(.key): \(.value.error | format_err // "Configuration error")"] +
+    [((.tcp // {}).services // {}) | to_entries[] | select(.value.status == "error" or .value.error != null) | "🔸 *TCP Service* \(.key): \(.value.error | format_err // "Configuration error")"] +
+    [((.tcp // {}).middlewares // {}) | to_entries[] | select(.value.status == "error" or .value.error != null) | "🔸 *TCP Middleware* \(.key): \(.value.error | format_err // "Configuration error")"] +
+    [((.udp // {}).routers // {}) | to_entries[] | select(.value.status == "error" or .value.error != null) | "🔸 *UDP Router* \(.key): \(.value.error | format_err // "Configuration error")"] +
+    [((.udp // {}).services // {}) | to_entries[] | select(.value.status == "error" or .value.error != null) | "🔸 *UDP Service* \(.key): \(.value.error | format_err // "Configuration error")"]
   )[]
 ' 2>/dev/null)
 
@@ -83,15 +84,13 @@ if [ "$ERROR_COUNT" -gt 0 ] && [ -n "$ERRORS" ]; then
     printf '%b\n' "${RED}❌ Found $ERROR_COUNT misconfigured component(s) in Traefik!${NC}"
     echo "$ERRORS"
     
-    # Replace backticks with single quotes to avoid escaping issues in code blocks
-    SAFE_ERRORS=$(echo "$ERRORS" | tr '`' "'")
+    # Replace backticks with single quotes to avoid escaping issues, and strip markdown formatting chars that could break it
+    SAFE_ERRORS=$(echo "$ERRORS" | tr '`*_[]' "'''''")
     
-    # Format message for Telegram, escaping special Markdown characters outside the code block
-    # and wrapping the error list in a preformatted code block.
     # Convert newline characters to %0A for URL encoding.
     ENCODED_ERRORS=$(echo "$SAFE_ERRORS" | awk '{printf "%s%%0A", $0}')
     
-    send_telegram "Traefik check detected *${ERROR_COUNT}* component(s) in error state:%0A%0A\`\`\`%0A${ENCODED_ERRORS}\`\`\`%0A👉 *Action Required:* Inspect the Traefik dashboard or check container logs."
+    send_telegram "Traefik check detected *${ERROR_COUNT}* component(s) in error state:%0A%0A${ENCODED_ERRORS}%0A👉 *Action Required:* Inspect the Traefik dashboard or check container logs."
     exit 1
 else
     printf '%b\n' "${GREEN}✅ Traefik check completed successfully. All components are healthy.${NC}"
