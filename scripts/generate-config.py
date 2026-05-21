@@ -571,7 +571,6 @@ def generate_configs():
                 'security-headers': {
                     'headers': {
                         'frameDeny': not bool(FRAME_ANCESTORS),
-                        'sslRedirect': True,
                         'browserXssFilter': True,
                         'contentTypeNosniff': True,
                         'stsIncludeSubdomains': True,

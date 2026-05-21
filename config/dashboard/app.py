@@ -32,7 +32,7 @@ app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SECURE=True,  # In production via Traefik HTTPS
     SESSION_COOKIE_SAMESITE='Lax',
-    PERMANENT_SESSION_LIFETIME=2592000, # 30 days
+    PERMANENT_SESSION_LIFETIME=604800,  # 7 days (reduced from 30 to limit stolen-token window)
     SESSION_COOKIE_PATH='/',  # Ensure cookie is valid for all subpaths
     # Reject incoming request bodies larger than 1 MB to prevent memory exhaustion attacks.
     MAX_CONTENT_LENGTH=1 * 1024 * 1024,
@@ -71,11 +71,16 @@ def set_security_headers(response):
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 
 # --- Rate Limiter Setup ---
+# Use Redis as the backing store so rate-limit counters survive container restarts.
+# A restart would otherwise reset all counters, creating a brute-force window.
+# Falls back to in-memory if REDIS_PASSWORD is not set (e.g. during local dev).
+_redis_pass = os.environ.get('REDIS_PASSWORD', '')
+_limiter_storage = f"redis://:{_redis_pass}@redis:6379/2" if _redis_pass else "memory://"
 limiter = Limiter(
     get_remote_address,
     app=app,
     default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://",
+    storage_uri=_limiter_storage,
 )
 
 ADMIN_USER = os.environ.get('DASHBOARD_ADMIN_USER', 'admin')
@@ -508,11 +513,14 @@ def write_csv(data):
         except OSError:
             pass
     except Exception:
-        # Clean up the temp file if anything went wrong
+        # Clean up the temp file if anything went wrong, then re-raise so the
+        # caller (HTTP endpoint) gets a 500 instead of silently returning 200
+        # with data that was never actually written.
         try:
             os.unlink(tmp_path)
         except OSError:
             pass
+        raise
 # CAPTCHA keys validation patterns
 TURNSTILE_SITE_KEY_RE = re.compile(r'^(0x4|[123]x)[A-Za-z0-9-_]{15,30}$')
 TURNSTILE_SECRET_KEY_RE = re.compile(r'^(0x4|[123]x)[A-Za-z0-9-_]{30,50}$')
@@ -1084,7 +1092,11 @@ def api_domains():
                 final_list.append(entry)
                 processed_domains.add(d)
         
-        write_csv(final_list)
+        try:
+            write_csv(final_list)
+        except Exception as e:
+            log.error("Failed to write domains.csv: %s", e)
+            return jsonify({'status': 'error', 'message': 'Failed to save changes to disk. Check server logs.'}), 500
         return jsonify({'status': 'success'})
 
 @app.route('/dm-api/captchas', methods=['GET', 'POST'])

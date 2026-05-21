@@ -9,6 +9,7 @@ services:
     ports:
       - "${TRAEFIK_LISTEN_IP:-0.0.0.0}:80:80"
       - "${TRAEFIK_LISTEN_IP:-0.0.0.0}:443:443"
+      - "${TRAEFIK_LISTEN_IP:-0.0.0.0}:443:443/udp"  # HTTP/3 (QUIC)
     networks:
       - traefik
     sysctls:

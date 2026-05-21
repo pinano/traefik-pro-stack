@@ -17,12 +17,18 @@ on_success: break
 # -----------------------------------------------------------------------------
 # Profile 1: Repeat Offenders (7-day ban)
 # -----------------------------------------------------------------------------
-# If an IP triggers multiple alerts (>5 events), apply a 7-day ban.
-# This catches persistent attackers who keep probing after initial bans.
+# If an IP triggers multiple alerts (>5 events) on non-HTTP scenarios, apply a
+# 7-day ban. This catches persistent attackers (e.g. SSH brute force) who keep
+# probing after initial bans.
+# NOTE: HTTP scenarios are explicitly excluded here so they can flow through to
+# the captcha_remediation profile (inserted dynamically by start.sh when captcha
+# keys are configured). Without this exclusion, repeat_offender evaluates before
+# captcha_remediation and HTTP repeat offenders are hard-banned, bypassing the
+# CAPTCHA challenge entirely.
 
 name: repeat_offender
 filters:
- - Alert.Remediation == true && Alert.GetScope() == "Ip" && len(Alert.Events) > 5
+ - Alert.Remediation == true && Alert.GetScope() == "Ip" && len(Alert.Events) > 5 && !(Alert.GetScenario() contains "http") && !(Alert.GetScenario() contains "traefik")
 decisions:
  - type: ban
    duration: 168h  # 7 days

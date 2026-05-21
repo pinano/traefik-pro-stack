@@ -2,7 +2,7 @@ FROM python:3.11-alpine
 
 WORKDIR /app
 
-RUN pip install --no-cache-dir flask==3.0.0 PyYAML==6.0.1 tldextract==5.1.0 gunicorn==21.2.0 Flask-Limiter==3.5.0 Flask-WTF==1.2.1 requests==2.32.3
+RUN pip install --no-cache-dir flask==3.0.0 PyYAML==6.0.1 tldextract==5.1.0 gunicorn==21.2.0 "Flask-Limiter[redis]==3.5.0" Flask-WTF==1.2.1 requests==2.32.3
 
 COPY . .
 

@@ -228,29 +228,24 @@ fi
 echo "📋 Checking container memory usage against limits..."
 
 if [ -n "$CONTAINER_IDS" ]; then
-    # Run stats for project containers
-    STATS=$(docker stats --no-stream --format "{{.Name}}|{{.MemPerc}}" $CONTAINER_IDS 2>/dev/null)
-    
-    if [ -n "$STATS" ]; then
-        echo "$STATS" | while IFS='|' read -r name perc; do
+    STATS_FILE=$(mktemp /tmp/container_stats_XXXXXX)
+    # Write stats to a temp file to avoid subshell scope issues.
+    # Piping into 'while' would run it in a subshell, preventing ERRORS/ALERTS
+    # from propagating back to the parent process.
+    docker stats --no-stream --format "{{.Name}}|{{.MemPerc}}" $CONTAINER_IDS > "$STATS_FILE" 2>/dev/null
+
+    if [ -s "$STATS_FILE" ]; then
+        while IFS='|' read -r name perc; do
+            [ -z "$name" ] && continue
             val=$(echo "$perc" | cut -d. -f1 | tr -d '% ')
             if [ -n "$val" ] && [ "$val" -gt "$CONTAINER_MEM_WARNING_THRESHOLD" ]; then
                 printf '%b\n' "${RED}❌ Container $name is close to memory limit: $perc${NC}"
-                echo "ALERT:• *Container Memory Limit*: \`${name}\` is using *${perc}* of its memory limit!%0A"
+                ALERTS="${ALERTS}• *Container Memory Limit*: \`${name}\` is using *${perc}* of its memory limit!%0A"
+                ERRORS=$((ERRORS + 1))
             fi
-        done > /tmp/container_mem_alerts.txt
-        
-        if [ -f /tmp/container_mem_alerts.txt ]; then
-            while read -r line; do
-                if echo "$line" | grep -q "^ALERT:"; then
-                    alert_msg=$(echo "$line" | sed 's/^ALERT://')
-                    ALERTS="${ALERTS}${alert_msg}"
-                    ERRORS=$((ERRORS + 1))
-                fi
-            done < /tmp/container_mem_alerts.txt
-            rm -f /tmp/container_mem_alerts.txt
-        fi
+        done < "$STATS_FILE"
     fi
+    rm -f "$STATS_FILE"
 fi
 
 

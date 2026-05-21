@@ -982,7 +982,9 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
     # We use -f /dev/null to avoid overwriting the local credentials of the crowdsec container itself.
     
     echo "   🛡️ Hardening CrowdSec LAPI (trusted_ips)..."
-    docker exec "$CROWDSEC_ID" sh -c "yq -i '.api.server.trusted_ips += [\"172.16.0.0/12\", \"192.168.0.0/16\"]' /etc/crowdsec/config.yaml"
+    # Use |= ... | unique instead of += to avoid duplicating entries on each start.
+    # += always appends, so running 'make start' N times would grow the array N times.
+    docker exec "$CROWDSEC_ID" sh -c "yq -i '.api.server.trusted_ips |= (. + [\"172.16.0.0/12\", \"192.168.0.0/16\"] | unique)' /etc/crowdsec/config.yaml"
     docker exec "$CROWDSEC_ID" kill -HUP 1
 
     echo "   🖥️ Registering CrowdSec Web UI machine..."

@@ -76,6 +76,8 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
     networks:
       - traefik
+    security_opt:
+      - no-new-privileges=true
     deploy:
       resources:
         limits:
@@ -99,6 +101,14 @@ services:
       - /etc/localtime:/etc/localtime:ro
     networks:
       - traefik
+    security_opt:
+      - no-new-privileges=true
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/crowdsec/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"

@@ -64,6 +64,8 @@ services:
       - "traefik.http.middlewares.dashboard-error.errors.status=401-403"
       - "traefik.http.middlewares.dashboard-error.errors.service=dashboard@docker"
       - "traefik.http.middlewares.dashboard-error.errors.query=/login"
+    security_opt:
+      - no-new-privileges=true
     logging:
       driver: "json-file"
       options:
@@ -185,6 +187,8 @@ services:
       - CROWDSEC_ENABLE=${CROWDSEC_ENABLE:-true}
       - PROJECT_NAME=${PROJECT_NAME}
       - REDIS_PASSWORD=${REDIS_PASSWORD}
+    security_opt:
+      - no-new-privileges=true
     deploy:
       resources:
         limits:
