@@ -395,7 +395,7 @@ if [ "$HAS_ACTIVE_CAPTCHAS" = "true" ]; then
 
 name: captcha_remediation
 filters:
- - Alert.Remediation == true && Alert.GetScope() == "Ip" && Alert.GetScenario() contains "http" && !(Alert.GetScenario() contains "appsec")
+ - Alert.Remediation == true && Alert.GetScope() == "Ip" && (Alert.GetScenario() contains "http" || Alert.GetScenario() contains "traefik-flood-429") && !(Alert.GetScenario() contains "appsec")
 decisions:
  - type: captcha
    duration: 4h
