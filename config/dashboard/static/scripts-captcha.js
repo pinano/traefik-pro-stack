@@ -69,8 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadCaptchas();
 
-    document.getElementById('add-row-btn').addEventListener('click', () => addNewRow());
-    document.getElementById('add-row-top-btn').addEventListener('click', () => addNewRow(true));
+
     saveBtn.addEventListener('click', saveChanges);
     deployBtn.addEventListener('click', deployChanges);
     searchInput.addEventListener('input', handleSearch);
@@ -343,21 +342,30 @@ function renderTables() {
                                orig.site_key !== row.site_key || 
                                orig.secret_key !== row.secret_key;
                               
+            const isConfigured = row.site_key && row.secret_key;
+
             if (isUnsaved) {
-                tr.style.backgroundColor = 'rgba(245, 158, 11, 0.08)';
+                tr.style.backgroundColor = 'rgba(245, 158, 11, 0.15)'; // Unsaved orange tint
+            } else if (isConfigured) {
+                tr.style.backgroundColor = 'rgba(16, 185, 129, 0.05)'; // Green tint
+            } else {
+                tr.style.backgroundColor = 'rgba(239, 68, 68, 0.05)'; // Red tint
             }
 
-            const isConfigured = row.site_key && row.secret_key;
             const statusIcon = isConfigured ? 
-                '<i data-lucide="shield-check" style="color: var(--success-color); width: 16px; height: 16px; margin-right: 5px;"></i>' : 
-                '<i data-lucide="shield-off" style="color: var(--text-muted); width: 16px; height: 16px; margin-right: 5px;"></i>';
+                '<i data-lucide="shield-check" style="color: var(--success-color); min-width: 18px; min-height: 18px; width: 18px; height: 18px;"></i>' : 
+                '<i data-lucide="shield-off" style="color: var(--danger-color); min-width: 18px; min-height: 18px; width: 18px; height: 18px;"></i>';
             const orphanLabel = row.isOrphan ? '<span style="color: var(--danger-color); font-size: 0.7rem; margin-left: 5px;">(Orphan)</span>' : '';
 
             tr.innerHTML = `
-                <td data-label="Root Domain" style="display: flex; align-items: center;">
-                    ${statusIcon}
-                    <span style="font-weight: 500; color: var(--text-color);">${escapeHtml(row.root_domain)}</span>
-                    ${orphanLabel}
+                <td data-label="Root Domain">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="flex-shrink: 0; display: flex; align-items: center;">
+                            ${statusIcon}
+                        </div>
+                        <span style="font-weight: 500; color: var(--text-color); word-break: break-word;">${escapeHtml(row.root_domain)}</span>
+                        ${orphanLabel}
+                    </div>
                 </td>
                 <td data-label="CAPTCHA Provider">
                     <select class="data-input provider-select">
@@ -373,7 +381,7 @@ function renderTables() {
                     <input type="text" class="data-input secret-key-input" value="${escapeHtml(row.secret_key)}" placeholder="Secret Key">
                 </td>
                 <td data-label="Action" style="text-align: center;">
-                    <button class="btn btn-secondary btn-xs clear-keys-btn" title="Clear keys (Disable CAPTCHA)">
+                    <button class="btn btn-danger btn-xs clear-keys-btn" title="Clear keys (Disable CAPTCHA)">
                         <i data-lucide="eraser"></i>
                     </button>
                 </td>
