@@ -170,7 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return {
             domain: (domainObj.domain || '').trim().toLowerCase(),
             redirection: (domainObj.redirection || '').trim().toLowerCase(),
-            service_name: (domainObj.service_name || '').trim().toLowerCase(),
+            service_name: (domainObj.service_name || '').trim(),
             anubis_subdomain: (domainObj.anubis_subdomain || '').trim().toLowerCase(),
             rate: (domainObj.rate || '').trim(),
             burst: (domainObj.burst || '').trim(),

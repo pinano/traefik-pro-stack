@@ -39,6 +39,10 @@
                     <span class="subtitle-link" style="cursor: default;">
                         <i data-lucide="key-round" style="color: var(--warning-color); width: 14px; height: 14px;"></i> Root-Domain Security
                     </span>
+                    <span class="subtitle-separator">|</span>
+                    <button id="help-btn" class="subtitle-link help-link-btn" title="Usage Instructions">
+                        <i data-lucide="help-circle"></i> Interface Help
+                    </button>
                 </div>
             </div>
             <div class="actions">
@@ -121,7 +125,60 @@
             </div>
         </div>
     </div>
+    <!-- Help Modal -->
+    <div id="help-modal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Usage Instructions</h2>
+                <button id="close-help-btn" class="toast-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="help-section">
+                    <h3 style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; color: var(--primary-color);">
+                        <i data-lucide="shield-check" style="color: var(--success-color);"></i> Status Indicators
+                    </h3>
+                    <p style="margin-bottom: 0.75rem;">The visual indicator shows if the root domain is protected by CAPTCHA:</p>
+                    <ul class="help-list" style="list-style: none; padding-left: 0;">
+                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
+                            <i data-lucide="shield-check" style="color: var(--success-color); flex-shrink: 0; margin-top: 2px;"></i>
+                            <span><strong>Protected:</strong> Both Site Key and Secret Key are configured correctly.</span>
+                        </li>
+                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
+                            <i data-lucide="shield-off" style="color: var(--danger-color); flex-shrink: 0; margin-top: 2px;"></i>
+                            <span><strong>Unprotected:</strong> Keys are missing. The domain is not covered by CAPTCHA challenge rules.</span>
+                        </li>
+                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
+                            <span style="color: var(--danger-color); font-size: 0.7rem; margin-top: 4px; font-weight: bold;">(Orphan)</span>
+                            <span><strong>Orphaned:</strong> The configuration exists in the database but the root domain is no longer active in the stack.</span>
+                        </li>
+                    </ul>
+                </div>
 
+                <div class="help-section" style="margin-top: 1.5rem;">
+                    <h3 style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; color: var(--primary-color);">
+                        <i data-lucide="edit-3"></i> Editing & Actions
+                    </h3>
+                    <ul class="help-list" style="list-style: none; padding-left: 0;">
+                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
+                            <i data-lucide="eraser" style="color: var(--danger-color); flex-shrink: 0; margin-top: 2px;"></i>
+                            <span><strong>Clear Keys:</strong> Removes the keys for the domain. Upon saving, the configuration will be disabled.</span>
+                        </li>
+                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
+                            <i data-lucide="info" style="color: #f97316; flex-shrink: 0; margin-top: 2px;"></i>
+                            <span><strong>Unsaved Changes:</strong> Rows with pending modifications are highlighted in <span style="color: #f97316; font-weight: bold;">orange</span>.</span>
+                        </li>
+                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
+                            <i data-lucide="rocket" style="color: #0d9488; flex-shrink: 0; margin-top: 2px;"></i>
+                            <span><strong>Deploy Changes:</strong> Applies the configuration securely using a zero-downtime hot reload.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="close-help-footer-btn" class="btn btn-primary">Got it!</button>
+            </div>
+        </div>
+    </div>
     <!-- Notification Toast -->
     <div id="toast" class="toast"></div>
 

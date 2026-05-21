@@ -121,9 +121,9 @@
                                 {{ cert.main }}
                                 {% if cert.sans %}
                                 <span class="badge badge-info"
-                                    title="Total Domains: {{ cert.sans|length + 1 }} (Main + SANs)"
+                                    title="Total Domains: {{ cert.sans|length }} (Main + SANs)"
                                     style="margin-left: 0.5rem; cursor: help; vertical-align: middle;">
-                                    {{ cert.sans|length + 1 }}
+                                    {{ cert.sans|length }}
                                 </span>
                                 {% endif %}
                             </td>
@@ -134,7 +134,7 @@
                                 <span style="color: var(--text-muted); font-size: 0.8rem;">-</span>
                                 {% endfor %}
                             </td>
-                            <td data-label="Expiration" style="text-align: center;">
+                            <td data-label="Expiration" style="text-align: center;" data-sort-value="{{ cert.expiration_timestamp }}">
                                 <span
                                     style="{{ 'color: var(--warning-color); font-weight: bold;' if cert.status == 'warning' else ('color: var(--danger-color); font-weight: bold;' if cert.status == 'expired' else '') }}">
                                     {{ cert.expiration }}
@@ -345,8 +345,19 @@
 
                     // Sort rows
                     const sortedRows = rows.sort((a, b) => {
-                        const aVal = a.children[index].textContent.trim();
-                        const bVal = b.children[index].textContent.trim();
+                        const aCell = a.children[index];
+                        const bCell = b.children[index];
+                        const aSortVal = aCell.getAttribute('data-sort-value');
+                        const bSortVal = bCell.getAttribute('data-sort-value');
+
+                        if (aSortVal !== null && bSortVal !== null) {
+                            const aNum = parseFloat(aSortVal) || 0;
+                            const bNum = parseFloat(bSortVal) || 0;
+                            return currentSort.direction === 'asc' ? aNum - bNum : bNum - aNum;
+                        }
+
+                        const aVal = aCell.textContent.trim();
+                        const bVal = bCell.textContent.trim();
 
                         // Basic string comparison
                         return currentSort.direction === 'asc'

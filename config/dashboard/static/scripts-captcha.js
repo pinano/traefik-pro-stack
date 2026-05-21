@@ -96,6 +96,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     cancelConfirmBtn.addEventListener('click', () => confirmModal.classList.remove('show'));
 
+    // Help Modal Logic
+    const helpBtn = document.getElementById('help-btn');
+    const helpModal = document.getElementById('help-modal');
+    const closeHelpBtn = document.getElementById('close-help-btn');
+    const closeHelpFooterBtn = document.getElementById('close-help-footer-btn');
+
+    if (helpBtn && helpModal) {
+        helpBtn.addEventListener('click', () => {
+            helpModal.classList.add('show');
+        });
+        const closeHelp = () => helpModal.classList.remove('show');
+        if (closeHelpBtn) closeHelpBtn.addEventListener('click', closeHelp);
+        if (closeHelpFooterBtn) closeHelpFooterBtn.addEventListener('click', closeHelp);
+    }
+
     confirmDeleteBtn.addEventListener('click', () => {
         confirmModal.classList.remove('show');
         if (confirmAction === 'delete' && rowIdToDelete) {

@@ -886,14 +886,13 @@ def certs_view():
                         real_main = cert_info['cn'].lower() if cert_info['cn'] else "unknown"
                         real_sans = [s.lower() for s in cert_info['sans']]
                         
-                        # Filter out main from SANs for display
-                        real_sans_cleaned = [s for s in real_sans if s != real_main]
+                        # Include main domain in SANs list for UI consistency
+                        ui_sans = sorted(list(set([real_main] + real_sans))) if real_main != 'unknown' else sorted(real_sans)
                         
                         # Update stats coverage
-                        if real_main != 'unknown':
-                            covered_domains.add(real_main)
-                            for s in real_sans_cleaned:
-                                covered_domains.add(s)
+                        for d in ui_sans:
+                            if d != 'unknown':
+                                covered_domains.add(d)
 
                         status = 'expired'
                         if cert_info['valid_days'] > 30:
@@ -903,7 +902,7 @@ def certs_view():
                         
                         certificates_details.append({
                             'main': real_main,
-                            'sans': real_sans_cleaned,
+                            'sans': ui_sans,
                             'root': get_root_domain(real_main) if real_main != 'unknown' else 'Unknown',
                             'expiration': cert_info['expiration_text'],
                             'valid_days': cert_info['valid_days'], # Needed for sorting context if visual
