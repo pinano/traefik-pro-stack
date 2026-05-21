@@ -94,7 +94,6 @@ services:
       - CROWDSEC_USER=${CROWDSEC_WEB_UI_USER:-crowdsec-web-ui}
       - CROWDSEC_PASSWORD=${CROWDSEC_WEB_UI_PASSWORD}
       - BASE_PATH=/crowdsec
-      - TRUSTED_IPS=${CROWDSEC_WEB_UI_TRUSTED_IPS:-172.16.0.0/12}
       - TZ=${TZ}
     volumes:
       - ./config/crowdsec-web-ui:/app/data
