@@ -55,10 +55,7 @@
         </header>
 
         <main>
-            <div class="table-tools">
-                <button id="add-row-top-btn" class="btn btn-success" style="margin-right: 1rem;">
-                    <i data-lucide="plus"></i> Add CAPTCHA Key
-                </button>
+            <div class="table-tools" style="justify-content: flex-end;">
                 <div class="search-wrapper">
                     <i data-lucide="search"></i>
                     <input type="text" id="search-input" placeholder="Search domains...">
@@ -90,31 +87,6 @@
                 </table>
             </div>
 
-            <div class="table-footer">
-                <button id="add-row-btn" class="btn btn-success">
-                    <i data-lucide="plus"></i> Add CAPTCHA Key
-                </button>
-            </div>
-
-            <div class="deleted-section">
-                <h2>Deleted CAPTCHA Keys</h2>
-                <div class="table-container">
-                    <table id="deleted-captcha-table">
-                        <thead>
-                            <tr>
-                                <th>Root Domain</th>
-                                <th>CAPTCHA Provider</th>
-                                <th>Site Key</th>
-                                <th>Secret Key</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody id="deleted-captcha-body">
-                            <!-- Deleted Rows -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
         </main>
     </div>
 

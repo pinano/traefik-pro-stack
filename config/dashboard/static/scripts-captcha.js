@@ -1,7 +1,6 @@
 // State Management
 let initialData = [];
 let currentData = [];
-let deletedData = [];
 let hasUnsavedChanges = false;
 let currentSort = { column: 'root_domain', direction: 'asc' };
 let confirmAction = 'delete';
@@ -9,12 +8,9 @@ let rowIdToDelete = null;
 
 // Searchable Dropdown State
 let allRootDomains = [];
-let activeDomainInput = null;
-let highlightedDomainIndex = -1;
 
 // Selectors
 const captchaBody = document.getElementById('captcha-body');
-const deletedCaptchaBody = document.getElementById('deleted-captcha-body');
 const saveBtn = document.getElementById('save-btn');
 const deployBtn = document.getElementById('deploy-btn');
 const searchInput = document.getElementById('search-input');
@@ -26,7 +22,6 @@ const logContainer = document.getElementById('log-container');
 const closeModalBtn = document.getElementById('close-modal-btn');
 const toastEl = document.getElementById('toast');
 
-const globalDomainDropdown = document.getElementById('global-domain-dropdown');
 
 // Helper to manage body padding when fixed top banners are visible
 function updateNotificationPadding() {
@@ -151,12 +146,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (input.classList.contains('secret-key-input')) {
             row.secret_key = input.value.trim();
             checkForChanges();
-        } else if (input.classList.contains('domain-input')) {
-            activeDomainInput = input;
-            const filter = input.value;
-            highlightedDomainIndex = filter ? 0 : -1;
-            renderGlobalDomainDropdown(filter);
-            updateGlobalDomainDropdownPosition();
         }
     });
 
@@ -182,130 +171,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    captchaBody.addEventListener('focusin', (e) => {
-        if (e.target.classList.contains('domain-input')) {
-            activeDomainInput = e.target;
-            renderGlobalDomainDropdown('');
-            updateGlobalDomainDropdownPosition();
-        }
-    });
-
     captchaBody.addEventListener('click', (e) => {
-        const input = e.target;
-        if (input.classList.contains('domain-input')) {
-            activeDomainInput = input;
-            renderGlobalDomainDropdown('');
-            updateGlobalDomainDropdownPosition();
-            return;
-        }
-
-        const deleteBtn = e.target.closest('.delete-row-btn');
-        if (deleteBtn) {
-            const tr = deleteBtn.closest('tr');
+        const clearBtn = e.target.closest('.clear-keys-btn');
+        if (clearBtn) {
+            const tr = clearBtn.closest('tr');
             if (tr) {
                 const id = tr.dataset.id;
                 const row = currentData.find(r => r._id === id);
                 if (row) {
-                    if (row.isNew) {
-                        deleteRow(id);
-                    } else {
-                        rowIdToDelete = id;
-                        confirmAction = 'delete';
-                        confirmModalTitle.textContent = 'Confirm Deletion';
-                        confirmMsg.textContent = `Are you sure you want to delete ${row.root_domain && !row.root_domain.startsWith('new-domain-') ? row.root_domain : 'this record'}?`;
-                        confirmDeleteBtn.textContent = 'Delete';
-                        confirmDeleteBtn.style.display = 'inline-flex';
-                        confirmDeployBtn.style.display = 'none';
-                        if (window.lucide) lucide.createIcons({ root: confirmModal });
-                        confirmModal.classList.add('show');
-                    }
+                    row.site_key = '';
+                    row.secret_key = '';
+                    checkForChanges();
+                    renderTables();
                 }
             }
-        }
-    });
-
-    captchaBody.addEventListener('focusout', (e) => {
-        if (e.target.classList.contains('domain-input')) {
-            const input = e.target;
-            setTimeout(() => {
-                validateDomainInput(input);
-                if (activeDomainInput === input) {
-                    globalDomainDropdown.classList.remove('show');
-                    activeDomainInput = null;
-                }
-            }, 200);
-        }
-    });
-
-    captchaBody.addEventListener('keydown', (e) => {
-        if (e.target.classList.contains('domain-input')) {
-            if (!globalDomainDropdown.classList.contains('show')) return;
-
-            const items = globalDomainDropdown.querySelectorAll('.dropdown-item');
-            if (items.length === 0) return;
-
-            if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                highlightedDomainIndex = (highlightedDomainIndex + 1) % items.length;
-                updateDomainDropdownHighlight(items);
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                highlightedDomainIndex = (highlightedDomainIndex - 1 + items.length) % items.length;
-                updateDomainDropdownHighlight(items);
-            } else if (e.key === 'Enter') {
-                e.preventDefault();
-                if (highlightedDomainIndex >= 0 && highlightedDomainIndex < items.length) {
-                    items[highlightedDomainIndex].dispatchEvent(new MouseEvent('mousedown'));
-                } else if (items.length > 0) {
-                    items[0].dispatchEvent(new MouseEvent('mousedown'));
-                }
-            } else if (e.key === 'Escape') {
-                globalDomainDropdown.classList.remove('show');
-                activeDomainInput = null;
-            }
-        }
-    });
-
-    deletedCaptchaBody.addEventListener('click', (e) => {
-        const restoreBtn = e.target.closest('.restore-row-btn');
-        if (restoreBtn) {
-            const tr = restoreBtn.closest('tr');
-            if (tr) restoreRow(tr.dataset.id);
-        }
-
-        const permanentDeleteBtn = e.target.closest('.permanent-delete-btn');
-        if (permanentDeleteBtn) {
-            const tr = permanentDeleteBtn.closest('tr');
-            if (tr) {
-                const id = tr.dataset.id;
-                const row = deletedData.find(r => r._id === id);
-                rowIdToDelete = id;
-                confirmAction = 'permanent-delete';
-                confirmModalTitle.textContent = 'Confirm Permanent Deletion';
-                confirmMsg.textContent = `Are you sure you want to PERMANENTLY delete ${row ? row.root_domain : 'this record'}? This cannot be undone.`;
-                confirmDeleteBtn.textContent = 'Delete';
-                confirmDeleteBtn.style.display = 'inline-flex';
-                confirmDeployBtn.style.display = 'none';
-                if (window.lucide) lucide.createIcons({ root: confirmModal });
-                confirmModal.classList.add('show');
-            }
-        }
-    });
-
-    // Close global dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-        if (activeDomainInput && !activeDomainInput.contains(e.target) && !globalDomainDropdown.contains(e.target)) {
-            globalDomainDropdown.classList.remove('show');
-            activeDomainInput = null;
-        }
-    });
-
-    // Reposition on window resize
-    window.addEventListener('resize', () => {
-        if (globalDomainDropdown.classList.contains('show')) {
-            updateGlobalDomainDropdownPosition();
-        } else {
-            activeDomainInput = null;
         }
     });
 });
@@ -365,11 +244,9 @@ window.hideToast = function() {
 // Load CAPTCHAs from API
 async function loadCaptchas() {
     try {
-        // Fetch domains first to get all root domains from domains.csv
         const domainsResponse = await fetch('/dm-api/domains');
         if (!domainsResponse.ok) throw new Error('Failed to fetch domains list');
         const domainsData = await domainsResponse.json();
-        // Ignore commented/disabled domains
         const roots = domainsData.filter(d => d.enabled).map(d => getRootDomain(d.domain)).filter(r => r && r.trim() !== '');
         allRootDomains = [...new Set(roots)].sort((a, b) => a.localeCompare(b));
 
@@ -377,13 +254,36 @@ async function loadCaptchas() {
         if (!response.ok) throw new Error('Failed to fetch data');
         const data = await response.json();
 
-        // Assign internal IDs and split into active / disabled
-        data.forEach(d => { if (!d._id) d._id = crypto.randomUUID(); });
+        currentData = [];
+        const existingMap = new Map();
+        data.forEach(d => {
+            if (d.root_domain && d.enabled !== false) {
+                existingMap.set(d.root_domain.toLowerCase(), d);
+            }
+        });
 
-        currentData = data.filter(d => d.enabled !== false);
-        deletedData  = data.filter(d => d.enabled === false);
+        allRootDomains.forEach(domain => {
+            const existing = existingMap.get(domain);
+            if (existing) {
+                currentData.push({ ...existing, _id: crypto.randomUUID() });
+                existingMap.delete(domain);
+            } else {
+                currentData.push({
+                    _id: crypto.randomUUID(),
+                    root_domain: domain,
+                    provider: 'turnstile',
+                    site_key: '',
+                    secret_key: '',
+                    enabled: true
+                });
+            }
+        });
 
-        initialData = JSON.parse(JSON.stringify(data)); // Full snapshot (active + disabled)
+        existingMap.forEach((existing, domain) => {
+            currentData.push({ ...existing, _id: crypto.randomUUID(), isOrphan: true });
+        });
+
+        initialData = JSON.parse(JSON.stringify(currentData));
 
         renderTables();
         checkForChanges();
@@ -395,7 +295,6 @@ async function loadCaptchas() {
 
 // Render active and deleted tables
 function renderTables() {
-    // 1. Sort active data
     const query = searchInput.value.toLowerCase().trim();
     let sortedData = [...currentData];
 
@@ -403,14 +302,12 @@ function renderTables() {
         sortedData.sort((a, b) => {
             let valA = (a[currentSort.column] || '').toString().toLowerCase();
             let valB = (b[currentSort.column] || '').toString().toLowerCase();
-            
             if (valA < valB) return currentSort.direction === 'asc' ? -1 : 1;
             if (valA > valB) return currentSort.direction === 'asc' ? 1 : -1;
             return 0;
         });
     }
 
-    // 2. Filter active data based on search
     if (query) {
         sortedData = sortedData.filter(row => {
             return (row.root_domain || '').toLowerCase().includes(query) ||
@@ -418,7 +315,6 @@ function renderTables() {
         });
     }
 
-    // Update Sorting Headers
     document.querySelectorAll('.sortable').forEach(th => {
         th.classList.remove('asc', 'desc');
         const column = th.getAttribute('data-sort');
@@ -427,7 +323,6 @@ function renderTables() {
         }
     });
 
-    // Render active rows
     captchaBody.innerHTML = '';
     if (sortedData.length === 0) {
         captchaBody.innerHTML = `
@@ -442,23 +337,27 @@ function renderTables() {
             const tr = document.createElement('tr');
             tr.dataset.id = row._id;
             
-            // Check if row has unsaved modifications
-            const orig = initialData.find(o => o._id === row._id || o.root_domain === row.root_domain);
+            const orig = initialData.find(o => o._id === row._id);
             const isUnsaved = !orig || 
                                orig.provider !== row.provider || 
                                orig.site_key !== row.site_key || 
-                               orig.secret_key !== row.secret_key ||
-                               orig.root_domain !== row.root_domain;
+                               orig.secret_key !== row.secret_key;
                               
             if (isUnsaved) {
-                tr.style.backgroundColor = 'rgba(245, 158, 11, 0.08)'; // Unsaved orange tint
+                tr.style.backgroundColor = 'rgba(245, 158, 11, 0.08)';
             }
 
-            const visibleDomain = (row.root_domain || '').startsWith('new-domain-') ? '' : row.root_domain;
+            const isConfigured = row.site_key && row.secret_key;
+            const statusIcon = isConfigured ? 
+                '<i data-lucide="shield-check" style="color: var(--success-color); width: 16px; height: 16px; margin-right: 5px;"></i>' : 
+                '<i data-lucide="shield-off" style="color: var(--text-muted); width: 16px; height: 16px; margin-right: 5px;"></i>';
+            const orphanLabel = row.isOrphan ? '<span style="color: var(--danger-color); font-size: 0.7rem; margin-left: 5px;">(Orphan)</span>' : '';
 
             tr.innerHTML = `
-                <td data-label="Root Domain">
-                    <input type="text" class="data-input domain-input" value="${escapeHtml(visibleDomain)}" placeholder="example.com" autocomplete="off">
+                <td data-label="Root Domain" style="display: flex; align-items: center;">
+                    ${statusIcon}
+                    <span style="font-weight: 500; color: var(--text-color);">${escapeHtml(row.root_domain)}</span>
+                    ${orphanLabel}
                 </td>
                 <td data-label="CAPTCHA Provider">
                     <select class="data-input provider-select">
@@ -474,8 +373,8 @@ function renderTables() {
                     <input type="text" class="data-input secret-key-input" value="${escapeHtml(row.secret_key)}" placeholder="Secret Key">
                 </td>
                 <td data-label="Action" style="text-align: center;">
-                    <button class="btn btn-danger btn-xs delete-row-btn" title="Delete record">
-                        <i data-lucide="trash-2"></i>
+                    <button class="btn btn-secondary btn-xs clear-keys-btn" title="Clear keys (Disable CAPTCHA)">
+                        <i data-lucide="eraser"></i>
                     </button>
                 </td>
             `;
@@ -483,146 +382,21 @@ function renderTables() {
         });
     }
 
-    // Render deleted rows
-    deletedCaptchaBody.innerHTML = '';
-    if (deletedData.length === 0) {
-        deletedCaptchaBody.innerHTML = `
-            <tr>
-                <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 1rem;">
-                    No disabled CAPTCHA keys.
-                </td>
-            </tr>
-        `;
-    } else {
-        deletedData.forEach(row => {
-            const tr = document.createElement('tr');
-            tr.dataset.id = row._id;
-            tr.innerHTML = `
-                <td data-label="Root Domain"><input type="text" class="data-input" value="${escapeHtml(row.root_domain)}" disabled></td>
-                <td data-label="CAPTCHA Provider"><input type="text" class="data-input" value="${escapeHtml(row.provider)}" disabled></td>
-                <td data-label="Site Key"><input type="text" class="data-input" value="${escapeHtml(row.site_key)}" disabled></td>
-                <td data-label="Secret Key"><input type="text" class="data-input" value="${escapeHtml(row.secret_key)}" disabled></td>
-                <td data-label="Action" style="text-align: center;">
-                    <div style="display: flex; gap: 0.25rem; justify-content: center;">
-                        <button class="btn btn-success btn-xs restore-row-btn" title="Restore record">
-                            <i data-lucide="rotate-ccw"></i>
-                        </button>
-                        <button class="btn btn-danger btn-xs permanent-delete-btn" title="Delete permanently">
-                            <i data-lucide="trash-2"></i>
-                        </button>
-                    </div>
-                </td>
-            `;
-            deletedCaptchaBody.appendChild(tr);
-        });
-    }
-
     lucide.createIcons();
-}
-
-// Add a brand new empty row
-function addNewRow(atTop = false) {
-    // Reset active sort so the top/bottom placement is preserved visually
-    currentSort.column = null;
-    currentSort.direction = 'asc';
-
-    const tempDomain = `new-domain-${Date.now()}.com`;
-    const newEntry = {
-        _id: crypto.randomUUID(),
-        root_domain: tempDomain,
-        provider: 'turnstile',
-        site_key: '',
-        secret_key: '',
-        enabled: true,
-        isNew: true
-    };
-
-    if (atTop) {
-        currentData.unshift(newEntry);
-    } else {
-        currentData.push(newEntry);
-    }
-
-    renderTables();
-    checkForChanges();
-
-    // Focus the newly added row's domain input and scroll it into view
-    setTimeout(() => {
-        const tr = captchaBody.querySelector(`tr[data-id="${newEntry._id}"]`);
-        if (tr) {
-            const input = tr.querySelector('.domain-input');
-            if (input) {
-                input.focus();
-                input.select();
-            }
-            tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-    }, 50);
-}
-
-// Soft-delete: mark as disabled and move to deletedData
-// New (unsaved) rows are discarded immediately without moving to deleted list
-function deleteRow(id) {
-    const rowIndex = currentData.findIndex(r => r._id === id);
-    if (rowIndex > -1) {
-        const row = currentData.splice(rowIndex, 1)[0];
-        if (!row.isNew) {
-            row.enabled = false;
-            deletedData.push(row);
-        }
-        renderTables();
-        checkForChanges();
-    }
-}
-
-// Restore: re-enable and move back to currentData
-function restoreRow(id) {
-    const rowIndex = deletedData.findIndex(r => r._id === id);
-    if (rowIndex > -1) {
-        const row = deletedData.splice(rowIndex, 1)[0];
-        row.enabled = true;
-        currentData.push(row);
-        renderTables();
-        checkForChanges();
-    }
-}
-
-// Permanently remove from deletedData (won't be written to CSV)
-function permanentlyDeleteRow(id) {
-    const rowIndex = deletedData.findIndex(r => r._id === id);
-    if (rowIndex > -1) {
-        deletedData.splice(rowIndex, 1);
-        renderTables();
-        checkForChanges();
-    }
 }
 
 // Check if current state differs from the last saved state
 function checkForChanges() {
     let changed = false;
 
-    // Compare active + disabled counts against initial snapshot
-    const totalNow = currentData.length + deletedData.length;
-    const totalInit = initialData.length;
-
-    if (totalNow !== totalInit) {
-        changed = true;
-    } else {
-        // Check if any active row changed
-        for (const row of currentData) {
-            const orig = initialData.find(o => o._id === row._id);
-            if (!orig || orig.enabled === false) { changed = true; break; }
-            if (orig.provider !== row.provider ||
-                orig.site_key !== row.site_key ||
-                orig.secret_key !== row.secret_key ||
-                orig.root_domain !== row.root_domain) { changed = true; break; }
-        }
-        // Check if disabled list changed
-        if (!changed) {
-            for (const row of deletedData) {
-                const orig = initialData.find(o => o._id === row._id);
-                if (!orig || orig.enabled !== false) { changed = true; break; }
-            }
+    for (const row of currentData) {
+        const orig = initialData.find(o => o._id === row._id);
+        if (!orig || 
+            orig.provider !== row.provider ||
+            orig.site_key !== row.site_key ||
+            orig.secret_key !== row.secret_key) {
+            changed = true;
+            break;
         }
     }
 
@@ -643,7 +417,6 @@ function checkForChanges() {
 function validateData() {
     const errors = [];
 
-    // Clear previous error highlighting
     captchaBody.querySelectorAll('tr').forEach(tr => {
         tr.classList.remove('row-error');
         tr.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
@@ -653,33 +426,22 @@ function validateData() {
         const dom = (row.root_domain || '').trim().toLowerCase();
         const tr = captchaBody.querySelector(`tr[data-id="${row._id}"]`);
         let rowHasError = false;
-
-        if (!dom || dom.includes('new-domain-')) {
-            errors.push(`Row ${i + 1}: Root Domain is required.`);
-            rowHasError = true;
-            if (tr) {
-                const input = tr.querySelector('.domain-input');
-                if (input) input.classList.add('input-error');
-            }
-        } else if (!dom.includes('.') || dom.includes(' ') || dom.startsWith('.') || dom.endsWith('.')) {
-            errors.push(`Row ${i + 1} ('${dom}'): Domain format is invalid. Must be a root domain (e.g. example.com).`);
-            rowHasError = true;
-            if (tr) {
-                const input = tr.querySelector('.domain-input');
-                if (input) input.classList.add('input-error');
-            }
+        
+        // If both empty, it's valid (means disabled)
+        if (!row.site_key.trim() && !row.secret_key.trim()) {
+            return;
         }
 
-        if (!row.site_key || !row.site_key.trim()) {
-            errors.push(`Row ${i + 1} ('${dom}'): Site Key cannot be empty.`);
+        if (!row.site_key.trim()) {
+            errors.push(`Row '${dom}': Site Key cannot be empty if Secret Key is provided.`);
             rowHasError = true;
             if (tr) {
                 const input = tr.querySelector('.site-key-input');
                 if (input) input.classList.add('input-error');
             }
         }
-        if (!row.secret_key || !row.secret_key.trim()) {
-            errors.push(`Row ${i + 1} ('${dom}'): Secret Key cannot be empty.`);
+        if (!row.secret_key.trim()) {
+            errors.push(`Row '${dom}': Secret Key cannot be empty if Site Key is provided.`);
             rowHasError = true;
             if (tr) {
                 const input = tr.querySelector('.secret-key-input');
@@ -720,7 +482,7 @@ async function saveChanges() {
 
     try {
         // Send all entries: active (enabled=true) + disabled (enabled=false)
-        const payload = [...currentData, ...deletedData].map(getCleanPayload);
+        const payload = currentData.filter(r => r.site_key.trim() && r.secret_key.trim()).map(getCleanPayload);
         const response = await fetch('/dm-api/captchas', {
             method: 'POST',
             headers: {
@@ -795,11 +557,7 @@ async function saveChanges() {
         }
 
         // Remove the isNew flag from all saved entries
-        currentData.forEach(r => { delete r.isNew; });
-        deletedData.forEach(r => { delete r.isNew; });
-
-        // Rebuild initialData from both lists as the new baseline
-        initialData = JSON.parse(JSON.stringify([...currentData, ...deletedData]));
+        initialData = JSON.parse(JSON.stringify(currentData));
         hasUnsavedChanges = false;
         
         unsavedBanner.classList.remove('show');
@@ -886,107 +644,3 @@ function handleSort(column) {
     renderTables();
 }
 
-// Dynamic Search Dropdown Handlers
-function renderGlobalDomainDropdown(filter = '') {
-    if (!activeDomainInput) return;
-
-    const filtered = allRootDomains.filter(d => d.toLowerCase().includes(filter.toLowerCase()));
-    globalDomainDropdown.innerHTML = '';
-
-    if (filtered.length === 0) {
-        globalDomainDropdown.classList.remove('show');
-        return;
-    }
-
-    // Clamp index if filtered list changed
-    if (highlightedDomainIndex >= filtered.length) highlightedDomainIndex = filtered.length - 1;
-    if (highlightedDomainIndex < 0 && filtered.length > 0 && filter) highlightedDomainIndex = 0;
-
-    filtered.forEach((domain, index) => {
-        const item = document.createElement('div');
-        item.className = 'dropdown-item';
-        if (index === highlightedDomainIndex) item.classList.add('selected');
-        item.textContent = domain;
-        
-        // Use mousedown to ensure it fires before blur
-        item.addEventListener('mousedown', (e) => {
-            e.preventDefault(); // Prevent focus loss immediately
-            activeDomainInput.value = domain;
-            
-            const tr = activeDomainInput.closest('tr');
-            const id = tr.dataset.id;
-            const row = currentData.find(r => r._id === id);
-            if (row) {
-                // Prevent duplicate root domains in captcha config
-                if (currentData.some(r => r.root_domain === domain && r !== row)) {
-                    activeDomainInput.value = '';
-                    row.root_domain = '';
-                    showToast(`Domain '${domain}' is already configured.`, 'danger');
-                } else {
-                    row.root_domain = domain;
-                }
-            }
-            checkForChanges();
-            renderTables();
-
-            globalDomainDropdown.classList.remove('show');
-            activeDomainInput = null;
-        });
-        globalDomainDropdown.appendChild(item);
-    });
-
-    globalDomainDropdown.classList.add('show');
-}
-
-function updateGlobalDomainDropdownPosition() {
-    if (!activeDomainInput || !globalDomainDropdown.classList.contains('show')) return;
-    const rect = activeDomainInput.getBoundingClientRect();
-    globalDomainDropdown.style.top = `${rect.bottom + window.scrollY}px`;
-    globalDomainDropdown.style.left = `${rect.left + window.scrollX}px`;
-    globalDomainDropdown.style.width = `${rect.width}px`;
-}
-
-function updateDomainDropdownHighlight(items) {
-    items.forEach((item, index) => {
-        if (index === highlightedDomainIndex) {
-            item.classList.add('selected');
-            item.scrollIntoView({ block: 'nearest' });
-        } else {
-            item.classList.remove('selected');
-        }
-    });
-}
-
-function validateDomainInput(input) {
-    const tr = input.closest('tr');
-    if (!tr) return;
-    const id = tr.dataset.id;
-    const val = input.value.trim().toLowerCase();
-
-    const row = currentData.find(r => r._id === id);
-    if (!row) return;
-
-    // Use row.root_domain as the last valid value since it only updates on successful selection
-    const lastValid = row.root_domain || '';
-
-    if (val === '') {
-        row.root_domain = '';
-        input.value = '';
-    } else if (allRootDomains.length > 0 && !allRootDomains.includes(val)) {
-        // Revert to last valid value
-        input.value = lastValid.startsWith('new-domain-') ? '' : lastValid;
-        row.root_domain = lastValid;
-        showToast('Please select a valid root domain from domains.csv', 'danger');
-    } else {
-        // Prevent duplicate root domains in captcha config
-        if (currentData.some(r => r.root_domain === val && r !== row)) {
-            input.value = lastValid.startsWith('new-domain-') ? '' : lastValid;
-            row.root_domain = lastValid;
-            showToast(`Domain '${val}' is already configured.`, 'danger');
-        } else {
-            row.root_domain = val;
-        }
-    }
-    checkForChanges();
-    renderTables();
-}
