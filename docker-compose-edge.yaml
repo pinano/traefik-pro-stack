@@ -35,15 +35,7 @@ services:
       - "traefik.docker.network=traefik"
       # Restart on config change
       #- "traefik.config.hash=${TRAEFIK_CONFIG_HASH}"
-      # Dashboard
-      - "traefik.http.routers.traefik.rule=Host(`${DASHBOARD_SUBDOMAIN}.${DOMAIN}`) && (PathPrefix(`/traefik`) || PathPrefix(`/api`) || PathPrefix(`/dashboard`))"
-      - "traefik.http.routers.traefik.priority=100"
-      - "traefik.http.routers.traefik.entrypoints=websecure"
-      - "traefik.http.routers.traefik.service=api@internal"
-      - "traefik.http.routers.traefik.tls.certresolver=${TRAEFIK_CERT_RESOLVER}"
-      # Middleware: SSO + StripPrefix (Error middleware MUST be first to catch 401 from Auth)
-      - "traefik.http.routers.traefik.middlewares=dashboard-error@docker,dashboard-auth@docker,traefik-strip"
-      - "traefik.http.middlewares.traefik-strip.stripprefix.prefixes=/traefik"
+      # Dashboard is now handled dynamically by generate-config.py to support conditional TLS
       # Watchdog internal API router (only accessible on internal port 8080)
       - "traefik.http.routers.watchdog-api.rule=PathPrefix(`/api`)"
       - "traefik.http.routers.watchdog-api.entrypoints=traefik"

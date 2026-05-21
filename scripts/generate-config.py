@@ -633,6 +633,8 @@ def generate_configs():
         }
     }
 
+
+
     # 1. CrowdSec API Check Plugin (The very first line of defense)
     if CROWDSEC_ENABLE:
         # Base config for any CrowdSec middleware
@@ -773,6 +775,30 @@ def generate_configs():
 
         # Pass the reference to the HTTP section of the config AND the cert map
         process_router(entry, traefik_dynamic_conf['http'], domain_to_cert_def)
+
+    # -------------------------------------------------------------------------
+    # Dashboard Router (Conditionally Generated)
+    # -------------------------------------------------------------------------
+    DASHBOARD_SUBDOMAIN = os.getenv('DASHBOARD_SUBDOMAIN', 'dashboard')
+    DOMAIN = os.getenv('DOMAIN', 'mydomain.com')
+    dashboard_domain = f"{DASHBOARD_SUBDOMAIN}.{DOMAIN}"
+    
+    dashboard_router = {
+        'rule': f"Host(`{dashboard_domain}`) && (PathPrefix(`/traefik`) || PathPrefix(`/api`) || PathPrefix(`/dashboard`))",
+        'entryPoints': ["websecure"],
+        'service': "api@internal",
+        'priority': 100,
+        'tls': {},
+        'middlewares': ["dashboard-error@docker", "dashboard-auth@docker", "traefik-strip"]
+    }
+    apply_tls_config(dashboard_router, dashboard_domain, domain_to_cert_def)
+    traefik_dynamic_conf['http']['routers']['traefik-dashboard'] = dashboard_router
+
+    traefik_dynamic_conf['http']['middlewares']['traefik-strip'] = {
+        'stripPrefix': {
+            'prefixes': ['/traefik']
+        }
+    }
 
     # -------------------------------------------------------------------------
     # Anubis Services & Routers Generation
