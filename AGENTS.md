@@ -194,14 +194,16 @@ Key variables an agent must understand before making changes:
 | `CROWDSEC_APPSEC_ENABLE` | `false` disables Layer-7 WAF; AppSec collections are not loaded |
 | `TRAEFIK_HSTS_MAX_AGE` | High value + no HTTPS = users locked out of the domain for up to 1 year |
 | `TRAEFIK_TIMEOUT_ACTIVE` | Too low = legitimate slow requests time out; too high = opens DoS vector |
-| `APACHE_HOST_IP` | Wrong IP = `apache-host` service type fails to connect to Apache |
 | `PROMETHEUS_RETENTION_DAYS` | Very high values + low `PROMETHEUS_MEM_LIMIT` = OOM kills |
 
 Variables managed automatically by `start.sh` — **never suggest editing these manually**:
 - `TRAEFIK_CERT_RESOLVER`
-- `TRAEFIK_CONFIG_HASH`
 - `DASHBOARD_APP_PATH_HOST`
 - `DASHBOARD_SECRET_KEY`
+- `CROWDSEC_WEB_UI_PASSWORD`
+- `CROWDSEC_API_KEY`
+- `REDIS_PASSWORD`
+- `ANUBIS_REDIS_PRIVATE_KEY`
 - `TRAEFIK_DASHBOARD_AUTH`
 - `DOZZLE_DASHBOARD_AUTH`
 
@@ -283,6 +285,7 @@ make help             # Full command list
 | Changing `TRAEFIK_HSTS_MAX_AGE` to a high value without testing HTTPS first | Always test with a low value (300) first |
 | Creating new secrets manually and adding them to .env | Use `openssl rand -hex 32` and update via `make init` or the auto-sync in `start.sh` |
 | Forgetting to add a domain to the Turnstile widget configuration | The CAPTCHA will fail to load on that domain, acting as an un-solvable ban for affected users. |
+| "Fixing" the `chmod 777` fallback in `start.sh` for `./data` | It is intentional. Without `sudo`, `chown 472:472` fails. 777 ensures non-root containers (Grafana/Loki) can write. Do not change it to 775. |
 
 ---
 

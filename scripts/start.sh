@@ -153,16 +153,8 @@ validate_env() {
         fi
     fi
 
-    # 4. Check CrowdSec API Key (only if enabled)
-    # Normalize CROWDSEC_ENABLE for check (it's normalized again later, but we need it now)
-    local cs_enable=$(echo "${CROWDSEC_ENABLE:-true}" | tr '[:upper:]' '[:lower:]')
-    if [ "$cs_enable" == "true" ]; then
-        if [ "$CROWDSEC_API_KEY" == "REPLACE_ME" ] || [ -z "$CROWDSEC_API_KEY" ]; then
-            echo "❌ Error: CrowdSec is ENABLED but CROWDSEC_API_KEY is missing or set to default."
-            echo "   -> Either disable CrowdSec (CROWDSEC_ENABLE=false) or generate a key."
-            ((error_count++))
-        fi
-    fi
+    # 4. Check CrowdSec API Key (Deprecated - now auto-generated)
+    # CROWDSEC_API_KEY is now generated automatically during the sync phase if missing.
 
     # 5. Check for trivial default passwords (only for staging/production)
     if [ "$TRAEFIK_ACME_ENV_TYPE" != "local" ]; then
@@ -253,6 +245,39 @@ if [ -z "$CROWDSEC_WEB_UI_PASSWORD" ] || [ "$CROWDSEC_WEB_UI_PASSWORD" == "REPLA
     NEW_CS_UI_PASS=$(openssl rand -hex 32)
     update_env_var "CROWDSEC_WEB_UI_PASSWORD" "$NEW_CS_UI_PASS"
     export CROWDSEC_WEB_UI_PASSWORD="$NEW_CS_UI_PASS"
+    set -a
+    source .env
+    set +a
+fi
+
+# Redis Password (auto-generate on first run)
+if [ -z "$REDIS_PASSWORD" ] || [ "$REDIS_PASSWORD" == "REPLACE_ME" ]; then
+    echo "   🔄 Generating secure random Redis password..."
+    NEW_REDIS_PASS=$(openssl rand -base64 20 | tr -dc 'a-zA-Z0-9' | head -c 20)
+    update_env_var "REDIS_PASSWORD" "$NEW_REDIS_PASS"
+    export REDIS_PASSWORD="$NEW_REDIS_PASS"
+    set -a
+    source .env
+    set +a
+fi
+
+# Anubis Redis Private Key (auto-generate on first run)
+if [ -z "$ANUBIS_REDIS_PRIVATE_KEY" ] || [ "$ANUBIS_REDIS_PRIVATE_KEY" == "REPLACE_ME" ]; then
+    echo "   🔄 Generating secure Anubis Redis private key..."
+    NEW_ANUBIS_KEY=$(openssl rand -hex 32)
+    update_env_var "ANUBIS_REDIS_PRIVATE_KEY" "$NEW_ANUBIS_KEY"
+    export ANUBIS_REDIS_PRIVATE_KEY="$NEW_ANUBIS_KEY"
+    set -a
+    source .env
+    set +a
+fi
+
+# CrowdSec API Key (auto-generate on first run)
+if [ -z "$CROWDSEC_API_KEY" ] || [ "$CROWDSEC_API_KEY" == "REPLACE_ME" ]; then
+    echo "   🔄 Generating secure CrowdSec API key..."
+    NEW_CS_API_KEY=$(openssl rand -hex 32)
+    update_env_var "CROWDSEC_API_KEY" "$NEW_CS_API_KEY"
+    export CROWDSEC_API_KEY="$NEW_CS_API_KEY"
     set -a
     source .env
     set +a

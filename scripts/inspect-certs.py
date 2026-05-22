@@ -115,7 +115,7 @@ def load_expected_batch_sets():
     for entry in csv_raw_domains:
         domains_by_root[entry['root']].append(entry['domain'])
 
-    batch_size = int(os.getenv('TLS_BATCH_SIZE', 30))
+    batch_size = int(os.getenv('TRAEFIK_TLS_BATCH_SIZE', 30))
     all_valid_domains = set()
 
     for root_domain, subdomains in domains_by_root.items():

@@ -946,7 +946,7 @@ def certs_view():
     for entry in csv_raw_domains:
         domains_by_root[entry['root']].append(entry['domain'])
         
-    batch_size = int(os.environ.get('TLS_BATCH_SIZE', '30'))
+    batch_size = int(os.environ.get('TRAEFIK_TLS_BATCH_SIZE', '30'))
     
     for root_domain, subdomains in domains_by_root.items():
         subs_unicos = list(dict.fromkeys(subdomains))

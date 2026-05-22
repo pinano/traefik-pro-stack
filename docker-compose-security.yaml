@@ -73,7 +73,7 @@ services:
     restart: unless-stopped
     environment:
       - REDIS_ADDR=redis:6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
     networks:
       - traefik
     security_opt:
@@ -92,7 +92,7 @@ services:
     environment:
       - CROWDSEC_URL=http://crowdsec:8080
       - CROWDSEC_USER=${CROWDSEC_WEB_UI_USER:-crowdsec-web-ui}
-      - CROWDSEC_PASSWORD=${CROWDSEC_WEB_UI_PASSWORD}
+      - CROWDSEC_PASSWORD=${CROWDSEC_WEB_UI_PASSWORD:-}
       - BASE_PATH=/crowdsec
       - TZ=${TZ}
     volumes:

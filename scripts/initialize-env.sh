@@ -144,17 +144,6 @@ prompt_val "ANUBIS_DIFFICULTY" "Anubis challenge difficulty (1-5)"
 prompt_val "ANUBIS_CPU_LIMIT" "Anubis CPU limit per instance"
 prompt_val "ANUBIS_MEM_LIMIT" "Anubis memory limit per instance"
 
-# REDIS_PASSWORD: Offer random generation
-echo ""
-read -p "👉 Generate random REDIS_PASSWORD (20 chars)? (Y/n): " gen_redis
-if [[ "$gen_redis" == "y" || "$gen_redis" == "Y" || -z "$gen_redis" ]]; then
-    # Generate 20 chars, alphanumeric
-    NEW_REDIS_PASS=$(openssl rand -base64 20 | tr -dc 'a-zA-Z0-9' | head -c 20)
-    replace_val "REDIS_PASSWORD" "$NEW_REDIS_PASS"
-    echo "   ✅ Generated REDIS_PASSWORD: $NEW_REDIS_PASS"
-else
-    prompt_val "REDIS_PASSWORD" "Redis Password (manual input)"
-fi
 
 prompt_val "DASHBOARD_SUBDOMAIN" "Dashboard Subdomain (e.g. 'dashboard' for dashboard.example.com)"
 
@@ -238,94 +227,7 @@ prompt_val "WATCHDOG_DNS_CHECK_INTERVAL" "DNS check interval (seconds)"
 
 # --- AUTOMATED GENERATION ---
 
-echo ""
-echo "🔐 GENERATING SECURITY KEYS..."
 
-# 1. ANUBIS_REDIS_PRIVATE_KEY
-read -p "👉 Generate new Anubis Redis private key with openssl? (Y/n): " gen_anubis
-if [[ "$gen_anubis" == "y" || "$gen_anubis" == "Y" || -z "$gen_anubis" ]]; then
-    NEW_KEY=$(openssl rand -hex 32)
-    replace_val "ANUBIS_REDIS_PRIVATE_KEY" "$NEW_KEY"
-    echo "   ✅ Generated ANUBIS_REDIS_PRIVATE_KEY"
-fi
-
-# 1B. DASHBOARD_SECRET_KEY
-DM_KEY=$(grep "^DASHBOARD_SECRET_KEY=" "$ENV_FILE" | cut -d'=' -f2-)
-if [ -z "$DM_KEY" ] || [ "$DM_KEY" == "REPLACE_ME" ]; then
-    echo "🔐 Generating secure random Secret Key for Dashboard..."
-    NEW_DM_KEY=$(openssl rand -hex 32)
-    replace_val "DASHBOARD_SECRET_KEY" "$NEW_DM_KEY"
-    echo "   ✅ Generated DASHBOARD_SECRET_KEY"
-else
-    echo ""
-    echo "👉 Dashboard Secret Key is already set."
-    read -p "   Regenerate it? (y/N): " regen_dm_key
-    if [[ "$regen_dm_key" == "y" || "$regen_dm_key" == "Y" ]]; then
-        NEW_DM_KEY=$(openssl rand -hex 32)
-        replace_val "DASHBOARD_SECRET_KEY" "$NEW_DM_KEY"
-        echo "   ✅ Re-generated DASHBOARD_SECRET_KEY"
-    fi
-fi
-
-
-# 3. CROWDSEC_API_KEY
-ENABLE_CS=$(grep "^CROWDSEC_ENABLE=" "$ENV_FILE" | cut -d'=' -f2-)
-if [[ "$ENABLE_CS" != "false" ]]; then
-    echo ""
-    read -p "👉 Generate NEW CrowdSec API Key (requires starting docker)? (y/N): " gen_cs
-    if [[ "$gen_cs" == "y" || "$gen_cs" == "Y" ]]; then
-    # Ensure network exists
-    if ! docker network inspect traefik >/dev/null 2>&1; then
-        echo "   🌐 Creating required 'traefik' network..."
-        docker network create traefik
-    fi
-
-    COMPOSE_FILE="docker-compose-security.yaml"
-    echo "   🚀 Starting CrowdSec container..."
-    docker compose -f $COMPOSE_FILE up -d crowdsec
-    
-    echo "   ⏳ Waiting for CrowdSec API..."
-    # Wait loop
-    timeout=60
-    while true; do
-        CS_CID=$(docker compose -f $COMPOSE_FILE ps -q crowdsec 2>/dev/null || true)
-        if [ -n "$CS_CID" ] && [ "$(docker inspect --format='{{.State.Health.Status}}' $CS_CID 2>/dev/null)" == "healthy" ]; then
-            break
-        fi
-        
-        sleep 2
-        echo -n "."
-        ((timeout-=2))
-        if [ $timeout -le 0 ]; then
-             echo "   ❌ Timeout waiting for CrowdSec."
-             break
-        fi
-    done
-    echo ""
-
-    CS_CID=$(docker compose -f $COMPOSE_FILE ps -q crowdsec 2>/dev/null || true)
-    if [ -n "$CS_CID" ] && [ "$(docker inspect --format='{{.State.Health.Status}}' $CS_CID 2>/dev/null)" == "healthy" ]; then
-        echo "   🔑 Generating CROWDSEC_API_KEY..."
-        # First remove old one if exists to avoid error
-        docker compose -f $COMPOSE_FILE exec -T crowdsec cscli bouncers delete traefik-bouncer >/dev/null 2>&1 || true
-        # Add new one and capture output
-        CS_KEY=$(docker compose -f $COMPOSE_FILE exec -T crowdsec cscli bouncers add traefik-bouncer -o raw)
-        
-        if [ -n "$CS_KEY" ]; then
-            replace_val "CROWDSEC_API_KEY" "$CS_KEY"
-            echo "   ✅ Generated and saved CROWDSEC_API_KEY"
-        else
-            echo "   ❌ Failed to retrieve key from cscli."
-        fi
-    fi
-
-    echo "   🛑 Stopping CrowdSec..."
-    docker compose -f docker-compose-security.yaml stop crowdsec
-    fi
-else
-    echo ""
-    echo "   ⏭️ Skipping CrowdSec API Key generation (CrowdSec is disabled)."
-fi
 
 echo ""
 echo "========================================================"

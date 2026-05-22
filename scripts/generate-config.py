@@ -149,7 +149,7 @@ BAD_USER_AGENTS = [p.strip().strip('"').strip("'") for p in BAD_USER_AGENTS_STR.
 GOOD_USER_AGENTS = [p.strip().strip('"').strip("'") for p in GOOD_USER_AGENTS_STR.split(',') if p.strip()]
 
 # TLS Chunking Limit (Let's Encrypt max is 100)
-TLS_BATCH_SIZE = int(os.getenv('TLS_BATCH_SIZE', 30))
+TRAEFIK_TLS_BATCH_SIZE = int(os.getenv('TRAEFIK_TLS_BATCH_SIZE', 30))
 
 # CrowdSec & Traefik Settings (with defaults)
 try:
@@ -756,9 +756,9 @@ def generate_configs():
             # Deduplicate preserving order (Python 3.7+ dicts preserve insertion order)
             subs_unicos = list(dict.fromkeys(subdomains))
             
-            # Chunking loop in batches of TLS_BATCH_SIZE
-            for i in range(0, len(subs_unicos), TLS_BATCH_SIZE):
-                batch = subs_unicos[i:i + TLS_BATCH_SIZE]
+            # Chunking loop in batches of TRAEFIK_TLS_BATCH_SIZE
+            for i in range(0, len(subs_unicos), TRAEFIK_TLS_BATCH_SIZE):
+                batch = subs_unicos[i:i + TRAEFIK_TLS_BATCH_SIZE]
                 
                 # The first one is Main, the rest are SANs
                 cert_def = {"main": batch[0]}
@@ -767,7 +767,7 @@ def generate_configs():
                 
                 tls_configs.append(cert_def)
 
-        print(f"   🔐 Processing certificate batches (Batch Size: {TLS_BATCH_SIZE})...")
+        print(f"   🔐 Processing certificate batches (Batch Size: {TRAEFIK_TLS_BATCH_SIZE})...")
         for idx, batch in enumerate(tls_configs, 1):
             domains_in_batch = [batch['main']] + batch.get('sans', [])
             san_count = len(batch.get('sans', []))
