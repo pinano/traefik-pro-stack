@@ -74,6 +74,7 @@ services:
       - traefik
     environment:
       - DOZZLE_BASE=/dozzle
+      - DOZZLE_HOSTNAME=${DOMAIN}
       - TZ=${TZ}
     volumes:
       - /etc/localtime:/etc/localtime:ro
