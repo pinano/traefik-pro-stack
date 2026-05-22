@@ -22,7 +22,7 @@ set -euo pipefail
 
 # ─── Config ──────────────────────────────────────────────────────────────────
 GRAFANA_CONTAINER="${PROJECT_NAME:-stack}-grafana-1"
-AUTH="${GRAFANA_ADMIN_USER}:${GRAFANA_ADMIN_PASSWORD}"
+AUTH="${GRAFANA_ADMIN_USER:-admin}:${GRAFANA_ADMIN_PASSWORD}"
 CONTACT_POINT_NAME="Telegram"
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────

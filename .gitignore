@@ -16,6 +16,7 @@ config/traefik/dynamic-config/*
 config/crowdsec/parsers/ip-whitelist.yaml
 config/crowdsec/acquis.yaml
 config/crowdsec/profiles.yaml
+config/redis/redis-generated.conf
 
 
 # Traefik certificates

@@ -50,13 +50,13 @@ services:
   # ===========================
   redis:
     image: valkey/valkey:9.0.4-alpine
-    command: redis-server /redis.conf --requirepass "${REDIS_PASSWORD}"
+    command: redis-server /redis.conf
     restart: unless-stopped
     environment:
       - TZ=${TZ}
     volumes:
       - /etc/localtime:/etc/localtime:ro
-      - ./config/redis/redis.conf:/redis.conf:ro
+      - ./config/redis/redis-generated.conf:/redis.conf:ro
     networks:
       - anubis-backend
       - traefik
@@ -114,13 +114,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
-      # Routing
-      - "traefik.http.routers.crowdsec-web-ui.rule=Host(`${DASHBOARD_SUBDOMAIN}.${DOMAIN}`) && PathPrefix(`/crowdsec`)"
-      - "traefik.http.routers.crowdsec-web-ui.priority=100"
-      - "traefik.http.routers.crowdsec-web-ui.entrypoints=websecure"
-      - "traefik.http.routers.crowdsec-web-ui.tls.certresolver=${TRAEFIK_CERT_RESOLVER}"
-      # Middleware: SSO protection
-      - "traefik.http.routers.crowdsec-web-ui.middlewares=dashboard-error@docker,dashboard-auth@docker"
+      # Router is generated dynamically by generate-config.py (inherits full security middleware chain)
       # Internal port
       - "traefik.http.services.crowdsec-web-ui.loadbalancer.server.port=3000"
     logging:

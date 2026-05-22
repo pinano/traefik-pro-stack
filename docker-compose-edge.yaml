@@ -33,8 +33,6 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
-      # Restart on config change
-      #- "traefik.config.hash=${TRAEFIK_CONFIG_HASH}"
       # Dashboard is now handled dynamically by generate-config.py to support conditional TLS
       # Watchdog internal API router (only accessible on internal port 8080)
       - "traefik.http.routers.watchdog-api.rule=PathPrefix(`/api`)"

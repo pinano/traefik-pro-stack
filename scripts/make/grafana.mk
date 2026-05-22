@@ -5,7 +5,7 @@
 # bypassing Traefik, DNS and TLS. Works in any environment.
 
 GRAFANA_CONTAINER := $(PROJECT_NAME)-grafana-1
-GRAFANA_AUTH      := $(GRAFANA_ADMIN_USER):$(GRAFANA_ADMIN_PASSWORD)
+GRAFANA_AUTH      := $(if $(GRAFANA_ADMIN_USER),$(GRAFANA_ADMIN_USER),admin):$(GRAFANA_ADMIN_PASSWORD)
 
 .PHONY: grafana-setup-telegram
 grafana-setup-telegram: ## Configure Grafana Alerting: Telegram contact point + notification policy

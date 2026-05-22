@@ -37,8 +37,6 @@ COMPOSE_FILES := $(shell . scripts/compose-files.sh && echo $$COMPOSE_FILES)
 # Extract PROJECT_NAME from .env (default to 'stack' if not found)
 PROJECT_NAME := $(shell grep '^PROJECT_NAME=' .env 2>/dev/null | cut -d= -f2 || echo stack)
 
-# Suppress warnings for variables set dynamically in start.sh
-export TRAEFIK_CONFIG_HASH ?= ""
 export TRAEFIK_CERT_RESOLVER ?= ""
 
 # Resolve path variables if they are empty or set to placeholder/default values
@@ -107,22 +105,12 @@ stop: ## Stop the stack (calls stop.sh)
 .PHONY: restart
 restart: ## Restart the stack or a specific service (usage: make restart [service])
 ifneq ($(strip $(SERVICE_ARGS)),)
-	@if [ "$(filter traefik,$(SERVICE_ARGS))" = "traefik" ]; then \
-		echo "🧹 Flushing Redis cache before restarting Traefik to clear ghost bans..."; \
-		$(DOCKER_COMPOSE) exec -T redis redis-cli -a "$${REDIS_PASSWORD}" FLUSHDB 2>/dev/null || true; \
-	fi
 	@echo "Restarting service(s): $(SERVICE_ARGS)..."
 	@$(DOCKER_COMPOSE) restart $(SERVICE_ARGS)
 else ifdef s
-	@if [ "$(filter traefik,$(s))" = "traefik" ]; then \
-		echo "🧹 Flushing Redis cache before restarting Traefik to clear ghost bans..."; \
-		$(DOCKER_COMPOSE) exec -T redis redis-cli -a "$${REDIS_PASSWORD}" FLUSHDB 2>/dev/null || true; \
-	fi
 	@echo "Restarting service: $(s)..."
 	@$(DOCKER_COMPOSE) restart $(s)
 else
-	@echo "🧹 Flushing Redis cache before full stack restart..."
-	@$(DOCKER_COMPOSE) exec -T redis redis-cli -a "$${REDIS_PASSWORD}" FLUSHDB 2>/dev/null || true
 	@./scripts/stop.sh
 	@./scripts/start.sh
 endif

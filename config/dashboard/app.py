@@ -506,12 +506,16 @@ def write_csv(data):
                 ])
             f.flush()
             os.fsync(f.fileno())
-        import shutil
-        shutil.copyfile(tmp_path, DOMAINS_CSV_PATH)
+        # Atomic replacement (POSIX). Falls back to copy on bind mount EBUSY.
         try:
-            os.unlink(tmp_path)
+            os.replace(tmp_path, DOMAINS_CSV_PATH)
         except OSError:
-            pass
+            import shutil
+            shutil.copyfile(tmp_path, DOMAINS_CSV_PATH)
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
     except Exception:
         # Clean up the temp file if anything went wrong, then re-raise so the
         # caller (HTTP endpoint) gets a 500 instead of silently returning 200

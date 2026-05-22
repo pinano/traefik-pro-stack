@@ -496,9 +496,10 @@ for dir in "${DATA_DIRS[@]}"; do
 done
 
 # Ensure non-root service users can write to their data directories.
-# chmod 777 is appropriate here: the project directory is the real security
-# boundary, and these dirs contain runtime state (not secrets).
-chmod -R 777 ./data/grafana ./data/loki ./data/prometheus 2>/dev/null || true
+# Each service runs as a specific UID inside its container.
+chown -R 472:472 ./data/grafana 2>/dev/null || chmod -R 777 ./data/grafana 2>/dev/null || true
+chown -R 10001:10001 ./data/loki 2>/dev/null || chmod -R 777 ./data/loki 2>/dev/null || true
+chown -R 65534:65534 ./data/prometheus 2>/dev/null || chmod -R 777 ./data/prometheus 2>/dev/null || true
 
 if [ $DATA_CREATED -gt 0 ]; then
     echo "   ✅ Created $DATA_CREATED persistent data director(ies) under ./data/."
@@ -612,11 +613,26 @@ else
     exit 1
 fi
 
-# Calculate hash of the generated config to force restart on changes
-if [ -f "./config/traefik/traefik-generated.yaml" ]; then
-    TRAEFIK_CONFIG_HASH=$(cat ./config/traefik/traefik-generated.yaml | generate_hash)
-    export TRAEFIK_CONFIG_HASH
+# Generate redis-generated.conf from template (idempotent write)
+echo "   ⚙️ Generating Redis static config..."
+if [ -f "./config/redis/redis.conf" ]; then
+    TMP_REDIS=$(mktemp)
+    sed "s#REDIS_PASSWORD_PLACEHOLDER#${REDIS_PASSWORD}#g" \
+        ./config/redis/redis.conf > "$TMP_REDIS"
+    
+    TARGET_REDIS="./config/redis/redis-generated.conf"
+    if [ -f "$TARGET_REDIS" ] && cmp -s "$TMP_REDIS" "$TARGET_REDIS"; then
+        rm "$TMP_REDIS"
+    else
+        cat "$TMP_REDIS" > "$TARGET_REDIS"
+        rm "$TMP_REDIS"
+    fi
+else
+    echo "❌ Error: config/redis/redis.conf not found!"
+    exit 1
 fi
+
+
 
 # Generate dynamic configuration with Python script
 {

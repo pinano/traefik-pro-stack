@@ -66,7 +66,7 @@ CROWDSEC_API_KEY = os.getenv('CROWDSEC_API_KEY')
 REDIS_PASSWORD = os.getenv('REDIS_PASSWORD')
 CROWDSEC_ENABLE = os.getenv('CROWDSEC_ENABLE', 'true').lower() == 'true'
 CROWDSEC_APPSEC_ENABLE = os.getenv('CROWDSEC_APPSEC_ENABLE', 'true').lower() == 'true'
-CROWDSEC_CAPTCHA_GRACE_PERIOD = 3600
+CROWDSEC_CAPTCHA_GRACE_PERIOD = int(os.getenv('CROWDSEC_CAPTCHA_GRACE_PERIOD', 3600))
 TRAEFIK_ENV_TYPE = os.getenv('TRAEFIK_ACME_ENV_TYPE', 'staging')
 IS_LOCAL_DEV = (TRAEFIK_ENV_TYPE == 'local')
 TRAEFIK_CERT_RESOLVER = os.getenv('TRAEFIK_CERT_RESOLVER', 'le')
@@ -845,6 +845,35 @@ def generate_configs():
         'tls': traefik_dynamic_conf['http']['routers'][base_router_name]['tls'],
         'middlewares': dozzle_mw
     }
+
+    # --- Grafana Router ---
+    grafana_mw = base_middlewares.copy()
+    for mw in reversed(sso_middlewares):
+        grafana_mw.insert(-1, mw)
+
+    traefik_dynamic_conf['http']['routers']['grafana-frontend'] = {
+        'rule': f"Host(`{dashboard_domain}`) && PathPrefix(`/grafana`)",
+        'entryPoints': ["websecure"],
+        'service': "grafana-frontend@docker",
+        'priority': 100,
+        'tls': traefik_dynamic_conf['http']['routers'][base_router_name]['tls'],
+        'middlewares': grafana_mw
+    }
+
+    # --- CrowdSec Web UI Router (only when CrowdSec is enabled) ---
+    if CROWDSEC_ENABLE:
+        cswebui_mw = base_middlewares.copy()
+        for mw in reversed(sso_middlewares):
+            cswebui_mw.insert(-1, mw)
+
+        traefik_dynamic_conf['http']['routers']['crowdsec-web-ui'] = {
+            'rule': f"Host(`{dashboard_domain}`) && PathPrefix(`/crowdsec`)",
+            'entryPoints': ["websecure"],
+            'service': "crowdsec-web-ui@docker",
+            'priority': 100,
+            'tls': traefik_dynamic_conf['http']['routers'][base_router_name]['tls'],
+            'middlewares': cswebui_mw
+        }
 
     # -------------------------------------------------------------------------
     # Anubis Services & Routers Generation

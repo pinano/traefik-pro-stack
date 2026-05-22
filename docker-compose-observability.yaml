@@ -9,7 +9,7 @@ services:
     environment:
       - GF_SERVER_ROOT_URL=https://${DASHBOARD_SUBDOMAIN}.${DOMAIN}/grafana
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
       - GF_USERS_ALLOW_SIGN_UP=false # Important: Disallow user registration
       - GF_AUTH_ANONYMOUS_ENABLED=true
@@ -37,13 +37,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
-      # Dashboard
-      - "traefik.http.routers.grafana-frontend.rule=Host(`${DASHBOARD_SUBDOMAIN}.${DOMAIN}`) && PathPrefix(`/grafana`)"
-      - "traefik.http.routers.grafana-frontend.priority=100"
-      - "traefik.http.routers.grafana-frontend.entrypoints=websecure"
-      - "traefik.http.routers.grafana-frontend.tls.certresolver=${TRAEFIK_CERT_RESOLVER}"
-      # Middleware: SSO (Error middleware must be first)
-      - "traefik.http.routers.grafana-frontend.middlewares=dashboard-error@docker,dashboard-auth@docker"
+      # Router is generated dynamically by generate-config.py (inherits full security middleware chain)
       # Service: Tell Traefik that Grafana listens on internal port 3000
       - "traefik.http.services.grafana-frontend.loadbalancer.server.port=3000"
     logging:
