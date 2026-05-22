@@ -834,8 +834,9 @@ def generate_configs():
     
     # --- Dozzle Router ---
     dozzle_mw = base_middlewares.copy()
-    for mw in reversed(sso_middlewares):
-        dozzle_mw.insert(-1, mw)
+    if 'global-compress' in dozzle_mw:
+        dozzle_mw.remove('global-compress')
+    dozzle_mw.extend(sso_middlewares)
         
     traefik_dynamic_conf['http']['routers']['traefik-dozzle'] = {
         'rule': f"Host(`{dashboard_domain}`) && PathPrefix(`/dozzle`)",
