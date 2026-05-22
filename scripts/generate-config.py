@@ -536,10 +536,7 @@ def generate_configs():
         'redirection': '',
         'service': 'dashboard',
         'anubis_sub': dashboard_anubis_sub,
-        'extra': {
-            'rate': 600,
-            'burst': 1200
-        },
+        'extra': {},
         'root': get_root_domain(dashboard_domain)
     }
     raw_entries.append(dashboard_entry)
