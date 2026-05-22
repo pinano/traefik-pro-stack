@@ -262,6 +262,13 @@ async function loadCaptchas() {
         if (!domainsResponse.ok) throw new Error('Failed to fetch domains list');
         const domainsData = await domainsResponse.json();
         const roots = domainsData.filter(d => d.enabled).map(d => getRootDomain(d.domain)).filter(r => r && r.trim() !== '');
+        
+        // Ensure the dashboard's native root domain is always available
+        const stackRoot = getRootDomain(stackDomain);
+        if (stackRoot && stackRoot.trim() !== '') {
+            roots.push(stackRoot);
+        }
+
         allRootDomains = [...new Set(roots)].sort((a, b) => a.localeCompare(b));
 
         const response = await fetch('/dm-api/captchas');

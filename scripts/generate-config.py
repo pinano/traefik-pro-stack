@@ -522,6 +522,33 @@ def generate_configs():
         print(f"    ❌ Error reading CSV: {e}")
         return
 
+    # -------------------------------------------------------------------------
+    # Synthetic Dashboard Entry
+    # -------------------------------------------------------------------------
+    DASHBOARD_SUBDOMAIN = os.getenv('DASHBOARD_SUBDOMAIN', 'dashboard')
+    DOMAIN = os.getenv('DOMAIN', 'mydomain.com')
+    dashboard_domain = f"{DASHBOARD_SUBDOMAIN}.{DOMAIN}"
+    
+    dashboard_anubis_sub = os.getenv('DASHBOARD_ANUBIS_SUBDOMAIN', '').strip().lower()
+    
+    dashboard_entry = {
+        'domain': dashboard_domain,
+        'redirection': '',
+        'service': 'dashboard',
+        'anubis_sub': dashboard_anubis_sub,
+        'extra': {
+            'rate': 600,
+            'burst': 1200
+        },
+        'root': get_root_domain(dashboard_domain)
+    }
+    raw_entries.append(dashboard_entry)
+    
+    if dashboard_anubis_sub:
+        stats['anubis'] += 1
+    else:
+        stats['standard'] += 1
+
     if raw_entries:
         print(f"   ✅ Successfully processed {len(raw_entries)} domains:")
         if stats['standard'] > 0: print(f"      ➜ {stats['standard']} Standard Traefik proxies")
@@ -777,27 +804,49 @@ def generate_configs():
         process_router(entry, traefik_dynamic_conf['http'], domain_to_cert_def)
 
     # -------------------------------------------------------------------------
-    # Dashboard Router (Conditionally Generated)
+    # API & Dozzle Routers (Conditionally Generated inheriting Dashboard security)
     # -------------------------------------------------------------------------
-    DASHBOARD_SUBDOMAIN = os.getenv('DASHBOARD_SUBDOMAIN', 'dashboard')
-    DOMAIN = os.getenv('DOMAIN', 'mydomain.com')
-    dashboard_domain = f"{DASHBOARD_SUBDOMAIN}.{DOMAIN}"
+    # Retrieve the base middleware chain generated for the dashboard by process_router
+    safe_dash_domain = sanitize_name(dashboard_domain)
+    base_router_name = f"router-{safe_dash_domain}"
     
-    dashboard_router = {
+    # We copy the base middlewares that contain crowdsec, anubis, etc.
+    base_middlewares = traefik_dynamic_conf['http']['routers'][base_router_name]['middlewares'].copy()
+    sso_middlewares = ["dashboard-error@docker", "dashboard-auth@docker"]
+    
+    # --- Traefik API Router ---
+    api_mw = base_middlewares.copy()
+    # Insert SSO and strip middlewares right before global-compress (which is the last one)
+    for mw in reversed(sso_middlewares + ["traefik-strip"]):
+        api_mw.insert(-1, mw)
+        
+    traefik_dynamic_conf['http']['routers']['traefik-dashboard'] = {
         'rule': f"Host(`{dashboard_domain}`) && (PathPrefix(`/traefik`) || PathPrefix(`/api`) || PathPrefix(`/dashboard`))",
         'entryPoints': ["websecure"],
         'service': "api@internal",
         'priority': 100,
-        'tls': {},
-        'middlewares': ["dashboard-error@docker", "dashboard-auth@docker", "traefik-strip"]
+        'tls': traefik_dynamic_conf['http']['routers'][base_router_name]['tls'],
+        'middlewares': api_mw
     }
-    apply_tls_config(dashboard_router, dashboard_domain, domain_to_cert_def)
-    traefik_dynamic_conf['http']['routers']['traefik-dashboard'] = dashboard_router
 
     traefik_dynamic_conf['http']['middlewares']['traefik-strip'] = {
         'stripPrefix': {
             'prefixes': ['/traefik']
         }
+    }
+    
+    # --- Dozzle Router ---
+    dozzle_mw = base_middlewares.copy()
+    for mw in reversed(sso_middlewares):
+        dozzle_mw.insert(-1, mw)
+        
+    traefik_dynamic_conf['http']['routers']['traefik-dozzle'] = {
+        'rule': f"Host(`{dashboard_domain}`) && PathPrefix(`/dozzle`)",
+        'entryPoints': ["websecure"],
+        'service': "dozzle@docker",
+        'priority': 100,
+        'tls': traefik_dynamic_conf['http']['routers'][base_router_name]['tls'],
+        'middlewares': dozzle_mw
     }
 
     # -------------------------------------------------------------------------

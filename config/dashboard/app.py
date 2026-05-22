@@ -1135,6 +1135,8 @@ def api_captchas():
         try:
             domains_data = read_csv()
             active_root_domains = {get_root_domain(d['domain']).lower() for d in domains_data if d.get('enabled', True) and d.get('domain')}
+            # Dashboard synthetic domain validation
+            active_root_domains.add(get_root_domain(DOMAIN).lower())
         except Exception as e:
             log.error("Failed to read domains.csv during captcha validation: %s", e)
             active_root_domains = set()

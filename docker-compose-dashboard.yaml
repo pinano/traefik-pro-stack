@@ -41,20 +41,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
-      - "traefik.http.routers.dashboard.rule=Host(`${DASHBOARD_SUBDOMAIN}.${DOMAIN}`)"
-      - "traefik.http.routers.dashboard.priority=1"
-      - "traefik.http.routers.dashboard.entrypoints=websecure"
-      - "traefik.http.routers.dashboard.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-}"
       - "traefik.http.services.dashboard.loadbalancer.server.port=5000"
-      # --- Middleware chain for the dashboard router ---
-      # Intentionally excludes crowdsec-check: the admin panel must remain accessible
-      # even if the admin IP is temporarily banned (e.g. during aggressive validation
-      # sessions). Protection is provided by Flask auth + CSRF + the rate limiter below.
-      - "traefik.http.routers.dashboard.middlewares=security-headers@file,dashboard-ratelimit,global-compress@file"
-      # Dashboard rate limiter: 600 req/min / burst 1200. Survives batch domain validation
-      # (which is a single POST but can be called rapidly via UI buttons).
-      - "traefik.http.middlewares.dashboard-ratelimit.rateLimit.average=600"
-      - "traefik.http.middlewares.dashboard-ratelimit.rateLimit.burst=1200"
       # --- SSO Middlewares Definition (to be used by other services) ---
       # 1. Forward Auth: checks /auth-check
       - "traefik.http.middlewares.dashboard-auth.forwardauth.address=http://dashboard:5000/auth-check"
@@ -99,15 +86,8 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
-      # Dashboard
-      - "traefik.http.routers.dozzle.rule=Host(`${DASHBOARD_SUBDOMAIN}.${DOMAIN}`) && PathPrefix(`/dozzle`)"
-      - "traefik.http.routers.dozzle.priority=100"
-      - "traefik.http.routers.dozzle.entrypoints=websecure"
-      - "traefik.http.routers.dozzle.tls.certresolver=${TRAEFIK_CERT_RESOLVER}"
       # Service: Tell Traefik that Dozzle listens on internal port 8080
       - "traefik.http.services.dozzle.loadbalancer.server.port=8080"
-      # SSO Middleware (Error middleware must be first)
-      - "traefik.http.routers.dozzle.middlewares=dashboard-error@docker,dashboard-auth@docker"
 
   # ===========================
   #  WATCHDOG (SSL, DNS, CrowdSec health monitor → Telegram)
