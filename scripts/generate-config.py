@@ -836,6 +836,8 @@ def generate_configs():
     dozzle_mw = base_middlewares.copy()
     if 'global-compress' in dozzle_mw:
         dozzle_mw.remove('global-compress')
+    if 'global-buffering' in dozzle_mw:
+        dozzle_mw.remove('global-buffering')
     dozzle_mw.extend(sso_middlewares)
         
     traefik_dynamic_conf['http']['routers']['traefik-dozzle'] = {

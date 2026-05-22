@@ -1029,6 +1029,7 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
     docker exec "$CROWDSEC_ID" kill -HUP 1
 
     echo "   🖥️ Registering CrowdSec Web UI machine..."
+    docker exec "$CROWDSEC_ID" cscli machines delete "${CROWDSEC_WEB_UI_USER:-crowdsec-web-ui}" > /dev/null 2>&1 || true
     docker exec "$CROWDSEC_ID" cscli machines add "${CROWDSEC_WEB_UI_USER:-crowdsec-web-ui}" --password "${CROWDSEC_WEB_UI_PASSWORD}" -f /dev/null > /dev/null 2>&1 || true
     echo "   ✅ Web UI machine registered."
 
