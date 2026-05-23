@@ -1,3 +1,20 @@
+## v2026.05.23.5 (2026-05-23)
+
+- chore: update gitignore to ignore tldextract cache files (d91a80e)
+- docs: exhaustive review of makefile commands and project structure (4729739)
+- docs: update first steps after setup to reflect new dashboard structure (6472cf9)
+- chore: update crowdsec-web-ui image to 2026.5.6 and refine healthcheck syntax (b30ddc0)
+- docs: sync environment variables table with current .env.dist (0b411de)
+- docs: reflect that Redis persistence is disabled and memory overcommit is not required (4b3c654)
+- docs: update project structure tree with missing scripts and compose files (c8231eb)
+- docs: update watchdog section with new scripts and alerts (3e72409)
+- docs: restructure dashboard documentation section to reflect all features (875c811)
+- docs: add missing commands to README operations sections (768198a)
+- docs: fix Makefile help parser duplication and update crowdsec-unban-country usage text (666bc0b)
+- fix: resolve several bugs and improve robustness in Makefile commands and scripts (6ef2da9)
+- fix: allow githubusercontent in CSP so dashboard can check for updates (62f2c07)
+- style: fix sticky header background in dark mode and theme toggle icon transition (c3e7849)
+
 ## v2026.05.23.4 (2026-05-23)
 
 - minor fixes (21c66d3)
