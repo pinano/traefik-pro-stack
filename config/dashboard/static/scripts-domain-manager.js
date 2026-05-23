@@ -85,18 +85,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
         rootColorMap.clear();
 
-        if (roots.length === 0) return;
+        let styleContent = '';
+        if (roots.length > 0) {
+            roots.forEach((root, index) => {
+                // Golden angle distribution for distinct hues (approx 137.5 degrees)
+                const h = (index * 137.5) % 360;
 
-        roots.forEach((root, index) => {
-            // Golden angle distribution for distinct hues (approx 137.5 degrees)
-            const h = (index * 137.5) % 360;
+                // Toggle lightness and saturation for alternating "tones"
+                const lLight = (index % 2 === 0) ? 94 : 88;
+                const sLight = (index % 2 === 0) ? 80 : 90;
+                
+                // Dark mode complementary colors (lower lightness, moderate saturation)
+                const lDark = (index % 2 === 0) ? 18 : 22;
+                const sDark = (index % 2 === 0) ? 35 : 45;
 
-            // Toggle lightness and saturation for alternating "tones" between adjacent groups
-            const l = (index % 2 === 0) ? 94 : 88;
-            const s = (index % 2 === 0) ? 80 : 90;
+                const varName = `--root-color-${index}`;
+                styleContent += `
+                    :root { ${varName}: hsl(${h}, ${sLight}%, ${lLight}%); }
+                    [data-theme="dark"] { ${varName}: hsl(${h}, ${sDark}%, ${lDark}%); }
+                `;
+                
+                rootColorMap.set(root, `var(${varName})`);
+            });
+        }
 
-            rootColorMap.set(root, `hsl(${h}, ${s}%, ${l}%)`);
-        });
+        // Inject dynamic style tag
+        let styleTag = document.getElementById('dynamic-root-colors');
+        if (!styleTag) {
+            styleTag = document.createElement('style');
+            styleTag.id = 'dynamic-root-colors';
+            document.head.appendChild(styleTag);
+        }
+        styleTag.textContent = styleContent;
     }
 
     function getColorForRoot(rootDomain) {
