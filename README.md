@@ -885,10 +885,13 @@ All alerts are sent via the Telegram Bot API to `WATCHDOG_TELEGRAM_RECIPIENT_ID`
 |--------|---------|
 | **Initialize environment** | `make init` |
 | **Check & Upgrade code** | `make update` |
+| **Rollback to previous version** | `make rollback` |
 | **Start / update stack** | `make start` |
 | **Stop stack** | `make stop` |
 | **Restart full stack** | `make restart` |
 | **Restart single service** | `make restart traefik` |
+| **Enable maintenance mode** | `make maintenance-on` |
+| **Disable maintenance mode** | `make maintenance-off` |
 | **Rebuild custom images** | `make rebuild` (dashboard + watchdog) |
 | **Rebuild specific service** | `make rebuild dashboard` |
 | **Pull latest images** | `make pull` |
@@ -1025,6 +1028,12 @@ make crowdsec-decisions
 # Unban one or more IPs
 make crowdsec-unban 1.2.3.4
 make crowdsec-unban 1.1.1.1 2.2.2.2
+
+# Ban one or more countries (ISO 3166-1 alpha-2 codes)
+make crowdsec-ban-country CN RU
+
+# Unban one or more countries
+make crowdsec-unban-country CN RU
 
 # List recent alerts
 make crowdsec-alerts
