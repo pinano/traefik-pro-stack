@@ -66,13 +66,7 @@ Ensure your host machine has the following installed:
 - **Make** (usually pre-installed, or via `build-essential`)
 - **Python 3** (modules are auto-installed via a local virtual environment)
 
-Free up ports `80` and `443` on the host machine. 
-
-Additionally, Redis/Valkey requires the Linux kernel to allow memory overcommit. Enable it permanently:
-```bash
-echo 'vm.overcommit_memory = 1' | sudo tee -a /etc/sysctl.conf
-sudo sysctl vm.overcommit_memory=1
-```
+Free up ports `80` and `443` on the host machine.
 
 ### 2. Choose Your Environment
 
@@ -758,7 +752,7 @@ A [Valkey](https://valkey.io) (Redis-compatible) instance provides the shared se
 
 - **Image**: `valkey/valkey:9.0` (Alpine-based, lightweight)
 - **Eviction policy**: `allkeys-lru` — least recently used sessions are evicted when memory is full.
-- **Persistence**: AOF (Append-Only File) with per-second sync — sessions survive container restarts.
+- **Persistence**: None (in-memory only) — sessions and bans are transient and do not survive container restarts.
 - **Memory limit**: 256MB (configurable via Docker resource limits in the compose file).
 - **Networks**: Connected to both `traefik` (accessed by CrowdSec) and `anubis-backend` (internal-only, accessed by Anubis instances).
 
@@ -1358,7 +1352,7 @@ You will see: ` Local Mode detected. Automating certificate generation...`
 │   ├── prometheus/
 │   │   ├── prometheus.yml                # Scrape configs and remote_write receiver
 │   │   └── rules.yml                     # Prometheus recording/alerting rules (mirrors Grafana rules)
-│   ├── redis/redis.conf                  # Valkey/Redis config (allkeys-lru, AOF persistence)
+│   ├── redis/redis.conf                  # Valkey/Redis config (allkeys-lru, no persistence)
 │   ├── alloy/config.alloy               # Alloy collector config (log discovery, metric scraping)
 │   └── watchdog/
 │       ├── Dockerfile
@@ -1453,36 +1447,13 @@ replication may fail under low memory condition.
 
 #### What it means
 
-Linux's default memory policy (`vm.overcommit_memory = 0`) requires the kernel to verify available memory before granting allocations. Redis forks a child process for background saves (BGSAVE) using Copy-on-Write — the kernel must "promise" the same physical memory pages to both parent and child. Under this default policy, that `fork()` can fail even when there is plenty of RAM, because the kernel refuses to over-commit.
+Linux's default memory policy (`vm.overcommit_memory = 0`) prevents the kernel from granting memory allocations if the system cannot guarantee enough physical RAM. Redis checks this setting on startup and issues a warning because it typically needs to fork a child process (`BGSAVE` or `BGREWRITEAOF`) to persist data to disk, which requires memory overcommit to succeed reliably.
 
-With `vm.overcommit_memory = 1`, the kernel always grants allocations, relying on the OOM killer as a last resort. This is the production standard for Redis.
+#### Safe to Ignore
 
-#### Impact if left unfixed
+**In this stack, this warning can be safely ignored.** We have intentionally disabled all disk persistence in Redis. It operates purely as an in-memory cache for Anubis PoW sessions and CrowdSec bans.
 
-| Scenario | Risk |
-|----------|------|
-| RDB BGSAVE | May fail silently; last good snapshot could be stale |
-| AOF rewrite | Can be skipped; AOF file grows without compaction |
-| Low memory conditions | Redis logs errors, persistence degrades |
-
-In this stack, Redis holds Anubis sessions and CrowdSec's ban cache. A failed BGSAVE doesn't cause immediate data loss (AOF is active), but periodic RDB snapshots become unreliable.
-
-#### Fix (permanent, run on Docker host)
-
-```bash
-# Persist the setting across reboots
-echo 'vm.overcommit_memory = 1' | sudo tee -a /etc/sysctl.conf
-
-# Apply immediately without rebooting
-sudo sysctl vm.overcommit_memory=1
-
-# Verify
-cat /proc/sys/vm/kernel.overcommit_memory
-# Expected output: 1
-```
-
-> [!NOTE]
-> This is a **host kernel setting**. It must be applied on the machine running Docker, not inside any container. On cloud VMs (Oracle Cloud, AWS EC2, Hetzner, etc.) you have full `sudo` access to do this.
+Since Redis will never attempt to save to disk or rewrite an AOF file, it will never fork a child process, and therefore the memory overcommit policy will not affect its operation. No changes to your host kernel are necessary.
 
 ---
 
