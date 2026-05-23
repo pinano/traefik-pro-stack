@@ -82,23 +82,38 @@ ifneq "$(SUPPORTS_ARGS)" ""
   $(eval $(SERVICE_ARGS):;@:)
 endif
 
-.PHONY: help release update
+##@ General
 
+.PHONY: help
+help: ## Show this help message
+	@echo "Usage: make [target] [service]"
+	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-25s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
+
+##@ Versioning & Updates
+
+.PHONY: release
 release: ## Generate a new CalVer release, update CHANGELOG.md, and create a git tag
 	@./scripts/release.sh
 
+.PHONY: update
 update: ## Fetch and safely upgrade the codebase to the latest release tag
 	@./scripts/update.sh
 
-help: ## Show this help message
-	@echo "Usage: make [target] [service]"
-	@echo ""
-	@echo "Targets:"
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {printf "  \033[36m%-25s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+##@ Environment & Config
 
 .PHONY: init
 init: ## Initialize environment (.env)
 	@./scripts/initialize-env.sh
+
+.PHONY: validate
+validate: ## Validate .env against .env.dist keys
+	@$(PYTHON) scripts/validate-env.py
+
+.PHONY: sync
+sync: ## Synchronize .env with .env.dist (Add missing, remove extras)
+	@$(PYTHON) scripts/validate-env.py --sync
+
+##@ Core Lifecycle
 
 .PHONY: start
 start: ## Start the stack (calls start.sh)
@@ -144,13 +159,7 @@ services: ## List available services
 	@echo "Available services:"
 	@$(DOCKER_COMPOSE) ps --services
 
-.PHONY: validate
-validate: ## Validate .env against .env.dist keys
-	@$(PYTHON) scripts/validate-env.py
-
-.PHONY: sync
-sync: ## Synchronize .env with .env.dist (Add missing, remove extras)
-	@$(PYTHON) scripts/validate-env.py --sync
+##@ Observability & Debugging
 
 .PHONY: logs
 logs: ## Follow logs (usage: make logs [service] [tail=N])
@@ -178,6 +187,12 @@ else
 	@make services
 endif
 
+.PHONY: ctop
+ctop: ## Monitor containers using ctop
+	@docker run --rm -ti --name=ctop --volume /var/run/docker.sock:/var/run/docker.sock:ro quay.io/vektorlab/ctop:latest
+
+##@ Maintenance
+
 .PHONY: pull
 pull: ## Pull latest images
 	@$(DOCKER_COMPOSE) pull
@@ -201,9 +216,7 @@ clean: ## Clean generated configs and backup certificates (Requires confirmation
 		echo "Aborted."; \
 	fi
 
-.PHONY: ctop
-ctop: ## Monitor containers using ctop
-	@docker run --rm -ti --name=ctop --volume /var/run/docker.sock:/var/run/docker.sock:ro quay.io/vektorlab/ctop:latest
+##@ Redis Utilities
 
 .PHONY: redis-info
 redis-info: ## Show Redis server statistics
@@ -217,6 +230,8 @@ redis-monitor: ## Monitor Redis commands in real-time (Ctrl+C to stop)
 redis-ping: ## Ping Redis server
 	@$(DOCKER_COMPOSE) exec redis redis-cli -a "$${REDIS_PASSWORD}" PING
 
+##@ Traefik Utilities
+
 .PHONY: traefik-health
 traefik-health: ## Check Traefik health status
 	@echo "Checking Traefik health..."
@@ -224,7 +239,8 @@ traefik-health: ## Check Traefik health status
 	@echo "Checking process list:"
 	@$(DOCKER_COMPOSE) top traefik
 
-.PHONY: watch-certs
+##@ Certificate Management
+
 .PHONY: certs-watch
 certs-watch: ## Monitor ACME logs (Requires TRAEFIK_LOG_LEVEL=DEBUG in .env)
 	@echo "Monitoring ACME/Certificate logs... (Ctrl+C to stop)"
@@ -239,7 +255,7 @@ certs-info: ## Analyze acme.json certificates against domains.csv (Summary)
 .PHONY: certs-inspect
 certs-inspect: ## Analyze acme.json certificates against domains.csv (Detailed)
 	@$(PYTHON) scripts/inspect-certs.py --verbose $(ARGS)
-	
+
 .PHONY: certs-prune
 certs-prune: ## Remove old/unused certificates from acme.json (Dry-run)
 	@$(PYTHON) scripts/prune-certs.py $(ARGS)

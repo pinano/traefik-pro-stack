@@ -1,6 +1,8 @@
 # CrowdSec Targets
 # Included conditionally in main Makefile
 
+##@ CrowdSec Security
+
 .PHONY: crowdsec-metrics
 crowdsec-metrics: ## Show CrowdSec metrics (parsed logs, overflows)
 	@$(call check_service,crowdsec,cscli metrics)

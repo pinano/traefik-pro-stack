@@ -4,6 +4,8 @@
 # All API calls go through 'docker exec' inside the Grafana container,
 # bypassing Traefik, DNS and TLS. Works in any environment.
 
+##@ Grafana Observability
+
 GRAFANA_CONTAINER := $(PROJECT_NAME)-grafana-1
 GRAFANA_AUTH      := $(if $(GRAFANA_ADMIN_USER),$(GRAFANA_ADMIN_USER),admin):$(GRAFANA_ADMIN_PASSWORD)
 
