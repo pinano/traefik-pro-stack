@@ -130,32 +130,11 @@
             </div>
         </main>
 
-        <footer id="version-footer" style="text-align: center; margin-top: 2rem; padding: 1rem 0; color: #94a3b8; font-size: 0.85rem;">
-            Version <span id="current-version">{{ app_version }}</span>
-            <span id="update-badge"></span>
-        </footer>
+        {% include 'footer.html' %}
     </div>
 
     <script>
         lucide.createIcons();
-
-        // Check for updates asynchronously
-        const currentVersion = "{{ app_version }}".trim();
-        if (currentVersion && currentVersion !== "Unknown") {
-            const cacheBuster = new Date().getTime();
-            fetch(`https://raw.githubusercontent.com/pinano/traefik-crowdsec-anubis-grafana/main/VERSION?t=${cacheBuster}`, { cache: "no-store" })
-                .then(response => response.ok ? response.text() : Promise.reject("Fetch failed"))
-                .then(latest => {
-                    const latestVersion = latest.trim();
-                    const badge = document.getElementById('update-badge');
-                    if (latestVersion && latestVersion !== currentVersion) {
-                        badge.innerHTML = `<span style="color: #f59e0b; margin-left: 8px;">(Update available: ${latestVersion} - <a href="https://github.com/pinano/traefik-crowdsec-anubis-grafana/blob/main/CHANGELOG.md" target="_blank" style="color: #f59e0b; text-decoration: underline;">changelog</a>)</span>`;
-                    } else if (latestVersion === currentVersion) {
-                        badge.innerHTML = `<span style="color: #10b981; margin-left: 8px;">(Latest)</span>`;
-                    }
-                })
-                .catch(e => console.log("Could not check for updates."));
-        }
     </script>
 </body>
 
