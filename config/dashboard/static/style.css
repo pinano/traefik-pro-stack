@@ -80,6 +80,10 @@
     background-color: #334155;
     color: #cbd5e1;
 }
+[data-theme="dark"] ::placeholder {
+    color: var(--text-color);
+    opacity: 0.45;
+}
 
 * {
     box-sizing: border-box;
