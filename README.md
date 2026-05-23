@@ -309,6 +309,7 @@ Redis uses two separate databases:
 |----------|-------------|---------|
 | `CROWDSEC_ENABLE` | Master switch. Set to `false` to completely disable the IPS/WAF (useful for debugging). When disabled, CrowdSec and its bouncer are not started. | `true` |
 | `CROWDSEC_API_KEY` | Shared secret for Traefik-to-CrowdSec bouncer communication. Auto-generated on first `make init`. | *Auto-generated* |
+| `CROWDSEC_CAPTCHA_GRACE_PERIOD` | How long (seconds) an IP is allowed through after successfully solving a CrowdSec CAPTCHA. | `3600` |
 | `CROWDSEC_UPDATE_INTERVAL` | How often (seconds) the Traefik bouncer downloads the active blocklist from the CrowdSec LAPI. Lower = more CPU/network overhead, faster enforcement of new bans. | `60` |
 | `CROWDSEC_APPSEC_ENABLE` | Enable the AppSec WAF component (Layer 7 payload inspection). When enabled, AppSec collections are automatically added to `CROWDSEC_COLLECTIONS`. | `true` |
 | `CROWDSEC_COLLECTIONS` | Space-separated list of CrowdSec collections (parsers + scenarios) to install at startup. AppSec collections are injected automatically — do not add them here. | *defaults below* |
@@ -362,6 +363,7 @@ This is controlled by these plugin settings (auto-generated in `traefik-generate
 | `TRAEFIK_LISTEN_IP` | Host IP to bind ports 80 and 443. Use `0.0.0.0` to listen on all interfaces. Useful to restrict to a specific interface (e.g., a private LAN IP). | `0.0.0.0` |
 | `TRAEFIK_ACME_EMAIL` | Email for Let's Encrypt expiry notifications. Required for staging/production. | — |
 | `TRAEFIK_ACME_ENV_TYPE` | Certificate environment: `production` (real certs), `staging` (test certs, no rate limits), or `local` (mkcert, no ACME). | `staging` |
+| `TRAEFIK_TLS_BATCH_SIZE` | How many certificates Traefik requests in a single batch. | `30` |
 
 #### Rate Limiting & Concurrency
 
@@ -442,6 +444,9 @@ TRAEFIK_BAD_USER_AGENTS="(?i).*nikto.*,(?i).*sqlmap.*,(?i).*nmap.*,(?i).*masscan
 
 #### Apache Legacy
 
+> [!NOTE]
+> These variables have been removed from the `.env.dist` template to reduce clutter, but they are still fully supported. Add them manually to your `.env` if you need to proxy to a host Apache instance.
+
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `APACHE_HOST_IP` | IP address of the host machine as seen from inside Docker containers. On Linux with the default Docker bridge, this is the `docker0` gateway. | `172.17.0.1` |
@@ -457,6 +462,7 @@ TRAEFIK_BAD_USER_AGENTS="(?i).*nikto.*,(?i).*sqlmap.*,(?i).*nmap.*,(?i).*masscan
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `DASHBOARD_SUBDOMAIN` | Subdomain prefix for all internal tools. Example: `dashboard` → `dashboard.yourdomain.com`. | `dashboard` |
+| `DASHBOARD_ANUBIS_SUBDOMAIN` | Optional. Protect the dashboard login page itself with Anubis PoW. Enter the Anubis subdomain (e.g. `auth`). | — |
 | `DASHBOARD_ADMIN_USER` | Username for the Dashboard / SSO login (also used to access Traefik, Dozzle, Grafana). | `admin` |
 | `DASHBOARD_ADMIN_PASSWORD` | Password for the SSO login. **Required.** Change from default before first use. | — |
 | `GRAFANA_ADMIN_USER` | Grafana-specific admin username for full admin access inside Grafana. | `admin` |
