@@ -1288,16 +1288,26 @@ You will see: ` Local Mode detected. Automating certificate generation...`
 ├── Makefile                               # Project management commands
 │
 ├── scripts/                               # Core automation scripts
+│   ├── backup.sh                          # Configuration and data backup script
+│   ├── compose-files.sh                   # Shared compose file list builder (single source of truth)
+│   ├── create-local-certs.sh              # Local mkcert certificate generator
+│   ├── crowdsec-geoblock.sh               # CrowdSec country banning/unbanning utility
+│   ├── generate-config.py                 # Dynamic Traefik config generator (from domains.csv)
+│   ├── health.sh                          # Global stack health check utility
+│   ├── initialize-env.sh                  # Interactive .env setup wizard
+│   ├── inspect-certs.py                   # Certificate inspection utility
+│   ├── maintenance.sh                     # Global maintenance mode toggler
+│   ├── prune-certs.py                     # Orphaned certificate cleanup utility
+│   ├── release.sh                         # Versioning: Creates new releases and tags
+│   ├── requirements.txt                   # Python dependencies (tldextract, pyyaml)
+│   ├── restart-internal.sh                # Script triggered by Dashboard to hot-reload stack
+│   ├── restore.sh                         # Configuration and data restore script
+│   ├── rollback.sh                        # Versioning: Rollback to previous version tag
+│   ├── setup-grafana-alerting.sh          # Grafana Alerting API configuration (auto-called on start)
 │   ├── start.sh                           # Full stack startup orchestrator (6 phases)
 │   ├── stop.sh                            # Graceful stack shutdown
-│   ├── initialize-env.sh                  # Interactive .env setup wizard
-│   ├── generate-config.py                 # Dynamic Traefik config generator (from domains.csv)
+│   ├── update.sh                          # Versioning: Safe upgrade to latest release
 │   ├── validate-env.py                    # .env validation & sync tool
-│   ├── inspect-certs.py                   # Certificate inspection utility
-│   ├── create-local-certs.sh              # Local mkcert certificate generator
-│   ├── compose-files.sh                   # Shared compose file list builder (single source of truth)
-│   ├── setup-grafana-alerting.sh          # Grafana Alerting API configuration (auto-called on start)
-│   ├── requirements.txt                   # Python dependencies (tldextract, pyyaml)
 │   └── make/                              # Conditional Makefile includes
 │       ├── certs.mk                       # Local cert targets (included only if TRAEFIK_ACME_ENV_TYPE=local)
 │       ├── crowdsec.mk                    # CrowdSec management targets (included if CrowdSec enabled)
@@ -1331,6 +1341,9 @@ You will see: ` Local Mode detected. Automating certificate generation...`
 │   │   ├── static/                       # Frontend assets
 │   │   └── templates/                    # HTML templates
 │   │
+│   ├── maintenance/
+│   │   └── index.html                    # Premium HTML page for maintenance mode
+│   │
 │   ├── grafana/
 │   │   ├── dashboards/                   # Pre-built JSON dashboards (Traefik, CrowdSec, Redis, Node)
 │   │   └── provisioning/
@@ -1350,8 +1363,10 @@ You will see: ` Local Mode detected. Automating certificate generation...`
 │   └── watchdog/
 │       ├── Dockerfile
 │       ├── check-certs.sh               # Certificate expiration checker
+│       ├── check-crowdsec.sh            # CrowdSec health monitor
 │       ├── check-dns.sh                 # DNS resolution verifier
-│       └── check-crowdsec.sh            # CrowdSec health monitor
+│       ├── check-system.sh              # Host and container resources monitor
+│       └── check-traefik.sh             # Traefik routing config health monitor
 │
 └── Docker Compose Files:
     ├── docker-compose-edge.yaml              # Edge: Traefik (TLS termination, routing)
@@ -1360,6 +1375,7 @@ You will see: ` Local Mode detected. Automating certificate generation...`
     ├── docker-compose-dashboard.yaml         # Dashboard: Dashboard, Dozzle, Watchdog, ctop
     ├── docker-compose-anubis.yaml            # Bot Defense: Anubis base template + Assets server
     ├── docker-compose-anubis-generated.yaml  # Auto-generated Anubis instances (per TLD, do not edit)
+    ├── docker-compose-maintenance.yaml       # Maintenance: Global 503 fallback container
     └── docker-compose-apache-logs.yaml       # Apache log extension (auto-included if Apache detected)
 ```
 
