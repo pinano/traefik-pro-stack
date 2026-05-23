@@ -1,3 +1,7 @@
+## v2026.05.23.3 (2026-05-23)
+
+- fix: implement release guards, update prompt, and cache busting (24618e9)
+
 ## v2026.05.23.2 (2026-05-23)
 
 - fix: point dashboard update notification directly to changelog (5150b2b)
