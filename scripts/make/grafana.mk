@@ -9,6 +9,8 @@
 GRAFANA_CONTAINER := $(PROJECT_NAME)-grafana-1
 GRAFANA_AUTH      := $(if $(GRAFANA_ADMIN_USER),$(GRAFANA_ADMIN_USER),admin):$(GRAFANA_ADMIN_PASSWORD)
 
+##@help grafana-setup-telegram
+## Configures the Telegram alerting contact point inside Grafana via the Provisioning API.
 .PHONY: grafana-setup-telegram
 grafana-setup-telegram: ## Configure Grafana Alerting: Telegram contact point + notification policy
 	@PROJECT_NAME=$(PROJECT_NAME) \
@@ -18,6 +20,8 @@ grafana-setup-telegram: ## Configure Grafana Alerting: Telegram contact point + 
 	 WATCHDOG_TELEGRAM_RECIPIENT_ID=$(WATCHDOG_TELEGRAM_RECIPIENT_ID) \
 	 bash ./scripts/setup-grafana-alerting.sh
 
+##@help grafana-test-alert
+## Sends a test alert via Telegram to verify that the bot token and chat ID in .env are correct.
 .PHONY: grafana-test-alert
 grafana-test-alert: ## Send a test Telegram message to verify bot token and chat ID
 	@echo "🧪 Sending test message via Telegram Bot API..."

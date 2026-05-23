@@ -84,46 +84,101 @@ endif
 
 ##@ General
 
+##@help help
+## Displays this help message with a grouped list of all available commands.
+## To see detailed information about any specific command, run 'make help-<command>'.
 .PHONY: help
 help: ## Show this help message
 	@echo "Usage: make [target] [service]"
-	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-25s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
+	@echo "For detailed help on any command, run: make help-<target> (e.g., make help-start)"
+	@echo ""
+	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-25s\033[0m %s\n", $$1, $$2 } /^##@ / { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
+
+help-%:
+	@awk -v target=$* ' \
+	/^##@help / { if ($$2 == target) { flag=1; next } else { flag=0 } } \
+	/^## / { if (flag) print substr($$0, 4) } \
+	/^[^#]/ { flag=0 } \
+	' $(MAKEFILE_LIST) scripts/make/*.mk
 
 ##@ Versioning & Updates
 
+##@help release
+## Generates a new CalVer release (YYYY.MM.DD).
+## - Aborts if there are uncommitted changes or no new commits.
+## - Generates CHANGELOG.md automatically from git commit history.
+## - Updates the VERSION file.
+## - Tags the repository and commits the changes.
 .PHONY: release
 release: ## Generate a new CalVer release, update CHANGELOG.md, and create a git tag
 	@./scripts/release.sh
 
+##@help update
+## Safely updates a production environment to the latest release.
+## - Fetches the latest tags from the remote repository.
+## - Checks out the highest available version tag.
+## - Will NEVER pull untagged intermediate commits.
+## - Interactively prompts you to restart the stack to apply changes.
 .PHONY: update
 update: ## Fetch and safely upgrade the codebase to the latest release tag
 	@./scripts/update.sh
 
 ##@ Environment & Config
 
+##@help init
+## Initializes the environment interactively.
+## - Safely copies .env.dist to .env without overwriting existing values.
+## - Auto-generates cryptographic secrets for Redis, CrowdSec API, and the Dashboard.
+## - Prompts the user to configure the primary domain and email address.
 .PHONY: init
 init: ## Initialize environment (.env)
 	@./scripts/initialize-env.sh
 
+##@help validate
+## Validates your current .env file against .env.dist.
+## - Checks if any required keys are missing.
+## - Validates data types and formats (e.g., ensures boolean fields are true/false).
 .PHONY: validate
 validate: ## Validate .env against .env.dist keys
 	@$(PYTHON) scripts/validate-env.py
 
+##@help sync
+## Synchronizes your .env file with .env.dist.
+## - Adds any newly introduced configuration variables from .env.dist.
+## - Removes obsolete variables from .env that no longer exist in .env.dist.
+## - Preserves all your custom values.
 .PHONY: sync
 sync: ## Synchronize .env with .env.dist (Add missing, remove extras)
 	@$(PYTHON) scripts/validate-env.py --sync
 
 ##@ Core Lifecycle
 
+##@help start
+## Boots up the entire infrastructure stack securely.
+## It follows a strict 6-phase security-first sequence:
+## 1. Validates environment variables.
+## 2. Syncs credentials and auto-generates missing secrets.
+## 3. Prepares dynamic Traefik and Anubis configurations.
+## 4. Creates necessary isolated Docker networks.
+## 5. Boots Redis and CrowdSec first (waiting up to 60s for healthchecks).
+## 6. Starts the rest of the stack (Traefik, Grafana, Dashboard, etc).
 .PHONY: start
 start: ## Start the stack (calls start.sh)
 	@./scripts/start.sh
 	@$(MAKE) --no-print-directory grafana-setup-telegram
 
+##@help stop
+## Gracefully stops and removes all containers in the stack.
+## - Calls scripts/stop.sh which safely tears down networks and containers.
+## - Data volumes are preserved.
 .PHONY: stop
 stop: ## Stop the stack (calls stop.sh)
 	@./scripts/stop.sh
 
+##@help restart
+## Restarts the entire stack or a specific service.
+## - Full restart: make restart (runs stop.sh then start.sh)
+## - Single service: make restart traefik (runs docker compose restart traefik)
 .PHONY: restart
 restart: ## Restart the stack or a specific service (usage: make restart [service])
 ifneq ($(strip $(SERVICE_ARGS)),)
@@ -137,6 +192,10 @@ else
 	@./scripts/start.sh
 endif
 
+##@help rebuild
+## Rebuilds custom images from their Dockerfiles.
+## - By default, rebuilds the 'dashboard' and 'watchdog' images.
+## - Can rebuild specific services: make rebuild traefik
 .PHONY: rebuild
 rebuild: ## Rebuild services from Dockerfile (default: dashboard watchdog)
 ifneq ($(strip $(SERVICE_ARGS)),)
@@ -150,10 +209,15 @@ else
 	@$(DOCKER_COMPOSE) up -d --build --force-recreate dashboard watchdog
 endif
 
+##@help status
+## Shows the status of all running containers in the stack.
+## - Wrapper around 'docker compose ps'.
 .PHONY: status
 status: ## Show stack status (docker compose ps)
 	@$(DOCKER_COMPOSE) ps
 
+##@help services
+## Lists all available services defined in the active docker-compose files.
 .PHONY: services
 services: ## List available services
 	@echo "Available services:"
@@ -161,6 +225,11 @@ services: ## List available services
 
 ##@ Observability & Debugging
 
+##@help logs
+## Follows the logs of one or all services.
+## - All services: make logs
+## - Single service: make logs traefik
+## - Limit tail: make logs traefik tail=100
 .PHONY: logs
 logs: ## Follow logs (usage: make logs [service] [tail=N])
 ifneq ($(strip $(SERVICE_ARGS)),)
@@ -175,6 +244,10 @@ else
 	@-$(DOCKER_COMPOSE) logs -f --tail=$(tail)
 endif
 
+##@help shell
+## Opens an interactive /bin/sh shell inside a container.
+## - Usage: make shell crowdsec
+## - Useful for debugging or manual inspection inside the isolated network.
 .PHONY: shell
 shell: ## Open a shell in a container (usage: make shell [service])
 ifneq ($(strip $(SERVICE_ARGS)),)
@@ -187,16 +260,26 @@ else
 	@make services
 endif
 
+##@help ctop
+## Launches an interactive top-like interface for monitoring Docker containers.
+## - Shows CPU, Memory, Network, and IO metrics in real-time.
 .PHONY: ctop
 ctop: ## Monitor containers using ctop
 	@docker run --rm -ti --name=ctop --volume /var/run/docker.sock:/var/run/docker.sock:ro quay.io/vektorlab/ctop:latest
 
 ##@ Maintenance
 
+##@help pull
+## Pulls the latest versions of all external images (Traefik, Redis, Grafana, etc.) defined in the compose files.
 .PHONY: pull
 pull: ## Pull latest images
 	@$(DOCKER_COMPOSE) pull
 
+##@help clean
+## DANGEROUS: Cleans up generated configurations.
+## - Deletes all auto-generated YAML routing files in config/traefik/dynamic-config/.
+## - Backs up and removes the config/traefik/acme.json certificates file.
+## - Requires interactive confirmation.
 .PHONY: clean
 clean: ## Clean generated configs and backup certificates (Requires confirmation)
 	@echo "⚠️  WARNING: This action will:"
@@ -218,20 +301,29 @@ clean: ## Clean generated configs and backup certificates (Requires confirmation
 
 ##@ Redis Utilities
 
+##@help redis-info
+## Displays statistical information and metrics from the Redis server.
 .PHONY: redis-info
 redis-info: ## Show Redis server statistics
 	@$(DOCKER_COMPOSE) exec redis redis-cli -a "$${REDIS_PASSWORD}" INFO
 
+##@help redis-monitor
+## Streams every command processed by the Redis server in real-time.
+## - Extremely useful for debugging cache hits/misses.
 .PHONY: redis-monitor
 redis-monitor: ## Monitor Redis commands in real-time (Ctrl+C to stop)
 	@-$(DOCKER_COMPOSE) exec redis redis-cli -a "$${REDIS_PASSWORD}" MONITOR
 
+##@help redis-ping
+## Sends a PING command to the Redis server to verify connectivity and responsiveness.
 .PHONY: redis-ping
 redis-ping: ## Ping Redis server
 	@$(DOCKER_COMPOSE) exec redis redis-cli -a "$${REDIS_PASSWORD}" PING
 
 ##@ Traefik Utilities
 
+##@help traefik-health
+## Checks the health status of the Traefik edge router container.
 .PHONY: traefik-health
 traefik-health: ## Check Traefik health status
 	@echo "Checking Traefik health..."
@@ -241,6 +333,9 @@ traefik-health: ## Check Traefik health status
 
 ##@ Certificate Management
 
+##@help certs-watch
+## Tails the Traefik logs, filtering specifically for ACME certificate negotiation events.
+## - Requires TRAEFIK_LOG_LEVEL=DEBUG in .env.
 .PHONY: certs-watch
 certs-watch: ## Monitor ACME logs (Requires TRAEFIK_LOG_LEVEL=DEBUG in .env)
 	@echo "Monitoring ACME/Certificate logs... (Ctrl+C to stop)"
@@ -248,18 +343,28 @@ certs-watch: ## Monitor ACME logs (Requires TRAEFIK_LOG_LEVEL=DEBUG in .env)
 		grep --line-buffered -iE 'obtained|validated|solve.*challenge|acme.*error|fail' | \
 		grep --line-buffered -vE 'Trying to challenge|Adding certificate|Looking for|No ACME.*required|RequestHost|global-compress'
 
+##@help certs-info
+## Analyzes the acme.json file against domains.csv.
+## - Prints a clean summary of which domains have valid certificates and which are missing.
 .PHONY: certs-info
 certs-info: ## Analyze acme.json certificates against domains.csv (Summary)
 	@$(PYTHON) scripts/inspect-certs.py $(ARGS)
 
+##@help certs-inspect
+## Analyzes the acme.json file and prints detailed information for every certificate (Creation date, Expiration, SANs).
 .PHONY: certs-inspect
 certs-inspect: ## Analyze acme.json certificates against domains.csv (Detailed)
 	@$(PYTHON) scripts/inspect-certs.py --verbose $(ARGS)
 
+##@help certs-prune
+## Analyzes acme.json for old, expired, or orphaned certificates that are no longer in domains.csv.
+## - DRY RUN mode: only prints what would be deleted.
 .PHONY: certs-prune
 certs-prune: ## Remove old/unused certificates from acme.json (Dry-run)
 	@$(PYTHON) scripts/prune-certs.py $(ARGS)
 
+##@help certs-prune-force
+## Analyzes acme.json for orphaned certificates and physically deletes them to prevent Traefik from loading dead certs.
 .PHONY: certs-prune-force
 certs-prune-force: ## Remove old/unused certificates from acme.json (Actual)
 	@$(PYTHON) scripts/prune-certs.py --force $(ARGS)
