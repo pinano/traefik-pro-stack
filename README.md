@@ -102,17 +102,19 @@ make start
 
 ## First Steps After Setup
 
-All internal tools are accessible from your dashboard subdomain (default: `dashboard.<your-domain>`):
+The Dashboard acts as your central Single Sign-On (SSO) hub for the entire stack. Access it at your configured dashboard subdomain (default: `dashboard.<your-domain>`):
 
-1. **Access Dashboard**: `https://dashboard.<your-domain>` — Add and manage your sites here.
-2. **View Traefik Dashboard**: `https://dashboard.<your-domain>/traefik` — Live routing overview.
-3. **View Live Logs**: `https://dashboard.<your-domain>/dozzle` — Real-time container logs.
-4. **Monitor Metrics**: `https://dashboard.<your-domain>/grafana` — Traffic and system dashboards.
-5. **View Certificates**: `https://dashboard.<your-domain>/certs` — Certificate status per domain.
-6. **Manage Firewall**: `https://dashboard.<your-domain>/crowdsec` — CrowdSec alert management.
+1. **Domain Manager**: `https://dashboard.<your-domain>/` — Map your Docker containers and configure security overrides.
+2. **CAPTCHA Keys**: `https://dashboard.<your-domain>/captcha` — Configure CAPTCHA remediation for CrowdSec.
+3. **Certificates**: `https://dashboard.<your-domain>/certs` — Real-time SSL status overview.
+4. **Grafana Metrics**: `https://dashboard.<your-domain>/grafana` — Detailed traffic and system dashboards.
+5. **Dozzle Logs**: `https://dashboard.<your-domain>/dozzle` — Real-time container logs.
+6. **CrowdSec LAPI**: `https://dashboard.<your-domain>/crowdsec` — Firewall alerts and ban decisions.
+7. **Traefik Router**: `https://dashboard.<your-domain>/traefik` — Live routing pipeline overview.
+8. **Offline Docs**: `https://dashboard.<your-domain>/docs` — Integrated project documentation.
 
 > [!NOTE]
-> The `dashboard` subdomain is configurable via `DASHBOARD_SUBDOMAIN` in `.env`. All tools behind it share a single SSO login — the Dashboard credentials.
+> The `dashboard` subdomain is configurable via `DASHBOARD_SUBDOMAIN` in `.env`. All tools share a single SSO login — your Dashboard `DASHBOARD_ADMIN_USER` and `DASHBOARD_ADMIN_PASSWORD` credentials.
 
 ---
 
