@@ -50,7 +50,8 @@ except Exception as e:
 
 @app.context_processor
 def inject_version():
-    return dict(app_version=APP_VERSION)
+    maintenance_active = os.path.exists('/app/config/.maintenance_mode')
+    return dict(app_version=APP_VERSION, maintenance_active=maintenance_active)
 
 @app.after_request
 def set_security_headers(response):

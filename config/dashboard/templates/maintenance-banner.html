@@ -1,0 +1,6 @@
+{% if maintenance_active %}
+<div class="maintenance-banner" style="background-color: rgba(245, 158, 11, 0.15); color: var(--warning-color); border: 1px solid var(--warning-color); padding: 0.75rem 1.5rem; border-radius: 0.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; justify-content: center; gap: 0.75rem; font-weight: 600;">
+    <i data-lucide="alert-triangle" style="width: 20px; height: 20px;"></i>
+    <span>Maintenance Mode is ACTIVE. All public traffic is currently intercepted.</span>
+</div>
+{% endif %}

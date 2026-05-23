@@ -10,6 +10,7 @@ if [ "$ACTION" == "on" ]; then
     fi
     echo "Enabling Maintenance Mode..."
     touch .maintenance_mode
+    touch config/.maintenance_mode
     
     # Load environment
     if [ -f .env ]; then
@@ -30,6 +31,9 @@ elif [ "$ACTION" == "off" ]; then
     echo "Disabling Maintenance Mode..."
     if [ -f ".maintenance_mode" ]; then
         rm .maintenance_mode
+    fi
+    if [ -f "config/.maintenance_mode" ]; then
+        rm config/.maintenance_mode
     fi
     
     # We must explicitly stop the maintenance container since compose might not clean it up
