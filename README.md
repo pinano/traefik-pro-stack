@@ -892,10 +892,14 @@ All alerts are sent via the Telegram Bot API to `WATCHDOG_TELEGRAM_RECIPIENT_ID`
 | **Initialize environment** | `make init` |
 | **Check & Upgrade code** | `make update` |
 | **Rollback to previous version** | `make rollback` |
+| **Publish new version** | `make release` |
+| **Backup configuration** | `make backup` |
+| **Restore configuration** | `make restore file=...` |
 | **Start / update stack** | `make start` |
 | **Stop stack** | `make stop` |
 | **Restart full stack** | `make restart` |
 | **Restart single service** | `make restart traefik` |
+| **Global health check** | `make health` |
 | **Enable maintenance mode** | `make maintenance-on` |
 | **Disable maintenance mode** | `make maintenance-off` |
 | **Rebuild custom images** | `make rebuild` (dashboard + watchdog) |
@@ -921,8 +925,9 @@ All alerts are sent via the Telegram Bot API to `WATCHDOG_TELEGRAM_RECIPIENT_ID`
 | **Watch ACME logs** | `make certs-watch` *(requires `TRAEFIK_LOG_LEVEL=DEBUG`)* |
 | **Certificate summary** | `make certs-info` |
 | **Detailed certificate info** | `make certs-inspect` |
+| **Prune unused certs (Dry run)** | `make certs-prune` |
+| **Prune unused certs (Actual)** | `make certs-prune-force` |
 | **Generate local certs** | `make certs-create-local` *(local mode only)* |
-| **Publish new version** | `make release` |
 
 ---
 
@@ -1337,6 +1342,7 @@ You will see: ` Local Mode detected. Automating certificate generation...`
 │   │       ├── custom.css.dist           # Default stylesheet template
 │   │       └── static/img/               # Challenge page images (.dist versions)
 │   │
+│   ├── crowdsec-web-ui/                  # Data directory for CrowdSec LAPI interface
 │   ├── dashboard/                        # Admin UI backend (Python/Flask)
 │   │   ├── app.py                        # Flask application
 │   │   ├── Dockerfile
