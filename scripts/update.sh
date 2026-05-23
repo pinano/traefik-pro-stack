@@ -17,8 +17,8 @@ if [ -n "$TARGET_TAG" ]; then
     fi
     LATEST_TAG=$TARGET_TAG
 else
-    # Find the latest tag
-    LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1) 2>/dev/null || true)
+    # Find the latest version tag across the whole repo
+    LATEST_TAG=$(git tag -l --sort=-v:refname | head -n 1)
 fi
 
 if [ -z "$LATEST_TAG" ]; then

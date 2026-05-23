@@ -375,6 +375,7 @@ clean: ## Clean generated configs and backup certificates (Requires confirmation
 	@read -p "Are you sure you want to proceed? [y/N] " confirm; \
 	if [ "$$confirm" = "y" ] || [ "$$confirm" = "Y" ]; then \
 		rm -rf config/traefik/dynamic-config/*; \
+		rm -f config/traefik/traefik-generated.yaml; \
 		if [ -f config/traefik/acme.json ]; then \
 			ts=$$(date +%Y%m%d%H%M%S); \
 			mv config/traefik/acme.json config/traefik/acme.json.$$ts; \
@@ -391,20 +392,20 @@ clean: ## Clean generated configs and backup certificates (Requires confirmation
 ## Displays statistical information and metrics from the Redis server.
 .PHONY: redis-info
 redis-info: ## Show Redis server statistics
-	@$(DOCKER_COMPOSE) exec redis redis-cli -a "$${REDIS_PASSWORD}" INFO
+	@$(DOCKER_COMPOSE) exec redis redis-cli -a "$${REDIS_PASSWORD}" --no-auth-warning INFO
 
 ##@help redis-monitor
 ## Streams every command processed by the Redis server in real-time.
 ## - Extremely useful for debugging cache hits/misses.
 .PHONY: redis-monitor
 redis-monitor: ## Monitor Redis commands in real-time (Ctrl+C to stop)
-	@-$(DOCKER_COMPOSE) exec redis redis-cli -a "$${REDIS_PASSWORD}" MONITOR
+	@-$(DOCKER_COMPOSE) exec redis redis-cli -a "$${REDIS_PASSWORD}" --no-auth-warning MONITOR
 
 ##@help redis-ping
 ## Sends a PING command to the Redis server to verify connectivity and responsiveness.
 .PHONY: redis-ping
 redis-ping: ## Ping Redis server
-	@$(DOCKER_COMPOSE) exec redis redis-cli -a "$${REDIS_PASSWORD}" PING
+	@$(DOCKER_COMPOSE) exec redis redis-cli -a "$${REDIS_PASSWORD}" --no-auth-warning PING
 
 ##@ Traefik Utilities
 

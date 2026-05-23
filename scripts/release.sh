@@ -21,6 +21,13 @@ if [ -n "$PREV_TAG" ]; then
     fi
 fi
 
+# Guard 3: Must be on main branch
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+if [ "$CURRENT_BRANCH" != "main" ]; then
+    echo "Error: You must be on the 'main' branch to create a release. Currently on: $CURRENT_BRANCH"
+    exit 1
+fi
+
 # Check if today's version already exists
 if git rev-parse "v$VERSION" >/dev/null 2>&1; then
     # We need a micro version, e.g. 2026.05.23.1
