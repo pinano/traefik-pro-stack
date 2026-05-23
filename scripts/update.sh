@@ -1,11 +1,25 @@
 #!/bin/bash
 set -e
 
+TARGET_TAG=$1
+
 echo "Fetching latest tags from remote repository..."
 git fetch --tags --quiet
 
-# Find the latest tag
-LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1) 2>/dev/null || true)
+if [ -n "$TARGET_TAG" ]; then
+    # Add 'v' prefix if missing
+    if ! [[ "$TARGET_TAG" == v* ]]; then
+        TARGET_TAG="v$TARGET_TAG"
+    fi
+    if ! git show-ref --tags --verify --quiet "refs/tags/$TARGET_TAG"; then
+        echo "Error: Tag '$TARGET_TAG' does not exist in the repository."
+        exit 1
+    fi
+    LATEST_TAG=$TARGET_TAG
+else
+    # Find the latest tag
+    LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1) 2>/dev/null || true)
+fi
 
 if [ -z "$LATEST_TAG" ]; then
     echo "Error: No release tags found in the repository."

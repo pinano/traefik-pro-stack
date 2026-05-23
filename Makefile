@@ -119,9 +119,22 @@ release: ## Generate a new CalVer release, update CHANGELOG.md, and create a git
 ## - Checks out the highest available version tag.
 ## - Will NEVER pull untagged intermediate commits.
 ## - Interactively prompts you to restart the stack to apply changes.
+## Usage: make update [version=vYYYY.MM.DD]
+
 .PHONY: update
-update: ## Fetch and safely upgrade the codebase to the latest release tag
-	@./scripts/update.sh
+update: ## Fetch and safely upgrade the codebase (usage: make update [version=vX])
+	@./scripts/update.sh $(version)
+
+##@help rollback
+## Interactively lists recent versions and allows you to rollback.
+## - Fetches the last 10 tags.
+## - Presents a numbered list to choose from.
+## - Performs a safe git checkout to the selected tag.
+## - Interactively prompts to apply changes.
+
+.PHONY: rollback
+rollback: ## Interactively list recent versions and rollback to a specific one
+	@./scripts/rollback.sh
 
 ##@ Environment & Config
 
