@@ -104,11 +104,11 @@ endif
 
 ##@help help
 ## Displays this help message with a grouped list of all available commands.
-## To see detailed information about any specific command, run 'make help-<command>'.
+## To see detailed information about any specific command, run 'make <command> help'.
 .PHONY: help
 help: ## Show this help message
 	@echo "Usage: make [target] [service]"
-	@echo "For detailed help on any command, run: make help-<target> (e.g., make help-start)"
+	@echo "For detailed help on any command, run: make <target> help (e.g., make start help)"
 	@echo ""
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*?##/ { printf "  \033[36m%-25s\033[0m %s\n", $$1, $$2 } /^##@ / { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) }' $(MAKEFILE_LIST)
 
