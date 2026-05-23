@@ -513,6 +513,8 @@ The following variables are automatically generated and injected into `.env` by 
 | `WATCHDOG_CERT_DAYS_WARNING` | Alert threshold: send warning when a certificate expires within this many days. | `10` |
 | `WATCHDOG_DNS_CHECK_INTERVAL` | How often (seconds) to verify DNS records for all domains. | `21600` (6h) |
 | `WATCHDOG_CROWDSEC_CHECK_INTERVAL` | How often (seconds) to check CrowdSec health and bouncer connectivity. | `3600` (1h) |
+| `WATCHDOG_SYSTEM_CHECK_INTERVAL` | How often (seconds) to check system resources and container health. | `300` (5m) |
+| `WATCHDOG_TRAEFIK_CHECK_INTERVAL` | How often (seconds) to check Traefik routing configuration health. | `300` (5m) |
 
 > [!TIP]
 > Both `WATCHDOG_TELEGRAM_BOT_TOKEN` and `WATCHDOG_TELEGRAM_RECIPIENT_ID` are reused by Grafana Alerting automatically — no separate configuration needed for Grafana notifications.
@@ -853,13 +855,15 @@ Four pre-provisioned dashboards are loaded automatically:
 
 ### Watchdog — Stack Monitor
 
-A lightweight Alpine-based service that runs three monitoring scripts in parallel:
+A lightweight Alpine-based service that runs five monitoring scripts in parallel:
 
 | Script | Interval | What it checks | Alert sent when |
 |--------|----------|---------------|-----------------|
 | `check-certs.sh` | 24 hours | Reads `acme.json` and checks expiry of all certificates | Any cert expires within `WATCHDOG_CERT_DAYS_WARNING` days |
 | `check-dns.sh` | `WATCHDOG_DNS_CHECK_INTERVAL` | Resolves all domains from `domains.csv` | A domain does not resolve to `TRAEFIK_LISTEN_IP` |
 | `check-crowdsec.sh` | `WATCHDOG_CROWDSEC_CHECK_INTERVAL` | CrowdSec container health, LAPI status, bouncer registration | LAPI unreachable, no bouncers registered, or bouncer errors |
+| `check-system.sh` | `WATCHDOG_SYSTEM_CHECK_INTERVAL` | Host/container memory, disk space, and Redis cache health | Disk > 90%, host memory > 95%, or Redis/containers unhealthy |
+| `check-traefik.sh` | `WATCHDOG_TRAEFIK_CHECK_INTERVAL` | Traefik internal API for router, service, or middleware errors | Traefik API reports any configuration errors |
 
 All alerts are sent via the Telegram Bot API to `WATCHDOG_TELEGRAM_RECIPIENT_ID`.
 
@@ -1101,6 +1105,8 @@ The watchdog sends Telegram alerts for:
 - **SSL**: Certificate expiring within `WATCHDOG_CERT_DAYS_WARNING` days.
 - **DNS**: Domain resolves to a different IP than `TRAEFIK_LISTEN_IP`.
 - **CrowdSec**: LAPI down, no bouncers registered, or bouncer not communicating.
+- **System**: Disk space critical (>90%), memory critical (>95%), or container health failures.
+- **Traefik**: Broken dynamic configuration, missing services, or middleware errors.
 
 ---
 
