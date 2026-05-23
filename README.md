@@ -884,6 +884,7 @@ All alerts are sent via the Telegram Bot API to `WATCHDOG_TELEGRAM_RECIPIENT_ID`
 | Action | Command |
 |--------|---------|
 | **Initialize environment** | `make init` |
+| **Check & Upgrade code** | `make update` |
 | **Start / update stack** | `make start` |
 | **Stop stack** | `make stop` |
 | **Restart full stack** | `make restart` |
@@ -912,6 +913,19 @@ All alerts are sent via the Telegram Bot API to `WATCHDOG_TELEGRAM_RECIPIENT_ID`
 | **Certificate summary** | `make certs-info` |
 | **Detailed certificate info** | `make certs-inspect` |
 | **Generate local certs** | `make certs-create-local` *(local mode only)* |
+| **Publish new version** | `make release` |
+
+---
+
+### Versioning & Updates
+
+This stack uses Calendar Versioning (CalVer) in `YYYY.MM.DD` format. Updates are checked directly against the GitHub repository via the Dashboard UI.
+
+- **Development (Publishing Updates):**
+  When your changes on the `main` branch are ready, run `make release`. This script automatically updates the `VERSION` file, generates a `CHANGELOG.md` from your commit history, creates a Git tag, and commits everything. Run `git push origin main --tags` to publish the new version.
+
+- **Production (Applying Updates):**
+  Never use `git pull` on production to avoid applying untested intermediate commits. Instead, run `make update`. This script fetches the latest releases, detects if a newer version is available, and performs a safe `git checkout` to the exact immutable tag. Remember to run `make rebuild dashboard` and `make restart` afterward to apply the new code to your containers.
 
 ---
 
