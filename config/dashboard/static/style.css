@@ -42,7 +42,7 @@
     --text-muted: #94a3b8; /* Slate 400 */
     --border-color: #334155; /* Slate 700 */
     --input-bg: #0f172a;
-    --header-bg: #1e293b;
+    --header-bg: #334155; /* Slate 700 */
     
     /* Enhance contrast for dark mode tables */
     --row-hover-bg: #334155;
@@ -278,7 +278,7 @@ body.has-notification .header-scrolled {
 }
 
 .btn-secondary {
-    background-color: #fff;
+    background-color: var(--card-bg);
     color: var(--text-color);
     border: 1px solid var(--border-color);
 }
