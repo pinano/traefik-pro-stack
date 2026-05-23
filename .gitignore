@@ -44,4 +44,5 @@ __pycache__
 .venv/
 
 # VSCode
-.vscode
+.vscode.maintenance_mode
+backups/
