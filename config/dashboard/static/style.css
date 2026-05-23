@@ -84,6 +84,9 @@
     color: var(--text-color);
     opacity: 0.45;
 }
+[data-theme="dark"] #deleted-domains-table tr {
+    background-color: rgba(15, 23, 42, 0.3);
+}
 
 * {
     box-sizing: border-box;
