@@ -1,3 +1,7 @@
+## v2026.05.23.2 (2026-05-23)
+
+- fix: point dashboard update notification directly to changelog (5150b2b)
+
 ## v2026.05.23.1 (2026-05-23)
 
 - docs: add versioning and upgrade mechanisms to operations manual (b137df2)
