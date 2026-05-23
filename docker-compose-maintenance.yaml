@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   maintenance:
     image: nginx:alpine
@@ -12,14 +10,14 @@ services:
     labels:
       - "traefik.enable=true"
       # Match all domains except the admin DOMAIN
-      - "traefik.http.routers.maintenance.rule=HostRegexp(`{domain:.+}`) && !Host(`${DOMAIN}`)"
+      - "traefik.http.routers.maintenance.rule=HostRegexp(`{host:.+}`) && !Host(`${DOMAIN}`)"
       # Extremely high priority to override all other dynamic and static routes
       - "traefik.http.routers.maintenance.priority=999999"
       - "traefik.http.routers.maintenance.entrypoints=websecure"
-      - "traefik.http.routers.maintenance.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-production}"
+      - "traefik.http.routers.maintenance.tls=true"
       
       # Catch HTTP traffic too
-      - "traefik.http.routers.maintenance-http.rule=HostRegexp(`{domain:.+}`) && !Host(`${DOMAIN}`)"
+      - "traefik.http.routers.maintenance-http.rule=HostRegexp(`{host:.+}`) && !Host(`${DOMAIN}`)"
       - "traefik.http.routers.maintenance-http.priority=999999"
       - "traefik.http.routers.maintenance-http.entrypoints=web"
       
