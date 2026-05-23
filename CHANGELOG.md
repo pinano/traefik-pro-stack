@@ -1,3 +1,7 @@
+## v2026.05.23.1 (2026-05-23)
+
+- docs: add versioning and upgrade mechanisms to operations manual (b137df2)
+
 ## v2026.05.23 (2026-05-23)
 
 - feat: implement dashboard sso docs, update checker and release automation (6e39cf9)
