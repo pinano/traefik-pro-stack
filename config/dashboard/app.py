@@ -38,6 +38,20 @@ app.config.update(
     MAX_CONTENT_LENGTH=1 * 1024 * 1024,
 )
 
+# --- App Version ---
+APP_VERSION = "Unknown"
+try:
+    version_file = os.path.join(os.getenv('DASHBOARD_APP_PATH_HOST', '/app'), 'VERSION')
+    if os.path.exists(version_file):
+        with open(version_file, 'r') as f:
+            APP_VERSION = f.read().strip()
+except Exception as e:
+    log.warning(f"Could not read VERSION file: {e}")
+
+@app.context_processor
+def inject_version():
+    return dict(app_version=APP_VERSION)
+
 @app.after_request
 def set_security_headers(response):
     """Inject defensive HTTP response headers on every reply.

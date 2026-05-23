@@ -24,6 +24,7 @@ services:
       - APACHE_HOST_PORT=${APACHE_HOST_PORT:-8080}
     working_dir: ${DASHBOARD_APP_PATH_HOST}/config/dashboard
     volumes:
+      - ./VERSION:${DASHBOARD_APP_PATH_HOST}/VERSION:ro
       - ./domains.csv:${DASHBOARD_APP_PATH_HOST}/domains.csv
       - ./.env:${DASHBOARD_APP_PATH_HOST}/.env
       - ./.env.dist:${DASHBOARD_APP_PATH_HOST}/.env.dist:ro

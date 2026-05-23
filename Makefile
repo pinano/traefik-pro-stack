@@ -82,7 +82,14 @@ ifneq "$(SUPPORTS_ARGS)" ""
   $(eval $(SERVICE_ARGS):;@:)
 endif
 
-.PHONY: help
+.PHONY: help release update
+
+release: ## Generate a new CalVer release, update CHANGELOG.md, and create a git tag
+	@./scripts/release.sh
+
+update: ## Fetch and safely upgrade the codebase to the latest release tag
+	@./scripts/update.sh
+
 help: ## Show this help message
 	@echo "Usage: make [target] [service]"
 	@echo ""

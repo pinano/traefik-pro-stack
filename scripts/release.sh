@@ -1,0 +1,54 @@
+#!/bin/bash
+set -e
+
+# Calculate current date version
+TODAY=$(date +"%Y.%m.%d")
+VERSION=$TODAY
+
+# Check if today's version already exists
+if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+    # We need a micro version, e.g. 2026.05.23.1
+    LATEST_TAG=$(git tag -l "v$VERSION*" --sort=-v:refname | head -n 1)
+    if [ "$LATEST_TAG" == "v$VERSION" ]; then
+        VERSION="$VERSION.1"
+    else
+        # Extract the micro version and increment it
+        MICRO=$(echo "$LATEST_TAG" | awk -F. '{print $4}')
+        VERSION="$TODAY.$((MICRO + 1))"
+    fi
+fi
+
+echo "Creating new release: $VERSION"
+
+# 1. Update VERSION file
+echo "$VERSION" > VERSION
+
+# 2. Generate Changelog
+TMP_CHANGELOG=$(mktemp)
+echo "## v$VERSION ($(date +"%Y-%m-%d"))" > "$TMP_CHANGELOG"
+echo "" >> "$TMP_CHANGELOG"
+
+# Get the previous tag to calculate the log. If no previous tag, get all history.
+PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+if [ -z "$PREV_TAG" ]; then
+    git log --pretty=format:"- %s (%h)" >> "$TMP_CHANGELOG"
+else
+    git log ${PREV_TAG}..HEAD --pretty=format:"- %s (%h)" >> "$TMP_CHANGELOG"
+fi
+
+echo "" >> "$TMP_CHANGELOG"
+echo "" >> "$TMP_CHANGELOG"
+
+# If CHANGELOG.md exists, prepend the new log
+if [ -f CHANGELOG.md ]; then
+    cat CHANGELOG.md >> "$TMP_CHANGELOG"
+fi
+mv "$TMP_CHANGELOG" CHANGELOG.md
+
+# 3. Commit and Tag
+git add VERSION CHANGELOG.md
+git commit -m "chore: release v$VERSION"
+git tag -a "v$VERSION" -m "Release v$VERSION"
+
+echo "Release v$VERSION created successfully!"
+echo "Run 'git push origin main --tags' to publish it."

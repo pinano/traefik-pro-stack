@@ -771,7 +771,16 @@ A lightweight Python/Flask web application that provides the web interface for m
 - **Domain Manager**: Manage, validate, and search proxy records mapped to <code>domains.csv</code>. Unsaved changes are highlighted, and deployment supports hot-reload/soft restart alerts.
 - **CAPTCHA Key Manager**: Manage, configure, and soft-delete CAPTCHA credentials mapped to <code>captcha_keys.csv</code>. Deleted records are stored commented out (<code>#</code>) to allow easy restoration.
 - **Certificates Inspector**: Real-time status overview of active, expiring, or superseded certificates from <code>acme.json</code>, featuring visual coverage stats, missing domain warnings, search/sort, and inline console help for Makefile management commands (<code>make certs-info</code>, <code>make certs-inspect</code>, <code>make certs-watch</code>, <code>make certs-prune</code>, <code>make certs-prune-force</code>).
-- **SSO Provider**: The Dashboard acts as the authentication backend for all dashboard tools. It issues session cookies that Traefik's ForwardAuth middleware validates.
+- **Unified SSO Portal**: The Dashboard acts as the central authentication backend for all internal infrastructure tools. A single login here grants secure access to:
+  - **Domain Manager** (Traefik routing config)
+  - **Certificates Inspector** (SSL/TLS status)
+  - **CAPTCHA Keys Manager** (CrowdSec remediation)
+  - **CrowdSec UI** (Security alerts and bans)
+  - **Grafana** (Dashboards and metrics)
+  - **Dozzle** (Real-time container logs)
+  - **Traefik** (Edge router dashboard)
+  - **Documentation** (Project reference)
+  It issues session cookies that Traefik's ForwardAuth middleware validates across all these routes.
 - **Live Service Discovery**: Reads from the Docker socket to list running containers as available services.
 - **Stack Restart**: Triggers `start.sh` from inside the container, applying changes without SSH access.
 - **Environment visibility**: Exposes the stack's environment type (local/staging/production) to inform users about the certificate mode.
