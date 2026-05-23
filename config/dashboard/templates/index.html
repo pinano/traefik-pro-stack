@@ -144,7 +144,7 @@
                     const latestVersion = latest.trim();
                     const badge = document.getElementById('update-badge');
                     if (latestVersion && latestVersion !== currentVersion) {
-                        badge.innerHTML = `<span style="color: #f59e0b; margin-left: 8px;">(Update available: ${latestVersion} - <a href="https://github.com/pinano/traefik-crowdsec-anubis-grafana/releases" target="_blank" style="color: #f59e0b; text-decoration: underline;">view</a>)</span>`;
+                        badge.innerHTML = `<span style="color: #f59e0b; margin-left: 8px;">(Update available: ${latestVersion} - <a href="https://github.com/pinano/traefik-crowdsec-anubis-grafana/blob/main/CHANGELOG.md" target="_blank" style="color: #f59e0b; text-decoration: underline;">changelog</a>)</span>`;
                     } else if (latestVersion === currentVersion) {
                         badge.innerHTML = `<span style="color: #10b981; margin-left: 8px;">(Latest)</span>`;
                     }
