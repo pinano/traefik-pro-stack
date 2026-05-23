@@ -5,6 +5,22 @@ set -e
 TODAY=$(date +"%Y.%m.%d")
 VERSION=$TODAY
 
+# Guard 1: Uncommitted changes
+if ! git diff-index --quiet HEAD --; then
+    echo "Error: You have uncommitted changes. Please commit or stash them before running make release."
+    exit 1
+fi
+
+# Guard 2: No new commits since last tag
+PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || true)
+if [ -n "$PREV_TAG" ]; then
+    NEW_COMMITS=$(git log ${PREV_TAG}..HEAD --oneline)
+    if [ -z "$NEW_COMMITS" ]; then
+        echo "Error: No new commits since last release ($PREV_TAG). Aborting."
+        exit 1
+    fi
+fi
+
 # Check if today's version already exists
 if git rev-parse "v$VERSION" >/dev/null 2>&1; then
     # We need a micro version, e.g. 2026.05.23.1

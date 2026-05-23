@@ -31,6 +31,15 @@ fi
 git checkout "$LATEST_TAG" --quiet
 echo "Success: Codebase updated to $LATEST_TAG."
 echo ""
-echo "Note: To apply these changes to your running containers, you must typically run:"
-echo "  make rebuild dashboard"
-echo "  make restart"
+read -p "Do you want to apply these changes and restart the stack now? [y/N] " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    echo "Rebuilding and restarting..."
+    make rebuild
+    make restart
+    echo "Stack updated successfully!"
+else
+    echo "Note: To apply these changes manually later, run:"
+    echo "  make rebuild"
+    echo "  make restart"
+fi

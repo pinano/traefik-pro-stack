@@ -138,7 +138,8 @@
         // Check for updates asynchronously
         const currentVersion = "{{ app_version }}".trim();
         if (currentVersion && currentVersion !== "Unknown") {
-            fetch("https://raw.githubusercontent.com/pinano/traefik-crowdsec-anubis-grafana/main/VERSION", { cache: "no-store" })
+            const cacheBuster = new Date().getTime();
+            fetch(`https://raw.githubusercontent.com/pinano/traefik-crowdsec-anubis-grafana/main/VERSION?t=${cacheBuster}`, { cache: "no-store" })
                 .then(response => response.ok ? response.text() : Promise.reject("Fetch failed"))
                 .then(latest => {
                     const latestVersion = latest.trim();
