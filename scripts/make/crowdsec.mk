@@ -76,10 +76,10 @@ crowdsec-ban-country: ## Ban all IPs from one or more countries (usage: make cro
 	./scripts/crowdsec-geoblock.sh ban $(SERVICE_ARGS)
 
 ##@help crowdsec-unban-country
-## Removes all bans associated with a specific country code.
-## - Usage: make crowdsec-unban-country CN
+## Removes all bans associated with one or more specific country codes.
+## - Usage: make crowdsec-unban-country CN RU
 .PHONY: crowdsec-unban-country
-crowdsec-unban-country: ## Remove all bans for one or more countries (usage: make crowdsec-unban-country CN)
+crowdsec-unban-country: ## Remove all bans for one or more countries (usage: make crowdsec-unban-country CN RU)
 	@if [ -z "$(SERVICE_ARGS)" ]; then \
 		echo "Error: Please specify at least one country code (e.g., 'make crowdsec-unban-country CN')."; \
 		exit 1; \
