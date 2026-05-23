@@ -1062,18 +1062,35 @@ make shell crowdsec -- cscli collections list
 
 ---
 
-### Monitoring Dashboards
+### Dashboard Interface & Tools
 
-All dashboards are served under `https://<DASHBOARD_SUBDOMAIN>.<DOMAIN>`:
+The Dashboard acts as your central Single Sign-On (SSO) portal and unified interface for all stack operations. It is served securely under `https://<DASHBOARD_SUBDOMAIN>.<DOMAIN>`.
 
-| Tool | Path | Auth | Notes |
-|------|------|------|-------|
-| Dashboard | `/` | SSO Login | Stack management, domain config |
-| Traefik | `/traefik` | SSO Login | Live routing, middleware status |
-| Grafana | `/grafana` | SSO (Viewer) or Admin login | Full metrics/alerting platform |
-| Dozzle | `/dozzle` | SSO Login | Real-time container log viewer |
-| Certificates | `/certs` | SSO Login | Certificate status per domain |
-| CrowdSec UI | `/crowdsec` | SSO Login | Alert management and decision overview |
+#### Stack Configuration
+
+| Tool | Path | Description |
+|------|------|-------------|
+| **Domain Manager** | `/` | Manage proxy records, configure bot defense (Anubis), and apply custom rate limits. Includes live Docker container discovery. |
+| **CAPTCHA Keys** | `/captcha` | Manage Turnstile/hCaptcha keys to enable CAPTCHA remediation for CrowdSec bans instead of hard blocks. |
+| **Certificates** | `/certs` | Real-time status overview of active, expiring, or superseded SSL/TLS certificates. |
+| **Documentation** | `/docs` | Integrated offline reading of the stack's technical documentation and README. |
+
+#### Observability & Security
+
+| Tool | Path | Description |
+|------|------|-------------|
+| **Grafana** | `/grafana` | Full metrics and alerting platform (Prometheus + Loki). SSO grants Viewer access. |
+| **Dozzle** | `/dozzle` | Real-time, lightweight web-based container log viewer. |
+| **CrowdSec UI** | `/crowdsec` | CrowdSec LAPI console for alert management and active ban decision overview. |
+| **Traefik** | `/traefik` | Edge router dashboard showing live routing, middleware status, and active connections. |
+
+#### System Operations
+
+In addition to management views, the Dashboard UI provides direct control over the stack's operational state via the top navigation bar:
+
+- **Updates Checker**: Automatically queries GitHub to compare the local `VERSION` against the latest published release, displaying a visual alert and changelog link if an update is available.
+- **Maintenance Mode**: A one-click toggle that intercepts all external traffic and serves a premium HTML maintenance page (returns HTTP 503), while keeping the Dashboard itself fully accessible for administrators.
+- **Stack Restart**: A "Restart Stack" button that securely triggers `scripts/start.sh` from inside the container, hot-reloading new domains and configuration without requiring SSH access.
 
 ---
 
