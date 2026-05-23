@@ -788,6 +788,9 @@ if [ "$TRAEFIK_ACME_ENV_TYPE" == "local" ]; then
         cat > "$TRAEFIK_CERTS_CONF" << EOF
 # AUTOMATICALLY GENERATED - Local SSL Trust
 tls:
+  certificates:
+    - certFile: /certs/local-cert.pem
+      keyFile: /certs/local-key.pem
   stores:
     default:
       defaultCertificate:
