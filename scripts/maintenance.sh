@@ -27,12 +27,10 @@ if [ "$ACTION" == "on" ]; then
     echo "All traffic (except for DOMAIN) is being redirected to the maintenance page."
 
 elif [ "$ACTION" == "off" ]; then
-    if [ ! -f ".maintenance_mode" ]; then
-        echo "Status: Maintenance mode is already OFF."
-        exit 0
-    fi
     echo "Disabling Maintenance Mode..."
-    rm .maintenance_mode
+    if [ -f ".maintenance_mode" ]; then
+        rm .maintenance_mode
+    fi
     
     # We must explicitly stop the maintenance container since compose might not clean it up
     # just by omitting it from the COMPOSE_FILES list.

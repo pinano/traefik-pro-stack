@@ -10,16 +10,21 @@ services:
     labels:
       - "traefik.enable=true"
       # Match all domains except the admin DOMAIN
-      - "traefik.http.routers.maintenance.rule=PathPrefix(`/`) && !Host(`${DOMAIN}`)"
+      - "traefik.http.routers.maintenance.rule=PathPrefix(`/`) && !Host(`${DASHBOARD_SUBDOMAIN:-dashboard}.${DOMAIN}`)"
       # Extremely high priority to override all other dynamic and static routes
       - "traefik.http.routers.maintenance.priority=999999"
       - "traefik.http.routers.maintenance.entrypoints=websecure"
       - "traefik.http.routers.maintenance.tls=true"
       
       # Catch HTTP traffic too
-      - "traefik.http.routers.maintenance-http.rule=PathPrefix(`/`) && !Host(`${DOMAIN}`)"
+      - "traefik.http.routers.maintenance-http.rule=PathPrefix(`/`) && !Host(`${DASHBOARD_SUBDOMAIN:-dashboard}.${DOMAIN}`)"
       - "traefik.http.routers.maintenance-http.priority=999999"
       - "traefik.http.routers.maintenance-http.entrypoints=web"
       
       # Route to Nginx port 80
       - "traefik.http.services.maintenance.loadbalancer.server.port=80"
+
+networks:
+  traefik:
+    name: traefik
+    external: true
