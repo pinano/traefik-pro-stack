@@ -87,7 +87,7 @@ services:
   #  CROWDSEC WEB UI (Management interface for CrowdSec LAPI)
   # ===========================
   crowdsec-web-ui:
-    image: ghcr.io/theduffman85/crowdsec-web-ui:2026.5.4
+    image: ghcr.io/theduffman85/crowdsec-web-ui:2026.5.6
     restart: unless-stopped
     environment:
       - CROWDSEC_URL=http://crowdsec:8080
@@ -106,7 +106,7 @@ services:
       # Use node (guaranteed in this image) instead of wget (not available in Node.js images).
       # A failing healthcheck causes Traefik to remove the container from its routing table,
       # making all /crowdsec requests fall through to the dashboard catch-all router.
-      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      test: [ "CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))" ]
       interval: 30s
       timeout: 10s
       retries: 3
