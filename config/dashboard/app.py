@@ -50,7 +50,8 @@ except Exception as e:
 
 @app.context_processor
 def inject_version():
-    maintenance_active = os.path.exists('/app/config/.maintenance_mode')
+    app_path = os.getenv('DASHBOARD_APP_PATH_HOST', '/app')
+    maintenance_active = os.path.exists(os.path.join(app_path, 'config', '.maintenance_mode'))
     return dict(app_version=APP_VERSION, maintenance_active=maintenance_active)
 
 @app.after_request

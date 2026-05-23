@@ -1,7 +1,9 @@
-# Environment variables
+# System & Environment variables
 .env
 *.save
 *.bak
+.maintenance_mode
+backups/
 
 # Domains CSV
 domains.csv
@@ -44,5 +46,4 @@ __pycache__
 .venv/
 
 # VSCode
-.vscode.maintenance_mode
-backups/
+.vscode
