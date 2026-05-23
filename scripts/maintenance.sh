@@ -11,10 +11,18 @@ if [ "$ACTION" == "on" ]; then
     echo "Enabling Maintenance Mode..."
     touch .maintenance_mode
     
-    # Start the maintenance container explicitly and reload traefik
+    # Load environment
+    if [ -f .env ]; then
+        set -a
+        source .env
+        set +a
+    fi
+    source scripts/compose-files.sh
+    DOCKER_COMPOSE="docker compose -p ${PROJECT_NAME:-traefik-stack} $COMPOSE_FILES"
+    
+    # Start the maintenance container explicitly
     echo "Starting maintenance container..."
-    make rebuild
-    make restart
+    $DOCKER_COMPOSE up -d maintenance
     echo "✅ Maintenance Mode is now ON."
     echo "All traffic (except for DOMAIN) is being redirected to the maintenance page."
 
@@ -31,10 +39,7 @@ elif [ "$ACTION" == "off" ]; then
     DOCKER_COMPOSE="docker compose -p ${PROJECT_NAME:-traefik-stack} -f docker-compose-maintenance.yaml"
     $DOCKER_COMPOSE down || true
     
-    echo "Restarting stack to resume normal operations..."
-    make rebuild
-    make restart
-    echo "✅ Maintenance Mode is now OFF."
+    echo "✅ Maintenance Mode is now OFF. Traefik will instantly restore normal routing."
 
 else
     echo "Usage: make maintenance-on | make maintenance-off"

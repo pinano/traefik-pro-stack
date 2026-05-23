@@ -322,7 +322,7 @@ ctop: ## Monitor containers using ctop
 ## - Intercepts all traffic to all domains via a Traefik priority 999999 rule.
 ## - Shows a premium HTML maintenance page.
 ## - Excludes the primary administration DOMAIN (defined in .env) so you can still access the dashboard.
-## - Rebuilds and restarts the stack to apply.
+## - Traefik will dynamically apply these rules instantly.
 
 .PHONY: maintenance-on
 maintenance-on: ## Enable global maintenance mode (blocks public traffic, allows admin)
@@ -331,7 +331,7 @@ maintenance-on: ## Enable global maintenance mode (blocks public traffic, allows
 ##@help maintenance-off
 ## Disables Global Maintenance Mode.
 ## - Removes the maintenance flag and stops the maintenance container.
-## - Rebuilds and restarts the stack to restore normal traffic flow.
+## - Traefik will instantly restore normal traffic flow.
 
 .PHONY: maintenance-off
 maintenance-off: ## Disable global maintenance mode
