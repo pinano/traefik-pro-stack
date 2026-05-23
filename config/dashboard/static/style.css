@@ -32,6 +32,22 @@
     --header-bg: #f1f5f9;
 }
 
+[data-theme="dark"] {
+    --primary-color: #818cf8; /* Soft Indigo */
+    --primary-hover: #6366f1;
+    
+    --bg-color: #0f172a; /* Slate 900 */
+    --card-bg: #1e293b; /* Slate 800 */
+    --text-color: #e2e8f0; /* Slate 200 */
+    --text-muted: #94a3b8; /* Slate 400 */
+    --border-color: #334155; /* Slate 700 */
+    --input-bg: #0f172a;
+    --header-bg: #1e293b;
+    
+    /* Enhance contrast for dark mode tables */
+    --row-hover-bg: #334155;
+}
+
 * {
     box-sizing: border-box;
     margin: 0;

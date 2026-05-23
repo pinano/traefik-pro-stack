@@ -11,6 +11,7 @@
         href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,300;0,400;0,700;1,300&display=swap"
         rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="{{ url_for('static', filename='theme.js') }}?t={{ timestamp | default(0) }}"></script>
 </head>
 
 <body>
@@ -48,6 +49,9 @@
                 <button id="deploy-btn" class="btn btn-apply" disabled title="Save changes first to enable deployment">
                     <i data-lucide="rocket"></i> Deploy Changes
                 </button>
+                <a href="#" id="theme-toggle" class="btn btn-secondary btn-icon-only" title="Toggle Theme">
+                    <i id="theme-icon" data-lucide="moon"></i>
+                </a>
                 <a href="{{ url_for('logout') }}" class="btn btn-secondary">
                     <i data-lucide="log-out"></i> Logout
                 </a>
