@@ -32,4 +32,9 @@ if [ -f ".apache_host_available" ]; then
     COMPOSE_FILES="$COMPOSE_FILES -f docker-compose-apache-logs.yaml"
 fi
 
+# Add Maintenance container if mode is active
+if [ -f ".maintenance_mode" ]; then
+    COMPOSE_FILES="$COMPOSE_FILES -f docker-compose-maintenance.yaml"
+fi
+
 export COMPOSE_FILES

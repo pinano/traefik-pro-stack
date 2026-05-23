@@ -136,6 +136,29 @@ update: ## Fetch and safely upgrade the codebase (usage: make update [version=vX
 rollback: ## Interactively list recent versions and rollback to a specific one
 	@./scripts/rollback.sh
 
+##@ Backup & Restore
+
+##@help backup
+## Creates a secure, timestamped backup of your operational state.
+## - Backs up .env, domains.csv, and all small config/ files (including WAF rules and certificates).
+## - Skips giant data volumes (logs, metrics) to keep the backup lightweight and fast.
+## - Output is saved to the backups/ directory.
+
+.PHONY: backup
+backup: ## Create a secure backup of configuration state (excludes heavy logs)
+	@./scripts/backup.sh
+
+##@help restore
+## Restores a previously created backup tarball.
+## - Requires interactive confirmation.
+## - Overwrites current configurations with the backup state.
+## - Automatically secures file permissions (e.g., chmod 600 for .env and acme.json) after extraction.
+## Usage: make restore file=backups/traefik-stack_YYYYMMDD_HHMMSS.tar.gz
+
+.PHONY: restore
+restore: ## Restore configuration state from a backup tarball (usage: make restore file=...)
+	@./scripts/restore.sh $(file)
+
 ##@ Environment & Config
 
 ##@help init
@@ -238,6 +261,18 @@ services: ## List available services
 
 ##@ Observability & Debugging
 
+##@help health
+## Executes a global health check of the infrastructure.
+## - Verifies strict file permissions for .env and acme.json.
+## - Tests Traefik internal routing health.
+## - Verifies CrowdSec LAPI responsiveness and WAF loading.
+## - Pings the Redis cache server.
+## - Validates Grafana's internal API health.
+
+.PHONY: health
+health: ## Run a global health check across all core services
+	@./scripts/health.sh
+
 ##@help logs
 ## Follows the logs of one or all services.
 ## - All services: make logs
@@ -281,6 +316,26 @@ ctop: ## Monitor containers using ctop
 	@docker run --rm -ti --name=ctop --volume /var/run/docker.sock:/var/run/docker.sock:ro quay.io/vektorlab/ctop:latest
 
 ##@ Maintenance
+
+##@help maintenance-on
+## Enables Global Maintenance Mode.
+## - Intercepts all traffic to all domains via a Traefik priority 999999 rule.
+## - Shows a premium HTML maintenance page.
+## - Excludes the primary administration DOMAIN (defined in .env) so you can still access the dashboard.
+## - Rebuilds and restarts the stack to apply.
+
+.PHONY: maintenance-on
+maintenance-on: ## Enable global maintenance mode (blocks public traffic, allows admin)
+	@./scripts/maintenance.sh on
+
+##@help maintenance-off
+## Disables Global Maintenance Mode.
+## - Removes the maintenance flag and stops the maintenance container.
+## - Rebuilds and restarts the stack to restore normal traffic flow.
+
+.PHONY: maintenance-off
+maintenance-off: ## Disable global maintenance mode
+	@./scripts/maintenance.sh off
 
 ##@help pull
 ## Pulls the latest versions of all external images (Traefik, Redis, Grafana, etc.) defined in the compose files.

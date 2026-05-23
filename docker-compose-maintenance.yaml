@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  maintenance:
+    image: nginx:alpine
+    container_name: ${PROJECT_NAME:-traefik-stack}-maintenance
+    restart: always
+    volumes:
+      - ./config/maintenance/index.html:/usr/share/nginx/html/index.html:ro
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      # Match all domains except the admin DOMAIN
+      - "traefik.http.routers.maintenance.rule=HostRegexp(`{domain:.+}`) && !Host(`${DOMAIN}`)"
+      # Extremely high priority to override all other dynamic and static routes
+      - "traefik.http.routers.maintenance.priority=999999"
+      - "traefik.http.routers.maintenance.entrypoints=websecure"
+      - "traefik.http.routers.maintenance.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-production}"
+      
+      # Catch HTTP traffic too
+      - "traefik.http.routers.maintenance-http.rule=HostRegexp(`{domain:.+}`) && !Host(`${DOMAIN}`)"
+      - "traefik.http.routers.maintenance-http.priority=999999"
+      - "traefik.http.routers.maintenance-http.entrypoints=web"
+      
+      # Route to Nginx port 80
+      - "traefik.http.services.maintenance.loadbalancer.server.port=80"
