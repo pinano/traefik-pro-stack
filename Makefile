@@ -12,6 +12,24 @@ SHELL := /bin/bash
 # Default target
 .DEFAULT_GOAL := help
 
+# ==============================================================================
+# HELP COMMAND INTERCEPTOR
+# ==============================================================================
+# Intercepts 'make <target> help' or 'make help <target>' and routes to 'make help-<target>'
+ifneq ($(filter help,$(MAKECMDGOALS)),)
+  HELP_TARGET := $(firstword $(filter-out help,$(MAKECMDGOALS)))
+  ifneq ($(HELP_TARGET),)
+    # Turn all targets except help into dummy targets to suppress "No rule to make target"
+    $(eval $(filter-out help,$(MAKECMDGOALS)):;@:)
+    # Make 'help' execute the specific help target
+    $(eval help:;@$(MAKE) -s help-$(HELP_TARGET))
+    # Skip parsing the rest of the Makefile to avoid overriding warnings
+    SKIP_MAKEFILE := 1
+  endif
+endif
+
+ifndef SKIP_MAKEFILE
+
 # Define Python interpreter (prioritizes virtual environment)
 ifneq (,$(wildcard .venv/bin/python3))
     PYTHON := .venv/bin/python3
@@ -453,3 +471,5 @@ endif
 
 # Grafana Alerting setup targets
 include scripts/make/grafana.mk
+
+endif # SKIP_MAKEFILE
