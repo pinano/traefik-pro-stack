@@ -1,11 +1,12 @@
-<footer id="version-footer" style="text-align: center; margin-top: 2rem; padding: 1rem 0; color: var(--text-muted); font-size: 0.85rem;">
+<footer id="version-footer"
+    style="text-align: center; margin-top: 2rem; padding: 1rem 0; color: var(--text-muted); font-size: 0.85rem;">
     Version <span id="current-version">{{ app_version }}</span>
     <span id="update-badge"></span>
 </footer>
 
 <script>
     // Check for updates asynchronously
-    (function() {
+    (function () {
         const currentVersion = "{{ app_version }}".trim();
         if (currentVersion && currentVersion !== "Unknown") {
             const cacheBuster = new Date().getTime();
@@ -15,9 +16,9 @@
                     const latestVersion = latest.trim();
                     const badge = document.getElementById('update-badge');
                     if (badge && latestVersion && latestVersion !== currentVersion) {
-                        badge.innerHTML = `<span style="color: var(--warning-color); margin-left: 8px;">(Update available: ${latestVersion} - <a href="https://github.com/pinano/traefik-crowdsec-anubis-grafana/blob/main/CHANGELOG.md" target="_blank" style="color: var(--warning-color); text-decoration: underline;">changelog</a>)</span>`;
+                        badge.innerHTML = `<span style="color: var(--warning-color);">(Update available: ${latestVersion} - <a href="https://github.com/pinano/traefik-crowdsec-anubis-grafana/blob/main/CHANGELOG.md" target="_blank" style="color: var(--warning-color); text-decoration: underline;">changelog</a>)</span>`;
                     } else if (badge && latestVersion === currentVersion) {
-                        badge.innerHTML = `<span style="color: var(--success-color); margin-left: 8px;">(Latest)</span>`;
+                        badge.innerHTML = `<span style="color: var(--success-color);">(Latest)</span>`;
                     }
                 })
                 .catch(e => console.log("Could not check for updates."));
