@@ -1,3 +1,9 @@
+## v2026.05.24 (2026-05-24)
+
+- feat: rebrand to Traefik Pro Stack with modernized UI assets, improved Favicon/manifest support, and automated secure Grafana password generation. (e33a549)
+- refactor: clean up footer layout and remove redundant spacing in update notification badges (58179ff)
+- chore(scripts): optimize update.sh to use make start instead of make restart (a8dc765)
+
 ## v2026.05.23.5 (2026-05-23)
 
 - chore: update gitignore to ignore tldextract cache files (d91a80e)
