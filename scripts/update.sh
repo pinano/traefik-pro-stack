@@ -45,15 +45,15 @@ fi
 git checkout "$LATEST_TAG" --quiet
 echo "Success: Codebase updated to $LATEST_TAG."
 echo ""
-read -p "Do you want to apply these changes and restart the stack now? [y/N] " -n 1 -r
+read -p "Do you want to apply these changes now? [y/N] " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo "Rebuilding and restarting..."
+    echo "Rebuilding and starting..."
     make rebuild
-    make restart
+    make start
     echo "Stack updated successfully!"
 else
     echo "Note: To apply these changes manually later, run:"
     echo "  make rebuild"
-    echo "  make restart"
+    echo "  make start"
 fi
