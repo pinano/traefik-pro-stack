@@ -26,7 +26,7 @@ services:
     volumes:
       - ./VERSION:${DASHBOARD_APP_PATH_HOST}/VERSION:ro
       - ./domains.csv:${DASHBOARD_APP_PATH_HOST}/domains.csv
-      - ./.env:${DASHBOARD_APP_PATH_HOST}/.env
+      - ./.env:${DASHBOARD_APP_PATH_HOST}/.env:ro
       - ./.env.dist:${DASHBOARD_APP_PATH_HOST}/.env.dist:ro
       - ./scripts:${DASHBOARD_APP_PATH_HOST}/scripts:ro
       - ./docker-compose-edge.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-edge.yaml:ro
@@ -48,6 +48,8 @@ services:
       - "traefik.http.middlewares.dashboard-auth.forwardauth.address=http://dashboard:5000/auth-check"
       - "traefik.http.middlewares.dashboard-auth.forwardauth.trustForwardHeader=true"
       - "traefik.http.middlewares.dashboard-auth.forwardauth.maxResponseBodySize=1048576" # 1MB cap
+      # Pass the authenticated user identity to downstream services (e.g. Grafana Auth Proxy)
+      - "traefik.http.middlewares.dashboard-auth.forwardauth.authResponseHeaders=X-Webauth-User,X-Webauth-Role"
       # 2. Error Page: Redirects 401 and 403 to /login
       - "traefik.http.middlewares.dashboard-error.errors.status=401-403"
       - "traefik.http.middlewares.dashboard-error.errors.service=dashboard@docker"

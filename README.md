@@ -1,8 +1,19 @@
-# Ironclad Anti-DDoS & Anti-Bot Stack
+<div align="center">
 
-**Traefik + CrowdSec + Anubis + Grafana (LGT Stack)**
+<img src="config/dashboard/static/badge-round.png" alt="Traefik Pro Stack Mission Badge" width="220">
 
-> **Automated, resource-efficient protection for multi-domain Docker environments and legacy web servers.**
+# Traefik Pro Stack
+
+**Your web. Locked down, lit up, production-ready.**
+
+*Traefik + CrowdSec + Anubis + Grafana · Full-stack anti-DDoS & anti-bot infrastructure for multi-domain Docker environments.*
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Traefik](https://img.shields.io/badge/Traefik-v3.x-informational?logo=traefikproxy)](https://doc.traefik.io/traefik/)
+[![CrowdSec](https://img.shields.io/badge/CrowdSec-enabled-success?logo=crowdsec)](https://crowdsec.net)
+[![Docker](https://img.shields.io/badge/Docker-Compose-blue?logo=docker)](https://docs.docker.com/compose/)
+
+</div>
 
 ---
 
@@ -472,8 +483,8 @@ TRAEFIK_BAD_USER_AGENTS="(?i).*nikto.*,(?i).*sqlmap.*,(?i).*nmap.*,(?i).*masscan
 
 **Access levels explained:**
 
-- **SSO (Dashboard credentials)**: Grants **read-only Viewer** access to Grafana. Sufficient for viewing dashboards.
-- **Grafana admin credentials**: Grants **full admin access** to Grafana for adding datasources, editing dashboards, and managing users.
+- **SSO (Dashboard credentials)**: Grants **full Admin** access to Grafana via Auth Proxy SSO. No separate Grafana login is needed — authentication is handled transparently by the dashboard.
+- **Grafana admin credentials** (`GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD`): Available as a direct login fallback (emergency access if the dashboard SSO is unavailable).
 
 #### System Managed Variables
 
@@ -850,8 +861,8 @@ Four pre-provisioned dashboards are loaded automatically:
 | **Node Exporter** | Prometheus | CPU, RAM, disk I/O, network, filesystem health |
 
 **Access levels:**
-- `https://dashboard.<domain>/grafana` — SSO login grants **read-only Viewer** access.
-- Use `GRAFANA_ADMIN_USER` + `GRAFANA_ADMIN_PASSWORD` directly in Grafana for full admin access.
+- `https://dashboard.<domain>/grafana` — SSO login grants **full Admin** access via Auth Proxy (no separate Grafana login needed).
+- Use `GRAFANA_ADMIN_USER` + `GRAFANA_ADMIN_PASSWORD` for direct emergency access.
 
 ---
 

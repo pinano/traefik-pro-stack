@@ -10,13 +10,13 @@
         const currentVersion = "{{ app_version }}".trim();
         if (currentVersion && currentVersion !== "Unknown") {
             const cacheBuster = new Date().getTime();
-            fetch(`https://raw.githubusercontent.com/pinano/traefik-crowdsec-anubis-grafana/main/VERSION?t=${cacheBuster}`, { cache: "no-store" })
+            fetch(`https://raw.githubusercontent.com/pinano/traefik-pro-stack/main/VERSION?t=${cacheBuster}`, { cache: "no-store" })
                 .then(response => response.ok ? response.text() : Promise.reject("Fetch failed"))
                 .then(latest => {
                     const latestVersion = latest.trim();
                     const badge = document.getElementById('update-badge');
                     if (badge && latestVersion && latestVersion !== currentVersion) {
-                        badge.innerHTML = `<span style="color: var(--warning-color);">(Update available: ${latestVersion} - <a href="https://github.com/pinano/traefik-crowdsec-anubis-grafana/blob/main/CHANGELOG.md" target="_blank" style="color: var(--warning-color); text-decoration: underline;">changelog</a>)</span>`;
+                        badge.innerHTML = `<span style="color: var(--warning-color);">(Update available: ${latestVersion} - <a href="https://github.com/pinano/traefik-pro-stack/blob/main/CHANGELOG.md" target="_blank" style="color: var(--warning-color); text-decoration: underline;">changelog</a>)</span>`;
                     } else if (badge && latestVersion === currentVersion) {
                         badge.innerHTML = `<span style="color: var(--success-color);">(Latest)</span>`;
                     }

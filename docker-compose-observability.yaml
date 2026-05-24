@@ -12,8 +12,18 @@ services:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
       - GF_USERS_ALLOW_SIGN_UP=false # Important: Disallow user registration
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      # --- Auth Proxy (SSO Integration) ---
+      # Any request that reaches Grafana has already been authenticated by the dashboard SSO
+      # (Traefik forwardAuth → /auth-check). We enable Auth Proxy so Grafana reads the
+      # X-Webauth-User and X-Webauth-Role headers injected by the dashboard, and logs the
+      # user in automatically as Admin — no separate Grafana login needed.
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_AUTH_PROXY_ENABLED=true
+      - GF_AUTH_PROXY_HEADER_NAME=X-Webauth-User
+      - GF_AUTH_PROXY_HEADER_PROPERTY=username
+      - GF_AUTH_PROXY_AUTO_SIGN_UP=true
+      - GF_AUTH_PROXY_HEADERS=Role:X-Webauth-Role
+      # Grafana's login form is still available for direct admin access if needed
       - GF_AUTH_DISABLE_LOGIN_FORM=false
       - GF_UNIFIED_ALERTING_ENABLED=true
       - GF_ALERTING_ENABLED=false

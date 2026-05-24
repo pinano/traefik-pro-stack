@@ -159,10 +159,7 @@ validate_env() {
     # 5. Check for trivial default passwords (only for staging/production)
     if [ "$TRAEFIK_ACME_ENV_TYPE" != "local" ]; then
         local trivial_passwords=0
-        if [ "$GRAFANA_ADMIN_PASSWORD" = "password" ] || [ "$GRAFANA_ADMIN_PASSWORD" = "admin" ]; then
-            echo "⚠️  Warning: GRAFANA_ADMIN_PASSWORD is set to a trivial value."
-            trivial_passwords=$((trivial_passwords + 1))
-        fi
+
         if [ "$DASHBOARD_ADMIN_PASSWORD" = "password" ] || [ "$DASHBOARD_ADMIN_PASSWORD" = "admin" ]; then
             echo "⚠️  Warning: DASHBOARD_ADMIN_PASSWORD is set to a trivial value."
             trivial_passwords=$((trivial_passwords + 1))
@@ -256,6 +253,17 @@ if [ -z "$REDIS_PASSWORD" ] || [ "$REDIS_PASSWORD" == "REPLACE_ME" ]; then
     NEW_REDIS_PASS=$(openssl rand -base64 20 | tr -dc 'a-zA-Z0-9' | head -c 20)
     update_env_var "REDIS_PASSWORD" "$NEW_REDIS_PASS"
     export REDIS_PASSWORD="$NEW_REDIS_PASS"
+    set -a
+    source .env
+    set +a
+fi
+
+# Grafana Admin Password (auto-generate on first run)
+if [ -z "$GRAFANA_ADMIN_PASSWORD" ] || [ "$GRAFANA_ADMIN_PASSWORD" == "password" ] || [ "$GRAFANA_ADMIN_PASSWORD" == "admin" ]; then
+    echo "   🔄 Generating secure Grafana admin password..."
+    NEW_GRAFANA_PASS=$(openssl rand -base64 20 | tr -dc 'a-zA-Z0-9' | head -c 20)
+    update_env_var "GRAFANA_ADMIN_PASSWORD" "$NEW_GRAFANA_PASS"
+    export GRAFANA_ADMIN_PASSWORD="$NEW_GRAFANA_PASS"
     set -a
     source .env
     set +a
@@ -722,7 +730,7 @@ if [[ "$DASHBOARD_INTERNAL" == "true" ]]; then
     find ./config/traefik -type f -name "*.json" -exec chmod 600 {} \; # acme.json needs 600
     chmod 644 ./domains.csv
     if [ -f "./config/crowdsec/captcha_keys.csv" ]; then
-        chmod 666 ./config/crowdsec/captcha_keys.csv
+        chmod 640 ./config/crowdsec/captcha_keys.csv  # 640: owner rw, group r — not world-writable
     fi
     
     # Ensure acme.json is strictly 600 (override the find above if needed, though find catches json)

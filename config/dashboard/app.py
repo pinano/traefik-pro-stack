@@ -157,9 +157,12 @@ def check_csrf():
     if request.endpoint == 'login':
         return
     
-    # Standard POST check
+    # Standard POST check: accept token from header (AJAX) or form body (traditional forms)
     if request.method == "POST":
-        token = request.headers.get('X-CSRFToken')
+        token = (
+            request.headers.get('X-CSRFToken')
+            or request.form.get('csrf_token')
+        )
         if not token or token != session.get('csrf_token'):
             return jsonify({'error': 'CSRF token missing or invalid'}), 403
 
@@ -840,19 +843,33 @@ def login():
     log.debug(f"LOGIN GET: Next={next_url}")
     return render_template('login.html', domain=DOMAIN, dashboard_subdomain=DASHBOARD_SUBDOMAIN, next=next_url)
 
-@app.route('/logout')
+@app.route('/logout', methods=['POST'])
 def logout():
+    """Log out the current session.
+
+    Requires a POST with a valid CSRF token to prevent CSRF-logout attacks
+    (an attacker could otherwise embed a link that silently logs the admin out).
+    The CSRF token is validated by the global check_csrf() before_request hook.
+    """
     session.pop('logged_in', None)
     return redirect(url_for('login'))
+
 @app.route('/auth-check')
 @limiter.exempt
 def auth_check():
     """
     Forward Auth endpoint for Traefik.
     Returns 200 if user is logged in, 401 otherwise.
+
+    When authenticated, also returns X-Webauth-User and X-Webauth-Role headers.
+    Traefik is configured with authResponseHeaders to forward these downstream
+    (e.g. to Grafana Auth Proxy, which auto-logs the user in as Admin).
     """
     if session.get('logged_in'):
-        return Response("OK", status=200)
+        resp = Response("OK", status=200)
+        resp.headers['X-Webauth-User'] = ADMIN_USER
+        resp.headers['X-Webauth-Role'] = 'Admin'
+        return resp
     return Response("Unauthorized", status=401)
 
 @app.route('/')

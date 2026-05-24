@@ -5,7 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ domain }} - CAPTCHA Keys</title>
-    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link
         href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,300;0,400;0,700;1,300&display=swap"
@@ -28,18 +32,23 @@
     <div class="container">
         <header>
             <div class="logo">
-                <div class="logo-title-row">
-                    <a href="{{ url_for('dashboard') }}" class="back-link" title="Back to Dashboard">
-                        <i data-lucide="arrow-left"></i>
-                    </a>
-                    <h1>Captcha Keys</h1>
-                </div>
-                <div class="logo-subtitles">
-                    <span>{{ domain }}</span>
-                    <span class="subtitle-separator">|</span>
+                <div>
+                    <div class="logo-title-row">
+                        <a href="{{ url_for('dashboard') }}" class="back-link" title="Back to Dashboard">
+                            <i data-lucide="arrow-left"></i>
+                        </a>
+                        <h1 style="display: flex; align-items: baseline; gap: 0.5rem;">
+                            Traefik Pro Stack
+                            <span style="font-size: 1.1rem; color: var(--text-muted); font-weight: 400;">/ CAPTCHA Keys</span>
+                        </h1>
+                    </div>
+                    <div class="logo-subtitles" style="margin-top: 0.1rem;">
+                        <span>{{ domain }}</span>
+                        <span class="subtitle-separator">|</span>
                     <button id="help-btn" class="subtitle-link help-link-btn" title="Usage Instructions">
                         <i data-lucide="help-circle"></i> Interface Help
                     </button>
+                </div>
                 </div>
             </div>
             <div class="actions">
@@ -52,9 +61,12 @@
                 <a href="#" id="theme-toggle" class="btn btn-secondary btn-icon-only" title="Toggle Theme">
                     <i id="theme-icon" data-lucide="moon"></i>
                 </a>
-                <a href="{{ url_for('logout') }}" class="btn btn-secondary">
-                    <i data-lucide="log-out"></i> Logout
-                </a>
+                <form method="POST" action="{{ url_for('logout') }}" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-secondary" id="logout-btn">
+                        <i data-lucide="log-out"></i> Logout
+                    </button>
+                </form>
             </div>
         </header>
 

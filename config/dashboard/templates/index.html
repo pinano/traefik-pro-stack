@@ -5,7 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ domain }} - Dashboard</title>
-    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/png">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link
         href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,300;0,400;0,700;1,300&display=swap"
@@ -18,18 +22,31 @@
     <div class="container">
         <header>
             <div class="logo">
-                <h1>{{ domain }}</h1>
-                <div class="logo-subtitles">
-                    <span>Dashboard</span>
+                <div>
+                    <div class="logo-title-row">
+                        <span class="back-link" style="cursor: default;">
+                            <i data-lucide="home"></i>
+                        </span>
+                        <h1 style="display: flex; align-items: baseline; gap: 0.5rem;">
+                            Traefik Pro Stack
+                            <span style="font-size: 1.1rem; color: var(--text-muted); font-weight: 400;">/ Dashboard</span>
+                        </h1>
+                    </div>
+                    <div class="logo-subtitles" style="margin-top: 0.1rem;">
+                        <span>{{ domain }}</span>
+                    </div>
                 </div>
             </div>
             <div class="actions">
                 <a href="#" id="theme-toggle" class="btn btn-secondary btn-icon-only" title="Toggle Theme">
                     <i id="theme-icon" data-lucide="moon"></i>
                 </a>
-                <a href="{{ url_for('logout') }}" class="btn btn-secondary">
-                    <i data-lucide="log-out"></i> Logout
-                </a>
+                <form method="POST" action="{{ url_for('logout') }}" style="display:inline;">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-secondary" id="logout-btn">
+                        <i data-lucide="log-out"></i> Logout
+                    </button>
+                </form>
             </div>
         </header>
 
@@ -122,7 +139,7 @@
                 </a>
 
                 <!-- Documentation -->
-                <a href="https://github.com/pinano/traefik-crowdsec-anubis-grafana" target="_blank" class="app-card">
+                <a href="https://github.com/pinano/traefik-pro-stack" target="_blank" class="app-card">
                     <i data-lucide="book-open" class="app-icon" style="color: #ec4899;"></i>
                     <h2 class="app-title">Documentation <i data-lucide="external-link"
                             style="width: 1.1rem; height: 1.1rem; display: inline-block; vertical-align: middle; margin-left: 0.35rem; opacity: 0.6;"></i>
