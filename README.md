@@ -24,18 +24,20 @@
 ## Table of Contents
 1. [Overview and Core Capabilities](#overview-and-core-capabilities)
 2. [System Architecture and Component Design](#system-architecture-and-component-design)
-3. [Prerequisites and System Preparation](#prerequisites-and-system-preparation)
-4. [Step-by-Step Quick Start Guide](#step-by-step-quick-start-guide)
-5. [Comprehensive Repository Layout](#comprehensive-repository-layout)
-6. [Security Model and Border Middleware Flow](#security-model-and-border-middleware-flow)
-7. [CrowdSec AppSec WAF and Custom Scenarios](#crowdsec-appsec-waf-and-custom-scenarios)
-8. [Operational Automation Scripts](#operational-automation-scripts)
-9. [Detailed Environment Variables Configuration](#detailed-environment-variables-configuration)
-10. [Domain Routing Inventory Design](#domain-routing-inventory-design)
-11. [Makefile Administration Command Registry](#makefile-administration-command-registry)
-12. [Special Operational Modes](#special-operational-modes)
-13. [FAQ and Operational Troubleshooting](#faq-and-operational-troubleshooting)
-14. [License](#license)
+3. [Port and Interface Allocations](#port-and-interface-allocations)
+4. [Prerequisites and System Preparation](#prerequisites-and-system-preparation)
+5. [Step-by-Step Quick Start Guide](#step-by-step-quick-start-guide)
+6. [Comprehensive Repository Layout](#comprehensive-repository-layout)
+7. [Security Model and Border Middleware Flow](#security-model-and-border-middleware-flow)
+8. [CrowdSec AppSec WAF and Custom Scenarios](#crowdsec-appsec-waf-and-custom-scenarios)
+9. [Operational Automation Scripts](#operational-automation-scripts)
+10. [Detailed Environment Variables Configuration](#detailed-environment-variables-configuration)
+11. [Domain Routing Inventory Design](#domain-routing-inventory-design)
+12. [Makefile Administration Command Registry](#makefile-administration-command-registry)
+13. [Release and Upgrade Pipeline](#release-and-upgrade-pipeline)
+14. [Special Operational Modes](#special-operational-modes)
+15. [FAQ and Operational Troubleshooting](#faq-and-operational-troubleshooting)
+16. [License](#license)
 
 ---
 
@@ -150,6 +152,31 @@ flowchart TD
     SysCheck -->|Hardware Overload Warning| Telegram
     TraefikCheck -->|Router Drift Warning| Telegram
 ```
+
+---
+
+## Port and Interface Allocations
+
+To ensure network isolation and avoid socket binding conflicts, the stack maps services to the following default ports. Public access is filtered strictly through Traefik ports `80` and `443` on the host, while internal services are exposed only inside the isolated Docker network namespaces:
+
+| Service | Internal Port | External Host Port | Scope / Network | Description |
+|:---|:---|:---|:---|:---|
+| `traefik` | `80`, `443` | `80`, `443` (TCP/UDP) | `traefik` / Host | Public HTTP, HTTPS, and HTTP/3 boundary |
+| `traefik-api` | `8080` | None | `traefik` (isolated) | Traefik internal API and dashboard |
+| `dashboard` | `5000` | None | `traefik` (SSO auth-check) | Flask Admin Dashboard and SSO validation |
+| `crowdsec-lapi` | `8080` | None | `traefik` | Local API engine for log parsing alerts |
+| `crowdsec-appsec` | `7422` | None | `traefik` | Inline AppSec WAF payload inspection |
+| `crowdsec-web-ui` | `3000` | None | `traefik` | Management dashboard UI for CrowdSec |
+| `redis` (Cache) | `6379` | None | `traefik` & `anubis-backend` | Valkey cache server (DB 0: Bans, DB 1: PoW sessions) |
+| `redis-exporter` | `9121` | None | `traefik` | Metric exporter for Prometheus scraping |
+| `anubis-base` | `8080` | None | `traefik` & `anubis-backend` | Proof-of-Work challenge verification instances |
+| `anubis-assets` | `80` | None | `traefik` | Static file delivery for PoW challenge layouts |
+| `grafana` | `3000` | None | `traefik` | Telemetry dashboards and alert provisioning |
+| `prometheus` | `9090` | None | `traefik` | Metrics TSDB and scrapers |
+| `loki` | `3100` | None | `traefik` | Log archive aggregation database |
+| `alloy` | `12345` | None | `traefik` / Host logs | Grafana Alloy collector service |
+| `dozzle` | `8080` | None | `traefik` | Container logs web console viewer |
+| `apache-host` | `8080` | `8080` | Host Network | Legacy Apache web service running on the host |
 
 ---
 
@@ -320,6 +347,9 @@ This section details the layout of the project, including configuration files, t
 └── docker-compose-*.yaml                  # Modular Compose files divided by service areas
 ```
 
+> [!IMPORTANT]
+> The dynamic files listed in `.gitignore` (such as `acquis.yaml`, `profiles.yaml`, `docker-compose-anubis-generated.yaml`, `traefik-generated.yaml`, `redis-generated.conf`, and `botPolicy-generated.yaml`) are built on every boot sequence. Do not modify these files directly as they are overwritten by `make start`. Make changes inside the `.dist` files or generator templates instead.
+
 ---
 
 ## Security Model and Border Middleware Flow
@@ -357,7 +387,7 @@ flowchart TD
 
 ### SSO Forward Authentication Protocol
 
-To protect internal administrative components (such as Grafana, Dozzle, and the Traefik dashboard), the Flask admin portal acts as a ForwardAuth provider. Traefik intercepts incoming admin queries and routes them through a validation sequence:
+To protect internal administrative components (such as Grafana, Dozzle, and the Traefik dashboard), the Flask dashboard acts as a ForwardAuth provider. Traefik intercepts incoming admin queries and routes them through a validation sequence:
 
 ```mermaid
 sequenceDiagram
@@ -422,6 +452,9 @@ The WAF settings are integrated into the automated startup pipeline:
 *   **Fail-Open WAF Operations**: In line with the stack's resilience goals, WAF checks are configured as fail-open by default (`crowdsecAppsecFailureBlock: false` and `crowdsecAppsecUnreachableBlock: false` inside `generate-config.py`). If the AppSec daemon experiences extreme load or crashes, traffic continues to route normally without generating false-positive service outages.
 *   **Immediate Remediation Profiles**: While standard HTTP behavior anomalies (such as brute force or rapid scanning) trigger temporary CAPTCHA challenges to allow human recovery, AppSec WAF triggers bypass CAPTCHAs. In `config/crowdsec/profiles.yaml`, the captcha rule filters out AppSec triggers (`!(Alert.GetScenario() contains "appsec")`), sending WAF matches directly to the aggressive 24-hour IP ban remediation, as payload vulnerabilities represent high-confidence attack signatures.
 
+> [!WARNING]
+> If you register custom site key mappings inside `config/crowdsec/captcha_keys.csv` but fail to add the domain to the widget console settings on Cloudflare Turnstile or hCaptcha, the CAPTCHA script will block users with an unsolvable site-key configuration error.
+
 ### Custom Rate-Limit Flood Scenario (Leaky Bucket)
 
 To complement Traefik's application-level rate limiting, the stack incorporates a custom behavioral scenario: `custom/traefik-flood-429`.
@@ -443,7 +476,6 @@ The `traefik-flood-429` scenario bridges this gap by scanning Traefik's access l
 * **Default Lenient Settings**: Out of the box, the scenario template (`traefik-flood-429.yaml.dist`) is tuned to `capacity: 50` and `leakspeed: 1s`. This prevents false positives during normal AJAX-heavy dashboard actions (such as WordPress updates) while ensuring aggressive automated scanners are quickly banned.
 * **Disabling the Scenario**: If your site uses highly concurrent or non-cached AJAX operations that trigger false bans, you can disable the scenario by setting `CROWDSEC_RATE_LIMIT_BAN_ENABLE=false` in `.env`.
 * **Rate Limits Optimization**: Rather than relaxing Traefik's global limits in `.env` (which might expose other services), it is recommended to apply custom rate, burst, and concurrency parameters in `domains.csv` specifically for AJAX-heavy subdomains.
-
 
 ---
 
@@ -544,6 +576,9 @@ These variables control system behaviors, resource limits, timeouts, and notific
 | `DASHBOARD_ADMIN_USER` | Dashboard | `admin` | SSO and portal master admin username. |
 | `DASHBOARD_ADMIN_PASSWORD` | Dashboard | `password` | SSO and portal master admin password. Update before deploying. |
 
+> [!CAUTION]
+> Setting a high HSTS Max Age value (`TRAEFIK_HSTS_MAX_AGE`) before confirming that SSL/TLS certificates solve and renew successfully can permanently lock out clients from accessing your web applications for up to one year. Always verify staging and production HTTPS handshakes with a low HSTS value first.
+
 ---
 
 ## Domain Routing Inventory Design
@@ -620,11 +655,39 @@ The Makefile provides command wrappers to simplify stack administration:
 *   `make backup`: Generates a timestamped tarball file inside `./backups/` capturing environment settings and certificates, excluding heavy databases.
 *   `make restore file=[PATH]`: Overwrites current configs and restores settings from a backup tarball file.
 
+Example cron job to automate backups daily at 02:00 AM:
+```cron
+0 2 * * * cd /path/to/traefik-stack && make backup > /dev/null 2>&1
+```
+
+Example command to restore a specific backup tarball file:
+```bash
+make restore file=backups/traefik-stack_20260525_220000.tar.gz
+```
+
 ### Maintenance & Reset
 
 *   `make maintenance-on`: Intercepts all public traffic and serves the maintenance template.
 *   `make maintenance-off`: Restores normal traffic routing.
 *   `make clean`: Deletes generated dynamic configurations and backs up `acme.json` (requires manual confirmation).
+
+---
+
+## Release and Upgrade Pipeline
+
+The stack utilizes Calendar Versioning (CalVer) with the format `YYYY.MM.DD` to manage upgrades and release tags:
+
+```mermaid
+flowchart TD
+    dev[Code Updates] --> release["make release (Build changelogs & tag git)"]
+    release --> push[Push Tags to GitHub]
+    push --> prod_update["make update (Fetch tags & checkout production)"]
+    prod_update --> apply["Auto-apply dynamic reloads"]
+```
+
+*   **Generating a Release (`make release`)**: Executed on developmental branches. It validates the git logs, updates the local `VERSION` file, writes the changes to `CHANGELOG.md`, commits the version changes, and creates a matching git tag.
+*   **Upgrading Production (`make update`)**: Executed on the production host. It pulls the latest tags from the remote repository, lists the available releases, and checks out the selected CalVer release tag. It prevents pulling untagged raw developmental commits into production.
+*   **Reversing a Release (`make rollback`)**: Allows the administrator to rollback the production server to any of the 10 most recent tags interactively, reloading the stack services instantly.
 
 ---
 
@@ -679,7 +742,9 @@ To route traffic to a web server (such as Apache or PHP-FPM) running directly on
     sudo chown -R 10001:10001 ./data/loki
     sudo chown -R 65534:65534 ./data/prometheus
     ```
-    *(Note: If sudo is unavailable on the host, the start script falls back to `chmod 777` on these data volumes to ensure the services can write logs/metrics).*
+    
+> [!NOTE]
+> If `chown` permissions commands fail on host systems without `sudo` access, the startup script automatically applies a fallback of `chmod 777` on the `./data/` directories to ensure the container services can write logs and databases.
 
 ---
 
