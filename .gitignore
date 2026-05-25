@@ -19,6 +19,8 @@ config/crowdsec/parsers/ip-whitelist.yaml
 config/crowdsec/acquis.yaml
 config/crowdsec/profiles.yaml
 config/redis/redis-generated.conf
+config/crowdsec/scenarios/traefik-flood-429.yaml
+
 
 # Traefik certificates
 config/traefik/acme.json

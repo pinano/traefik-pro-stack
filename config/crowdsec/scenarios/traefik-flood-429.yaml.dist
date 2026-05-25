@@ -3,8 +3,7 @@
 # =============================================================================
 # Detects IPs that repeatedly trigger Traefik's rate limiter (429 responses).
 # This fills the gap where AppSec/LAPI don't act on rate-limited traffic.
-# An IP generating 30+ rate-limited requests in a short window is clearly
-# scanning or attacking — ban it for 24h.
+# An IP generating 50+ rate-limited requests in a tight window is blocked.
 # =============================================================================
 
 type: leaky
@@ -12,8 +11,8 @@ name: custom/traefik-flood-429
 description: "IP flooding Traefik and repeatedly hitting rate limits (429)"
 filter: "evt.Meta.log_type == 'http_access-log' && evt.Meta.http_status == '429'"
 groupby: evt.Meta.source_ip
-capacity: 60
-leakspeed: "5s"
+capacity: 50
+leakspeed: "1s"
 blackhole: 15m
 labels:
   service: traefik

@@ -68,44 +68,70 @@ The stack relies on network segregation and credential isolation. Containers are
 
 ### Component Inter-Connectivity Model
 
+The system components interact across network namespaces and host mount boundaries. This ensures that security tools have low-latency access to cache stores while maintaining strict service segregation:
+
 ```mermaid
 flowchart TD
-    subgraph traefik_network ["External Network: traefik"]
-        Traefik[Traefik Edge Router]
-        Dashboard[Admin Dashboard / SSO Flask]
-        CrowdSec[CrowdSec LAPI / AppSec WAF]
-        Redis[Valkey / Redis Cache]
-        Dozzle[Dozzle Log Viewer]
-        Alloy[Grafana Alloy Collector]
-        Prometheus[Prometheus Metrics]
-        Loki[Loki Log Storage]
-        Grafana[Grafana Dashboards & Alerts]
-        Watchdog[Watchdog Monitor]
-    end
-    
-    subgraph anubis_network ["Internal Network: anubis-backend"]
-        Anubis1[Anubis Instance 1]
-        Anubis2[Anubis Instance 2]
-        RedisInternal[Valkey / Redis Cache]
+    subgraph Host_Network ["Host Machine Boundaries"]
+        DockerSock["/var/run/docker.sock (Host Docker Socket)"]
+        ApacheHost["Legacy Host Apache/PHP (Port 8080)"]
+        DockerLogs["/var/lib/docker/containers/* (JSON Logs)"]
     end
 
-    Internet[Internet / Public Clients] -->|Ports 80, 443| Traefik
-    Traefik <-->|SSO Auth Check| Dashboard
-    Traefik <-->|AppSec WAF / LAPI Check| CrowdSec
-    CrowdSec <-->|Bans Cache DB 0| Redis
-    Traefik <-->|ForwardAuth PoW Check| Anubis1
-    Anubis1 <-->|PoW Sessions DB 1| RedisInternal
+    subgraph traefik_network ["Docker Bridged Network: traefik"]
+        Traefik["Traefik v3.7.1 (Ports 80 & 443)"]
+        Dashboard["Flask Admin Dashboard (Port 5000)"]
+        CrowdSec["CrowdSec Agent & LAPI (Port 8080)"]
+        AppSec["AppSec WAF Listener (Port 7422)"]
+        RedisBans["Valkey/Redis Cache DB 0 (Port 6379)"]
+        Alloy["Grafana Alloy Log & Metric Collector"]
+        Loki["Loki Log Database (Port 3100)"]
+        Prometheus["Prometheus TSDB (Port 9090)"]
+        Grafana["Grafana Dashboards (Port 3000)"]
+        Watchdog["Watchdog Health Checker Container"]
+    end
+
+    subgraph anubis_network ["Docker Isolated Network: anubis-backend"]
+        Anubis1["Anubis Instance 1 (Port 8080)"]
+        Anubis2["Anubis Instance 2 (Port 8080)"]
+        RedisSessions["Valkey/Redis Cache DB 1 (Port 6379)"]
+    end
+
+    Internet["Internet Clients"] -->|Port 80 / 443| Traefik
     
-    Alloy -->|Logs Scraping| Loki
-    Alloy -->|Metrics Scraping| Prometheus
-    Prometheus --> Grafana
-    Loki --> Grafana
+    %% Traefik Security Loop
+    Traefik <-->|Query bans & decisions| CrowdSec
+    Traefik <-->|Forward raw HTTP bodies| AppSec
+    CrowdSec <-->|Low-latency read/write| RedisBans
     
-    Watchdog -->|System Health Alerts| Telegram[Telegram Bot API]
-    Grafana -->|Metrics Alerts| Telegram
+    %% Traefik SSO ForwardAuth
+    Traefik <-->|Forward admin requests /auth-check| Dashboard
+    
+    %% Traefik Bot Verification
+    Traefik <-->|ForwardAuth verification check| Anubis1
+    Anubis1 <-->|Read/write challenge tokens| RedisSessions
+    
+    %% Traefik Routing Targets
+    Traefik -->|Proxy requests| Dashboard
+    Traefik -->|Proxy requests| Grafana
+    Traefik -->|Proxy requests| ApacheHost
+    
+    %% Telemetry Gathering
+    DockerSock -.->|ReadOnly Mount| Traefik
+    DockerSock -.->|ReadOnly Mount| Alloy
+    DockerSock -.->|ReadOnly Mount| Watchdog
+    DockerSock -.->|ReadOnly Mount| CrowdSec
+    DockerLogs -.->|ReadOnly Mount| Alloy
+    
+    Alloy -->|Push metrics| Prometheus
+    Alloy -->|Push log streams| Loki
+    Prometheus -->|Scrape queries| Grafana
+    Loki -->|LogQL queries| Grafana
+    
+    %% Alert pipelines
+    Watchdog -->|Telegram Webhook API| Telegram["Telegram API"]
+    Grafana -->|Telegram Webhook API| Telegram
 ```
-
-In this layout, the client's request enters Traefik via ports 80 or 443. Traefik coordinates with the CrowdSec container (via a custom plugin) and the Anubis instances (via ForwardAuth headers) to evaluate the request. Once verified, the request is routed either to a container on the traefik network or to the host loopback gateway if it is pointing to a legacy non-containerized application.
 
 ### Watchdog Diagnostics Subsystem
 
@@ -300,37 +326,62 @@ This section details the layout of the project, including configuration files, t
 
 To protect backend services, incoming requests must pass through a multi-tier security filter enforced by Traefik's routing engine.
 
-### Border Middleware Sequence
+### Border Router Evaluation Pipeline
 
-1.  **User-Agent Filtering (Priority 12000)**: Incoming requests are matched against the bad User-Agent regex patterns defined in the environment. Matching requests are immediately dropped with a `403 Forbidden` response at the edge, before invoking any downstream plugins or authorization layers.
-2.  **IPS Stream and WAF Inspection (CrowdSec Bouncer)**: The client IP is checked against CrowdSec's memory database (which is synchronized with Redis to ensure low latency). If the IP has been banned, the request is blocked. If the IP requires verification (due to anomalous behavior), they are redirected to a CAPTCHA verification page. Additionally, if AppSec WAF is enabled, the request payload is inspected for malicious patterns (e.g., SQLi, XSS). If a threat is detected, the request is blocked.
-3.  **Slowloris Buffer Mitigation**: Requests pass through a buffering middleware that caps the maximum size of request bodies and buffers header blocks in RAM (up to 2MB). This prevents slow-connection attacks (Slowloris) from exhausting Traefik's thread pool.
-4.  **Browser Security Header Injection**: Injects standard headers, including HTTP Strict Transport Security (HSTS), frame-ancestor rules to prevent clickjacking, X-Content-Type-Options to block MIME sniffing, and custom Content Security Policies (CSP).
-5.  **Rate Limiting**: Checks request frequency against global or domain-specific thresholds. The stack uses a token bucket algorithm to allow temporary bursts while enforcing long-term averages. Requests exceeding these limits are rejected with an HTTP `429 Too Many Requests` code.
-6.  **Concurrency Connection Limiting**: Caps the maximum number of simultaneous open TCP sockets allowed per client IP, preventing resource exhaustion on backend applications.
-7.  **Bot Challenge Validation (Anubis ForwardAuth)**: Checks for the presence of a valid proof-of-work cookie signed with the stack's private key. If the cookie is missing or invalid, the request is intercepted and redirected to the Anubis challenge portal. Once the client's browser solves the cryptographic puzzle, a signed cookie is issued, and the user is redirected back to the target application.
-8.  **Compression and Delivery**: If the client accepts compressed payloads, Traefik applies GZIP compression before delivering the response.
+When a request arrives on the HTTP/HTTPS interfaces, Traefik evaluates the host headers and paths against the generated routers. The rule evaluation respects strict priority rankings:
+
+```mermaid
+flowchart TD
+    Request["Incoming Request (websecure entryPoint)"] --> RouteCheck{"Does Host match any inventory FQDN?"}
+    RouteCheck -->|No| Drop["Default 404 Page (Drop Connection)"]
+    
+    RouteCheck -->|Yes| PriorityCheck{"Evaluate Router Rule & Priority"}
+    
+    PriorityCheck -->|Priority 15000: Good User-Agent| GoodUARoute["Good User-Agent Bypass Route"]
+    PriorityCheck -->|Priority 12000: Bad User-Agent| BadUARoute["Bad User-Agent Drop Route"]
+    PriorityCheck -->|Priority 11000: Blocked Path| PathRoute["Blocked Path Drop Route"]
+    PriorityCheck -->|Default: Normal Traffic| MainRoute["Standard Application Route"]
+    
+    %% Block routes
+    BadUARoute -->|Use block-unwanted-user-agents middleware| Drop403["HTTP 403 Forbidden"]
+    PathRoute -->|Use block-unwanted-paths middleware| Drop403
+    
+    %% Bypass route execution
+    GoodUARoute -->|Skip CrowdSec IPS check| MW_Chain_Bypass["Middleware Chain:<br>Slowloris Buffer -> Security Headers -> Rate Limiter -> Concurrency -> Anubis PoW -> Gzip"]
+    MW_Chain_Bypass --> TargetService["Routed Backend (Container / Legacy Host)"]
+    
+    %% Standard route execution
+    MainRoute -->|Include CrowdSec IPS check| MW_Chain_Full["Middleware Chain:<br>CrowdSec -> Slowloris Buffer -> Security Headers -> Rate Limiter -> Concurrency -> Anubis PoW -> Gzip"]
+    MW_Chain_Full --> TargetService
+```
 
 ### SSO Forward Authentication Protocol
 
-To protect internal administrative components, the Flask dashboard serves as a ForwardAuth SSO provider. When a user requests an administrative path, the following exchange is executed:
+To protect internal administrative components (such as Grafana, Dozzle, and the Traefik dashboard), the Flask admin portal acts as a ForwardAuth provider. Traefik intercepts incoming admin queries and routes them through a validation sequence:
 
 ```mermaid
 sequenceDiagram
+    autonumber
     actor Client as Client / Administrator
     participant Traefik as Traefik Proxy
     participant SSO as Dashboard SSO (/auth-check)
     participant Tool as Secured Tool (e.g. Grafana)
     
     Client->>Traefik: Request /grafana
-    Traefik->>SSO: Forward Auth query to dashboard:5000/auth-check
+    Note over Traefik: Matches dashboard subdomain && PathPrefix('/grafana')
+    Traefik->>SSO: GET query to http://dashboard:5000/auth-check
+    Note over SSO: Parses and validates the admin session cookie
+    
     alt Session Cookie is Valid
-        SSO-->>Traefik: HTTP 200 OK + Inject X-Webauth-User & X-Webauth-Role
-        Traefik->>Tool: Forward Request with authenticated header extensions
-        Tool-->>Client: Serve Tool Workspace (Auto login via Auth Proxy)
+        SSO-->>Traefik: HTTP 200 OK<br>Response Headers:<br>X-Webauth-User: admin<br>X-Webauth-Role: Admin
+        Note over Traefik: Injects headers into the downstream request
+        Traefik->>Tool: Forward Request + Auth Headers
+        Note over Tool: GF_AUTH_PROXY_ENABLED = true
+        Tool-->>Client: Serve Tool Workspace (User automatically logged in)
     else Session Cookie is Invalid / Missing
         SSO-->>Traefik: HTTP 401 Unauthorized
-        Traefik->>Client: Redirect to SSO portal /login page
+        Note over Traefik: dashboard-error middleware intercepts 401
+        Traefik->>Client: Redirect (HTTP 302) to Dashboard login page (/login)
     end
 ```
 
@@ -392,12 +443,15 @@ The generation pipeline maps user configurations to the dynamic layers of the st
 
 ```mermaid
 flowchart LR
-    dist[domains.csv] --> generator[generate-config.py]
-    env[.env] --> generator
-    captchas[captcha_keys.csv] --> generator
-    generator -->|Writes Compose Manifest| compose[docker-compose-anubis-generated.yaml]
-    generator -->|Writes Traefik Routing Rules| routers[routers-generated.yaml]
-    routers -->|Dynamic hot reload| Traefik[Traefik Router]
+    dist["domains.csv (Routing Registry)"] --> generator["generate-config.py"]
+    env[".env (Environment Settings)"] --> generator
+    captchas["captcha_keys.csv (API Credentials)"] --> generator
+    
+    generator -->|Writes Compose Manifest| compose["docker-compose-anubis-generated.yaml"]
+    generator -->|Writes Traefik Routing Rules| routers["routers-generated.yaml"]
+    generator -->|Writes Anubis Bot Policy| policy["botPolicy-generated.yaml"]
+    
+    routers -->|Dynamic hot-reload| Traefik["Traefik Edge Router"]
 ```
 
 ---
@@ -408,7 +462,7 @@ The environment configuration is split into system-managed variables and user-co
 
 ### System-Managed Variables
 
-These keys must not be edited manually in the `.env` file, as the startup script regenerates or updates them to ensure system integrity:
+These keys must not be edited manually in the `.env` file, as the startup script automatically updates them on each boot to ensure system integrity:
 
 *   `DASHBOARD_SECRET_KEY`: Used by the Flask dashboard to sign session cookies.
 *   `CROWDSEC_WEB_UI_PASSWORD`: Internal database password for the CrowdSec console client.
@@ -419,36 +473,53 @@ These keys must not be edited manually in the `.env` file, as the startup script
 
 ### User-Configured Variables
 
-These variables control system behaviors and resource limits:
+These variables control system behaviors, resource limits, timeouts, and notification credentials:
 
-| Variable | Description | Recommended Value |
-|:---|:---|:---|
-| `DOMAIN` | Primary root domain name. | `company.com` |
-| `TZ` | System timezone for logs and metrics. | `Europe/Madrid` |
-| `PROJECT_NAME` | Namespace prefix for Compose containers. | `stack` |
-| `ANUBIS_DIFFICULTY` | Cryptographic puzzle difficulty (1-5 scale). | `3` or `4` |
-| `ANUBIS_CPU_LIMIT` | CPU core allocation limit per Anubis instance. | `0.10` |
-| `ANUBIS_MEM_LIMIT` | Memory allocation limit per Anubis instance. | `32M` |
-| `CROWDSEC_ENABLE` | Toggles the CrowdSec IPS firewall. | `true` |
-| `CROWDSEC_APPSEC_ENABLE` | Toggles the Layer-7 WAF payload inspector. | `true` |
-| `CROWDSEC_UPDATE_INTERVAL` | Ban list refresh interval in seconds. | `15` |
-| `CROWDSEC_WHITELIST_IPS` | IPs/CIDRs that bypass all firewall blocks. | (comma-separated list) |
-| `TRAEFIK_LISTEN_IP` | Bind address for ports 80 and 443. | `0.0.0.0` |
-| `TRAEFIK_GLOBAL_RATE_AVG` | Default requests/second limit per client IP. | `60` |
-| `TRAEFIK_GLOBAL_RATE_BURST` | Default request burst bucket capacity per client IP. | `120` |
-| `TRAEFIK_GLOBAL_CONCURRENCY` | Default maximum concurrent sockets per client IP. | `25` |
-| `TRAEFIK_TIMEOUT_ACTIVE` | HTTP request active read/write timeout in seconds. | `60` |
-| `TRAEFIK_TIMEOUT_IDLE` | HTTP keep-alive connection timeout in seconds. | `90` |
-| `TRAEFIK_BLOCKED_PATHS` | Path suffixes blocked immediately (403). | `/wp-admin/,/.env` |
-| `TRAEFIK_BAD_USER_AGENTS` | User-Agents blocked immediately (403). | (comma-separated regex) |
-| `TRAEFIK_GOOD_USER_AGENTS` | Trusted User-Agents that bypass stream bans. | (comma-separated regex) |
-| `TRAEFIK_HSTS_MAX_AGE` | HSTS header lifetime in seconds. | `31536000` (1 year) |
-| `TRAEFIK_ACME_ENV_TYPE` | Let's Encrypt environment (`production`/`staging`/`local`). | `production` |
-| `WATCHDOG_TELEGRAM_BOT_TOKEN` | Telegram bot API token for health alerts. | (token from BotFather) |
-| `WATCHDOG_TELEGRAM_RECIPIENT_ID` | Telegram chat/group ID for alerts. | (chat ID number) |
-| `PROMETHEUS_RETENTION_DAYS` | Storage retention duration for metrics. | `15` |
-| `PROMETHEUS_MEM_LIMIT` | Memory threshold limit for Prometheus. | `512M` |
-| `DASHBOARD_SUBDOMAIN` | Subdomain for accessing the admin UI. | `dashboard` |
+| Variable | Scope | Default / Example | Description and Operational Impact |
+|:---|:---|:---|:---|
+| `DOMAIN` | General | `company.com` | Primary root domain name. Used to resolve the admin dashboard URL and identify host systems in Telegram alerts. |
+| `TZ` | General | `Europe/Madrid` | System timezone. Restructures the timestamps in log exports, Grafana Alloy pipelines, and Prometheus cron loops. |
+| `PROJECT_NAME` | General | `stack` | Namespace prefix for Compose containers. Customize if running multiple stack instances on the same host. |
+| `ANUBIS_DIFFICULTY` | Anubis | `4` | Cryptographic puzzle difficulty (1-5 scale). Values of `3` or `4` are recommended. Setting this to `5` will consume high client CPU resources. |
+| `ANUBIS_CPU_LIMIT` | Anubis | `0.10` | CPU core allocation limit per Anubis container (e.g. `0.10` = 10% of a single core). Prevents CPU starvation during bot floods. |
+| `ANUBIS_MEM_LIMIT` | Anubis | `32M` | Memory limits allocated to each Anubis challenge instance. |
+| `CROWDSEC_ENABLE` | CrowdSec | `true` | Toggles the CrowdSec IPS firewall bouncer. Setting to `false` disables the firewall. |
+| `CROWDSEC_UPDATE_INTERVAL` | CrowdSec | `15` | Interval in seconds for the bouncer to pull LAPI decisions. Lowering this increases CPU load; `15` is optimal. |
+| `CROWDSEC_ENROLLMENT_KEY` | CrowdSec | (blank) | Enrollment key to register the local LAPI engine with the CrowdSec SaaS console page. |
+| `CROWDSEC_APPSEC_ENABLE` | CrowdSec | `true` | Toggles the WAF payload inspector on port `7422`. |
+| `CROWDSEC_COLLECTIONS` | CrowdSec | (space-separated) | Space-separated list of scenarios to pull from the hub (e.g., `crowdsecurity/traefik crowdsecurity/sshd crowdsecurity/http-dos`). |
+| `CROWDSEC_WHITELIST_IPS` | CrowdSec | (blank) | Comma-separated list of client IPs or CIDR subnets that bypass all firewall blocks. |
+| `CROWDSEC_CAPTCHA_GRACE_PERIOD` | CrowdSec | `3600` | Period in seconds a user is allowed to navigate after solving a CAPTCHA before re-challenging. |
+| `CROWDSEC_RATE_LIMIT_BAN_ENABLE` | CrowdSec | `true` | Toggles the custom `traefik-flood-429` ban scenario. Set to `false` to prevent false-positive bans due to heavy AJAX requests (e.g. WordPress). |
+| `TRAEFIK_LISTEN_IP` | Traefik | `0.0.0.0` | Bind address for ports 80 and 443. Set to `127.0.0.1` if you use an external load balancer. |
+| `TRAEFIK_GLOBAL_RATE_AVG` | Traefik | `60` | Default requests/second limit per client IP. |
+| `TRAEFIK_GLOBAL_RATE_BURST` | Traefik | `120` | Default request burst bucket capacity per client IP. Controls temporary spikes. |
+| `TRAEFIK_GLOBAL_CONCURRENCY` | Traefik | `25` | Default maximum concurrent sockets per client IP. |
+| `TRAEFIK_TIMEOUT_ACTIVE` | Traefik | `60` | HTTP request active read/write timeout in seconds. |
+| `TRAEFIK_TIMEOUT_IDLE` | Traefik | `90` | HTTP keep-alive connection timeout in seconds. Must be larger than `TRAEFIK_TIMEOUT_ACTIVE`. |
+| `TRAEFIK_BLOCKED_PATHS` | Traefik | (blank) | Comma-separated path suffixes blocked immediately at the proxy perimiter. |
+| `TRAEFIK_BAD_USER_AGENTS` | Traefik | (blank) | Comma-separated User-Agent regex patterns to drop immediately (e.g. `(?i).*curl.*`). |
+| `TRAEFIK_GOOD_USER_AGENTS` | Traefik | (blank) | Comma-separated User-Agent regex patterns allowed to bypass bouncer stream bans. |
+| `TRAEFIK_ACCESS_LOG_BUFFER` | Traefik | `1000` | Number of log entries buffered in RAM before committing disk write actions. |
+| `TRAEFIK_LOG_LEVEL` | Traefik | `INFO` | Traefik internal verbosity logging level (`DEBUG`, `INFO`, `WARN`, `ERROR`). |
+| `TRAEFIK_HSTS_MAX_AGE` | Traefik | `31536000` | HSTS header lifetime in seconds. |
+| `TRAEFIK_FRAME_ANCESTORS` | Traefik | (blank) | Allowed parent URLs allowed to iframe resources (defaults to empty, meaning `SAMEORIGIN` restrictions). |
+| `TRAEFIK_ACME_EMAIL` | Traefik | (blank) | Let's Encrypt email used to notify of certificate expirations. |
+| `TRAEFIK_ACME_ENV_TYPE` | Traefik | `staging` | Let's Encrypt environment (`production`, `staging`, or `local`). |
+| `TRAEFIK_TLS_BATCH_SIZE` | Traefik | `30` | Max domain elements allowed per certificate request to Let's Encrypt. |
+| `WATCHDOG_TELEGRAM_BOT_TOKEN` | Watchdog | (blank) | Telegram bot API token for health alerts. |
+| `WATCHDOG_TELEGRAM_RECIPIENT_ID` | Watchdog | (blank) | Telegram chat/group ID for alerts. |
+| `WATCHDOG_CERT_DAYS_WARNING` | Watchdog | `10` | Certificate threshold days left limit triggers. |
+| `WATCHDOG_DNS_CHECK_INTERVAL` | Watchdog | `21600` | Verification check interval in seconds for DNS validation. |
+| `WATCHDOG_CROWDSEC_CHECK_INTERVAL` | Watchdog | `3600` | Verification check interval in seconds for CrowdSec validation. |
+| `WATCHDOG_SYSTEM_CHECK_INTERVAL` | Watchdog | `300` | Host hardware check interval in seconds. |
+| `WATCHDOG_TRAEFIK_CHECK_INTERVAL` | Watchdog | `300` | Config file scanning drift checks in seconds. |
+| `PROMETHEUS_RETENTION_DAYS` | Telemetry | `15` | Storage retention duration for metrics on disk. |
+| `PROMETHEUS_MEM_LIMIT` | Telemetry | `512M` | Memory threshold limit for Prometheus. |
+| `DASHBOARD_SUBDOMAIN` | Dashboard | `dashboard` | Subdomain for accessing the admin UI. |
+| `DASHBOARD_ANUBIS_SUBDOMAIN` | Dashboard | (blank) | Subdomain prefix for protecting Flask panel via PoW challenges (leave blank to disable). |
+| `DASHBOARD_ADMIN_USER` | Dashboard | `admin` | SSO and portal master admin username. |
+| `DASHBOARD_ADMIN_PASSWORD` | Dashboard | `password` | SSO and portal master admin password. Update before deploying. |
 
 ---
 
@@ -497,7 +568,7 @@ The Makefile provides command wrappers to simplify stack administration:
 *   `make crowdsec-decisions`: Lists active IP bans and durations.
 *   `make crowdsec-alerts`: Lists the history of triggered alert scenarios.
 *   `make crowdsec-ban [IP]`: Manually blocks an IP address for 4 hours.
-*   `make crowdsec-unban [IP]`: Removes a banno or CAPTCHA restriction for an IP.
+*   `make crowdsec-unban [IP]`: Removes a ban or CAPTCHA restriction for an IP.
 *   `make crowdsec-ban-country [ISO_CODE]`: Bans all IP ranges for selected country ISO codes (e.g., `make crowdsec-ban-country CN RU KP`).
 *   `make crowdsec-unban-country [ISO_CODE]`: Removes bans for country ISO ranges.
 *   `make crowdsec-appsec`: Outputs loaded rules and configurations inside the AppSec WAF plugin.

@@ -473,6 +473,26 @@ else
     echo "   ✅ profiles.yaml generated."
 fi
 
+# =============================================================================
+# PHASE 2d: Handle custom scenarios
+# =============================================================================
+SCENARIO_SRC="./config/crowdsec/scenarios/traefik-flood-429.yaml.dist"
+SCENARIO_DST="./config/crowdsec/scenarios/traefik-flood-429.yaml"
+
+if [[ "${CROWDSEC_RATE_LIMIT_BAN_ENABLE:-true}" == "true" ]]; then
+    if [ -f "$SCENARIO_SRC" ]; then
+        # Copy dynamically to ensure update-on-boot works
+        cp "$SCENARIO_SRC" "$SCENARIO_DST"
+        echo "   🛡️ CrowdSec Rate-Limit Ban Scenario is ENABLED."
+    fi
+else
+    if [ -f "$SCENARIO_DST" ]; then
+        rm -f "$SCENARIO_DST"
+    fi
+    echo "   ℹ️ CrowdSec Rate-Limit Ban Scenario is DISABLED."
+fi
+
+
 # Build Compose command with or without CrowdSec profile
 # Enforce project name to avoid conflicts when running from within a container
 COMPOSE_BASE="docker compose"
