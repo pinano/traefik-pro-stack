@@ -49,7 +49,7 @@ services:
   #  REDIS (Session cache for Anubis PoW + CrowdSec ban cache)
   # ===========================
   redis:
-    image: valkey/valkey:9.0.4-alpine
+    image: valkey/valkey:9.1.0-alpine
     command: redis-server /redis.conf
     restart: unless-stopped
     environment:
@@ -69,7 +69,7 @@ services:
   #  REDIS EXPORTER (Metrics for Prometheus)
   # ===========================
   redis-exporter:
-    image: oliver006/redis_exporter:v1.83.0
+    image: oliver006/redis_exporter:v1.84.0
     restart: unless-stopped
     environment:
       - REDIS_ADDR=redis:6379
