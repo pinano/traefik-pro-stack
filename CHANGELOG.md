@@ -1,3 +1,10 @@
+## v2026.05.25.1 (2026-05-25)
+
+- refactor: implement dynamic crowdsec scenario management and update architecture documentation (8cfba76)
+- Improve README (156062a)
+- chore: upgrade dozzle, valkey, and redis-exporter images (8715724)
+- feat: add dynamic grouping style selector for domains with persistable visual themes (7a978e6)
+
 ## v2026.05.25 (2026-05-25)
 
 - docs: overhaul project structure documentation in AGENTS.md and README.md, and update dashboard assets (d9d5515)
