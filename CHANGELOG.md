@@ -1,3 +1,8 @@
+## v2026.05.25 (2026-05-25)
+
+- docs: overhaul project structure documentation in AGENTS.md and README.md, and update dashboard assets (d9d5515)
+- refactor: rename Grafana admin credentials to dashboard-wide variables and remove auto-generation logic (79d8419)
+
 ## v2026.05.24 (2026-05-24)
 
 - feat: rebrand to Traefik Pro Stack with modernized UI assets, improved Favicon/manifest support, and automated secure Grafana password generation. (e33a549)
