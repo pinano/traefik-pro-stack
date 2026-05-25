@@ -78,6 +78,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let rootColorMap = new Map();
 
     function updateRootColors() {
+        const selectedStyle = document.getElementById('group-style-select')?.value || localStorage.getItem('group-style') || 'neutral';
+
         // Extract unique roots, filter empty/invalid, and sort consistently
         const roots = [...new Set(allDomains.map(d => d._root_domain || getRootDomain(d.domain)))]
             .filter(r => r && r !== '-')
@@ -88,22 +90,42 @@ document.addEventListener('DOMContentLoaded', () => {
         let styleContent = '';
         if (roots.length > 0) {
             roots.forEach((root, index) => {
-                // Golden angle distribution for distinct hues (approx 137.5 degrees)
-                const h = (index * 137.5) % 360;
-
-                // Toggle lightness and saturation for alternating "tones"
-                const lLight = (index % 2 === 0) ? 94 : 88;
-                const sLight = (index % 2 === 0) ? 80 : 90;
-                
-                // Dark mode complementary colors (lower lightness, moderate saturation)
-                const lDark = (index % 2 === 0) ? 18 : 22;
-                const sDark = (index % 2 === 0) ? 35 : 45;
-
                 const varName = `--root-color-${index}`;
-                styleContent += `
-                    :root { ${varName}: hsl(${h}, ${sLight}%, ${lLight}%); }
-                    [data-theme="dark"] { ${varName}: hsl(${h}, ${sDark}%, ${lDark}%); }
-                `;
+                
+                if (selectedStyle === 'neutral') {
+                    // Two-tone neutral theme: alternate between card-bg and neutral-alt-bg
+                    const colorVal = index % 2 === 0 ? 'var(--card-bg)' : 'var(--neutral-alt-bg)';
+                    styleContent += `
+                        :root { ${varName}: ${colorVal}; }
+                        [data-theme="dark"] { ${varName}: ${colorVal}; }
+                    `;
+                } else if (selectedStyle === 'soft') {
+                    // Soft pastel tones with very low saturation (15% in light mode, 10% in dark mode)
+                    const h = (index * 137.5) % 360;
+                    const lLight = (index % 2 === 0) ? 96 : 93;
+                    const sLight = 15;
+                    
+                    const lDark = (index % 2 === 0) ? 14 : 17;
+                    const sDark = 10;
+
+                    styleContent += `
+                        :root { ${varName}: hsl(${h}, ${sLight}%, ${lLight}%); }
+                        [data-theme="dark"] { ${varName}: hsl(${h}, ${sDark}%, ${lDark}%); }
+                    `;
+                } else {
+                    // Vibrant colors (original style)
+                    const h = (index * 137.5) % 360;
+                    const lLight = (index % 2 === 0) ? 94 : 88;
+                    const sLight = (index % 2 === 0) ? 80 : 90;
+                    
+                    const lDark = (index % 2 === 0) ? 18 : 22;
+                    const sDark = (index % 2 === 0) ? 35 : 45;
+
+                    styleContent += `
+                        :root { ${varName}: hsl(${h}, ${sLight}%, ${lLight}%); }
+                        [data-theme="dark"] { ${varName}: hsl(${h}, ${sDark}%, ${lDark}%); }
+                    `;
+                }
                 
                 rootColorMap.set(root, `var(${varName})`);
             });
@@ -910,6 +932,30 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     saveBtn.addEventListener('click', () => saveDomains(true));
+
+    // Initialize group style selector
+    const groupStyleSelect = document.getElementById('group-style-select');
+    if (groupStyleSelect) {
+        const initialStyle = localStorage.getItem('group-style') || 'neutral';
+        groupStyleSelect.value = initialStyle;
+
+        groupStyleSelect.addEventListener('change', () => {
+            const selected = groupStyleSelect.value;
+            localStorage.setItem('group-style', selected);
+            
+            // Re-generate styles and update table rows
+            updateRootColors();
+            
+            // Refresh colors on all rows in DOM
+            document.querySelectorAll('#domains-body tr').forEach(row => {
+                const rootCell = row.querySelector('.root-domain-cell');
+                if (rootCell) {
+                    const r = rootCell.textContent;
+                    row.style.backgroundColor = getColorForRoot(r);
+                }
+            });
+        });
+    }
 
     checkBtn.addEventListener('click', async () => {
         const originalText = checkBtn.innerHTML;

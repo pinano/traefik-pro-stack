@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?t={{ timestamp | default(0) }}">
     <link
         href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,300;0,400;0,700;1,300&display=swap"
         rel="stylesheet">
@@ -84,9 +84,19 @@
                 <button id="add-row-top-btn" class="btn btn-success" style="margin-right: 1rem;">
                     <i data-lucide="plus"></i> Add Record
                 </button>
-                <div class="search-wrapper">
-                    <i data-lucide="search"></i>
-                    <input type="text" id="search-input" placeholder="Search...">
+                <div style="display: flex; gap: 0.75rem; align-items: center;">
+                    <div class="style-selector-wrapper">
+                        <i data-lucide="palette" class="selector-icon"></i>
+                        <select id="group-style-select" class="style-select" title="Grouping Visual Style">
+                            <option value="neutral">Two-Tone (Neutral)</option>
+                            <option value="soft">Pastel Tones</option>
+                            <option value="vibrant">Vibrant Colors</option>
+                        </select>
+                    </div>
+                    <div class="search-wrapper">
+                        <i data-lucide="search"></i>
+                        <input type="text" id="search-input" placeholder="Search...">
+                    </div>
                 </div>
             </div>
             <div class="table-container">
@@ -295,7 +305,7 @@
     <!-- Global Service Dropdown (attached to body to escape table overflow) -->
     <div id="global-service-dropdown" class="dropdown-menu"></div>
 
-    <script src="{{ url_for('static', filename='scripts-domain-manager.js') }}"></script>
+    <script src="{{ url_for('static', filename='scripts-domain-manager.js') }}?t={{ timestamp | default(0) }}"></script>
     <script>
         const csrfToken = "{{ csrf_token() }}";
         const stackDomain = "{{ domain }}";
