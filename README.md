@@ -209,8 +209,9 @@ This target launches an interactive configuration wizard (`scripts/initialize-en
 1.  Verifies the presence of Python 3 and creates an isolated virtual environment (`.venv`).
 2.  Installs the necessary requirements (such as `pyyaml` and `tldextract`) inside the virtual environment.
 3.  Creates your local `.env` configuration file from the template (`.env.dist`).
-4.  Prompts you for essential parameters (primary domain name, timezone, SSL registration email, and administrator credentials).
-5.  Generates secure cryptographic keys using `openssl` for the Flask dashboard secret key, the Redis database password, the Anubis token signing key, and the CrowdSec API bouncer key.
+4.  Prompts you for essential parameters (primary domain name, project name, timezone, SSL registration email, ACME environment type, Anubis difficulty, CrowdSec collections, rate limits, and administrator credentials).
+
+Note that cryptographic secrets (`DASHBOARD_SECRET_KEY`, `REDIS_PASSWORD`, `ANUBIS_REDIS_PRIVATE_KEY`, `CROWDSEC_API_KEY`, and `CROWDSEC_WEB_UI_PASSWORD`) are **not** generated during `make init`. They are auto-generated on the first `make start` execution when `start.sh` detects that these values are empty or set to their placeholder defaults. This design ensures that keys are only created once and are never silently overwritten on subsequent startups.
 
 ### Step 2: Customize Environment Variables
 
@@ -245,13 +246,13 @@ Run the startup target:
 make start
 ```
 
-This script executes the startup orchestrator (`scripts/start.sh`), which processes configurations in six phases:
-1.  **Validation**: Validates the `.env` file and alerts you to any syntax issues or insecure passwords.
-2.  **Configuration Sychronization**: Compiles the final static configuration file for Traefik (`traefik-generated.yaml`) and the static configuration for Valkey/Redis (`redis-generated.conf`).
-3.  **Config Generation**: Executes the configuration script (`scripts/generate-config.py`), reading `domains.csv` to generate Traefik dynamic routers (`routers-generated.yaml`) and the dynamic Compose file containing the required Anubis instances (`docker-compose-anubis-generated.yaml`).
-4.  **Network Setup**: Verifies that the required Docker bridge networks exist, and compiles the CrowdSec IP whitelist parser from your configured safe IPs.
-5.  **Security Bootstrap**: Boots Redis and CrowdSec first. It holds the deployment pipeline until CrowdSec passes its health check, ensuring that no unprotected routing goes live.
-6.  **Core Deployment**: Launches the remaining containers (Traefik, Grafana suite, Watchdog, and backend applications) and registers the api bouncers in the local CrowdSec database.
+This script executes the startup orchestrator (`scripts/start.sh`), which processes configurations in six sequential phases:
+1.  **Phase 1 -- Environment Preparation**: Merges any new variables from `.env.dist` into your local `.env` without overwriting existing values, preserves custom variables not present in the template, and runs critical validation checks (domain, ACME type, email, trivial passwords).
+2.  **Phase 2 -- Credential Synchronization and Config Compilation**: Auto-generates any missing cryptographic secrets (dashboard key, Redis password, Anubis signing key, CrowdSec API key, Web UI password). Detects the ACME environment type to set the correct Let's Encrypt CA server. Compiles `traefik-generated.yaml` from its template via `sed` substitution, generates `redis-generated.conf` with the active password, builds `acquis.yaml` from `acquis-base.yaml` (appending the AppSec listener block if enabled), compiles `profiles.yaml` from `profiles-base.yaml` (conditionally injecting CAPTCHA remediation), toggles the `traefik-flood-429` custom scenario based on `CROWDSEC_RATE_LIMIT_BAN_ENABLE`, and executes `generate-config.py` to produce Traefik dynamic routers, Anubis Compose manifests, and bot policy files from `domains.csv`.
+3.  **Phase 3 -- Application Assets and Local SSL**: Creates persistent data directories under `./data/` with correct ownership for non-root containers (Grafana UID 472, Loki UID 10001, Prometheus UID 65534). Copies `.dist` default assets for the Anubis challenge screen if no custom overrides exist. If the ACME environment is set to `local`, invokes `create-local-certs.sh` to generate trusted mkcert certificates and writes `local-certs.yaml` into the dynamic configuration folder.
+4.  **Phase 4 -- Network and Security Layer Preparation**: Generates the CrowdSec IP whitelist parser from configured safe IPs and Docker internal ranges. Creates the `traefik` (external bridged) and `anubis-backend` (internal, no egress) Docker networks if they do not already exist. Probes the host for a legacy Apache service via TCP socket check and builds the final Compose file list using `compose-files.sh`.
+5.  **Phase 5 -- Security-First Boot**: Boots Redis and CrowdSec before any other service. Holds the deployment pipeline in a health-check loop (up to 60 seconds) until CrowdSec LAPI reports healthy, ensuring that no unprotected routing goes live. Once healthy, it registers the Traefik bouncer API key in the LAPI database (deleting and re-creating it each time for idempotency), hardens the LAPI `trusted_ips` configuration using `yq`, registers the CrowdSec Web UI machine credential, and optionally enrolls the instance with the CrowdSec Console if an enrollment key is configured.
+6.  **Phase 6 -- Full Stack Deployment**: Launches all remaining containers (Traefik, Grafana, Alloy, Prometheus, Loki, Dashboard, Dozzle, Watchdog, Anubis instances) with `--remove-orphans` to clean up stale containers. Verifies DNS resolution for core subdomains (e.g., `dashboard.DOMAIN`) and prints warnings for any missing records. Finally, the Makefile automatically invokes `grafana-setup-telegram` to provision Grafana's Telegram alerting contact point and notification policy if valid bot credentials are present.
 
 ### Step 5: Validate System Health
 
@@ -308,7 +309,7 @@ This section details the layout of the project, including configuration files, t
 │   ├── traefik/
 │   │   ├── traefik.yaml.template          # Static config template processed during startup
 │   │   ├── traefik-generated.yaml         # Compiled static configuration (do not edit)
-│   │   ├── acme.json                      # Crypted Let's Encrypt certificate vault (perms 600)
+│   │   ├── acme.json                      # Let's Encrypt certificate store (plaintext JSON, strict 600 perms)
 │   │   ├── captcha.html                   # HTML template served during CrowdSec CAPTCHA checks
 │   │   ├── certs-local-dev/               # Folder storing mkcert developer certificates
 │   │   └── dynamic-config/                # Auto-generated routing files from python script
@@ -316,7 +317,7 @@ This section details the layout of the project, including configuration files, t
 │   ├── crowdsec/
 │   │   ├── acquis-base.yaml              # Static log ingestion source definitions
 │   │   ├── acquis.yaml                   # Final compiled log ingestion settings
-│   │   ├── config.yaml                   # CrowdSec engine settings
+│   │   ├── config.yaml                   # CrowdSec engine settings (reference; runtime copy is modified in-container by start.sh)
 │   │   ├── profiles-base.yaml            # Remediations base profile template
 │   │   ├── profiles.yaml                 # Compiled remediation profiles and durations
 │   │   ├── captcha_keys.csv              # Registrar mapping domains to captcha keys
