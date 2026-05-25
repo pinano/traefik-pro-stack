@@ -54,16 +54,16 @@ fi
 git checkout "$SELECTED_TAG" --quiet
 echo "Success: Codebase changed to $SELECTED_TAG."
 echo ""
-read -p "Do you want to apply these changes and restart the stack now? [y/N] " -n 1 -r
+read -p "Do you want to apply these changes and start the stack now? [y/N] " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo "Rebuilding and restarting..."
+    echo "Rebuilding and starting..."
     make rebuild
     make start
     echo "Stack updated successfully!"
 else
     echo "Note: To apply these changes manually later, run:"
     echo "  make rebuild"
-    echo "  make rebuild"
     echo "  make start"
 fi
+

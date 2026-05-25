@@ -207,17 +207,6 @@ read -p "   Password [password]: " dm_pass
 [ -z "$dm_pass" ] && dm_pass="password"
 replace_val "DASHBOARD_ADMIN_PASSWORD" "$dm_pass"
 
-# --- GRAFANA ADMIN CREDENTIALS ---
-echo ""
-echo "👉 Grafana Admin Credentials (for full admin access inside Grafana)"
-echo "   Press Enter to use the same as Dashboard credentials ($dm_user / $dm_pass)"
-read -p "   Grafana Admin User [$dm_user]: " gf_user
-[ -z "$gf_user" ] && gf_user="$dm_user"
-replace_val "GRAFANA_ADMIN_USER" "$gf_user"
-
-read -p "   Grafana Admin Password [$dm_pass]: " gf_pass
-[ -z "$gf_pass" ] && gf_pass="$dm_pass"
-replace_val "GRAFANA_ADMIN_PASSWORD" "$gf_pass"
 
 prompt_val "WATCHDOG_TELEGRAM_BOT_TOKEN" "Telegram Bot Token (for Let's Encrypt renewal alerts)"
 prompt_val "WATCHDOG_TELEGRAM_RECIPIENT_ID" "Telegram Chat/Group ID (for Let's Encrypt renewal alerts)"

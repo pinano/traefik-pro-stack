@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="config/dashboard/static/badge-round.png" alt="Traefik Pro Stack Mission Badge" width="220">
+<img src="config/dashboard/static/favicon.webp" alt="Traefik Pro Stack Mission Badge" width="220">
 
 # Traefik Pro Stack
 
@@ -11,6 +11,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Traefik](https://img.shields.io/badge/Traefik-v3.x-informational?logo=traefikproxy)](https://doc.traefik.io/traefik/)
 [![CrowdSec](https://img.shields.io/badge/CrowdSec-enabled-success?logo=crowdsec)](https://crowdsec.net)
+[![Anubis](https://img.shields.io/badge/Anubis-Bot_Defense-8a2be2)](https://anubis.techaro.lol/docs/)
+[![Grafana](https://img.shields.io/badge/Grafana-Observability-orange?logo=grafana)](https://grafana.com)
+[![Prometheus](https://img.shields.io/badge/Prometheus-Metrics-e6522c?logo=prometheus)](https://prometheus.io)
+[![Redis](https://img.shields.io/badge/Redis-Cache-dc382d?logo=redis)](https://redis.io)
 [![Docker](https://img.shields.io/badge/Docker-Compose-blue?logo=docker)](https://docs.docker.com/compose/)
 
 </div>
@@ -323,7 +327,7 @@ Redis uses two separate databases:
 | `CROWDSEC_ENABLE` | Master switch. Set to `false` to completely disable the IPS/WAF (useful for debugging). When disabled, CrowdSec and its bouncer are not started. | `true` |
 | `CROWDSEC_API_KEY` | Shared secret for Traefik-to-CrowdSec bouncer communication. Auto-generated on first `make init`. | *Auto-generated* |
 | `CROWDSEC_CAPTCHA_GRACE_PERIOD` | How long (seconds) an IP is allowed through after successfully solving a CrowdSec CAPTCHA. | `3600` |
-| `CROWDSEC_UPDATE_INTERVAL` | How often (seconds) the Traefik bouncer downloads the active blocklist from the CrowdSec LAPI. Lower = more CPU/network overhead, faster enforcement of new bans. | `60` |
+| `CROWDSEC_UPDATE_INTERVAL` | How often (seconds) the Traefik bouncer downloads the active blocklist from the CrowdSec LAPI. Lower = more CPU/network overhead, faster enforcement of new bans. | `15` |
 | `CROWDSEC_APPSEC_ENABLE` | Enable the AppSec WAF component (Layer 7 payload inspection). When enabled, AppSec collections are automatically added to `CROWDSEC_COLLECTIONS`. | `true` |
 | `CROWDSEC_COLLECTIONS` | Space-separated list of CrowdSec collections (parsers + scenarios) to install at startup. AppSec collections are injected automatically — do not add them here. | *defaults below* |
 | `CROWDSEC_WHITELIST_IPS` | Comma-separated IPs or CIDR ranges that bypass all CrowdSec checks. Internal Docker networks are always whitelisted automatically. | — |
@@ -478,13 +482,11 @@ TRAEFIK_BAD_USER_AGENTS="(?i).*nikto.*,(?i).*sqlmap.*,(?i).*nmap.*,(?i).*masscan
 | `DASHBOARD_ANUBIS_SUBDOMAIN` | Optional. Protect the dashboard login page itself with Anubis PoW. Enter the Anubis subdomain (e.g. `auth`). | — |
 | `DASHBOARD_ADMIN_USER` | Username for the Dashboard / SSO login (also used to access Traefik, Dozzle, Grafana). | `admin` |
 | `DASHBOARD_ADMIN_PASSWORD` | Password for the SSO login. **Required.** Change from default before first use. | — |
-| `GRAFANA_ADMIN_USER` | Grafana-specific admin username for full admin access inside Grafana. | `admin` |
-| `GRAFANA_ADMIN_PASSWORD` | Grafana-specific admin password. Independent from SSO credentials. **Required.** | — |
 
 **Access levels explained:**
 
 - **SSO (Dashboard credentials)**: Grants **full Admin** access to Grafana via Auth Proxy SSO. No separate Grafana login is needed — authentication is handled transparently by the dashboard.
-- **Grafana admin credentials** (`GRAFANA_ADMIN_USER` / `GRAFANA_ADMIN_PASSWORD`): Available as a direct login fallback (emergency access if the dashboard SSO is unavailable).
+- **Grafana admin credentials** (`DASHBOARD_ADMIN_USER` / `DASHBOARD_ADMIN_PASSWORD`): Available as a direct login fallback (emergency access if the dashboard SSO is unavailable).
 
 #### System Managed Variables
 
@@ -862,7 +864,7 @@ Four pre-provisioned dashboards are loaded automatically:
 
 **Access levels:**
 - `https://dashboard.<domain>/grafana` — SSO login grants **full Admin** access via Auth Proxy (no separate Grafana login needed).
-- Use `GRAFANA_ADMIN_USER` + `GRAFANA_ADMIN_PASSWORD` for direct emergency access.
+- Use `DASHBOARD_ADMIN_USER` + `DASHBOARD_ADMIN_PASSWORD` for direct emergency access.
 
 ---
 
@@ -971,7 +973,7 @@ When you run `make start`, `scripts/start.sh` follows a strict "Defense First" o
 
 You never need to manually generate bcrypt hashes or restart containers to apply credential changes.
 
-1. **Edit** `DASHBOARD_ADMIN_PASSWORD` or `GRAFANA_ADMIN_PASSWORD` in `.env`.
+1. **Edit** `DASHBOARD_ADMIN_PASSWORD` in `.env`.
 2. **Run** `make start` (or `make restart`).
 3. `start.sh` detects the changed values, regenerates the secure hashes, updates `.env`, and applies them to running containers.
 

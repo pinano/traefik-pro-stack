@@ -62,7 +62,7 @@ check_container "redis" "redis-cli -a ${REDIS_PASSWORD:-} PING"
 
 echo ""
 echo "--- Observability ---"
-check_container "grafana" "curl -s -f http://localhost:3000/api/health"
+check_container "grafana" "wget -qO- http://localhost:3000/api/health"
 
 echo ""
 echo "============================================="

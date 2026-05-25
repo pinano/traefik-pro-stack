@@ -1,6 +1,13 @@
 #!/bin/bash
 set -e
 
+# Load environment
+if [ -f .env ]; then
+    set -a
+    source .env
+    set +a
+fi
+
 ACTION=$1
 
 if [ "$ACTION" == "on" ]; then
@@ -12,12 +19,6 @@ if [ "$ACTION" == "on" ]; then
     touch .maintenance_mode
     touch config/.maintenance_mode
     
-    # Load environment
-    if [ -f .env ]; then
-        set -a
-        source .env
-        set +a
-    fi
     source scripts/compose-files.sh
     DOCKER_COMPOSE="docker compose -p ${PROJECT_NAME:-traefik-stack} $COMPOSE_FILES"
     

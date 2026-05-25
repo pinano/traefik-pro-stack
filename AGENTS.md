@@ -37,37 +37,103 @@ The core mission: protect multiple Docker-based web applications (and optionally
 
 ```
 .
-├── .env / .env.dist          # Configuration (user values / template)
-├── domains.csv               # Domain inventory (what sites to proxy)
-├── Makefile                  # All day-to-day commands
-├── scripts/
-│   ├── start.sh              # Main orchestrator (6-phase boot sequence)
-│   ├── stop.sh               # Graceful teardown
-│   ├── initialize-env.sh     # Interactive setup wizard
-│   ├── generate-config.py    # Generates Traefik dynamic config from domains.csv
-│   ├── validate-env.py       # Validates .env against .env.dist schema
-│   ├── inspect-certs.py      # Reads acme.json and reports cert status
-│   ├── create-local-certs.sh # mkcert wrapper for local development
-│   ├── compose-files.sh      # Single source of truth for which compose files are active
-│   ├── setup-grafana-alerting.sh  # Creates Grafana Telegram contact point via API
-│   └── make/                 # Conditional Makefile fragments
-│       ├── certs.mk          # Local cert targets
-│       ├── crowdsec.mk       # CrowdSec management targets
-│       └── grafana.mk        # Grafana alerting targets
+├── .env.dist                              # Environment variables template
+├── .env                                   # Your local config (git-ignored)
+├── domains.csv.dist                       # Domain inventory template
+├── domains.csv                            # Your domains config (git-ignored)
+├── Makefile                               # Project management commands
+│
+├── scripts/                               # Core automation scripts
+│   ├── backup.sh                          # Configuration and data backup script
+│   ├── compose-files.sh                   # Shared compose file list builder (single source of truth)
+│   ├── create-local-certs.sh              # Local mkcert certificate generator
+│   ├── crowdsec-geoblock.sh               # CrowdSec country banning/unbanning utility
+│   ├── generate-config.py                 # Dynamic Traefik config generator (from domains.csv)
+│   ├── health.sh                          # Global stack health check utility
+│   ├── initialize-env.sh                  # Interactive .env setup wizard
+│   ├── inspect-certs.py                   # Certificate inspection utility
+│   ├── maintenance.sh                     # Global maintenance mode toggler
+│   ├── prune-certs.py                     # Orphaned certificate cleanup utility
+│   ├── release.sh                         # Versioning: Creates new releases and tags
+│   ├── requirements.txt                   # Python dependencies (tldextract, pyyaml)
+│   ├── restart-internal.sh                # Script triggered by Dashboard to hot-reload stack
+│   ├── restore.sh                         # Configuration and data restore script
+│   ├── rollback.sh                        # Versioning: Rollback to previous version tag
+│   ├── setup-grafana-alerting.sh          # Grafana Alerting API configuration (auto-called on start)
+│   ├── start.sh                           # Full stack startup orchestrator (6 phases)
+│   ├── stop.sh                            # Graceful stack shutdown
+│   ├── update.sh                          # Versioning: Safe upgrade to latest release
+│   ├── validate-env.py                    # .env validation & sync tool
+│   └── make/                              # Conditional Makefile includes
+│       ├── certs.mk                       # Local cert targets (included only if TRAEFIK_ACME_ENV_TYPE=local)
+│       ├── crowdsec.mk                    # CrowdSec management targets (included if CrowdSec enabled)
+│       └── grafana.mk                     # Grafana alerting setup targets
 │
 ├── config/
-│   ├── traefik/              # Static config template + dynamic config dir
-│   ├── crowdsec/             # Acquisition config, ban profiles, IP whitelist
-│   ├── anubis/               # Bot policy + challenge page assets
-│   ├── dashboard/            # Flask app (SSO + domain management + captcha keys + certs)
-│   ├── grafana/              # Dashboards + provisioning (datasources, alerting rules)
-│   ├── loki/                 # Log storage config
-│   ├── prometheus/           # Scrape config + alerting/recording rules
-│   ├── redis/                # Redis/Valkey config (eviction, AOF)
-│   ├── alloy/                # Alloy collector config
-│   └── watchdog/             # Monitoring scripts (certs, DNS, CrowdSec)
+│   ├── traefik/
+│   │   ├── traefik.yaml.template          # Static config template (processed by start.sh)
+│   │   ├── traefik-generated.yaml         # Generated static config (do not edit)
+│   │   ├── acme.json                      # Let's Encrypt certificate storage (mode 600, git-ignored)
+│   │   ├── certs-local-dev/               # mkcert certificates for local mode
+│   │   └── dynamic-config/               # Generated routers/middlewares (from generate-config.py)
+│   │
+│   ├── crowdsec/
+│   │   ├── acquis-base.yaml              # Base log acquisition config (Traefik + SFTP)
+│   │   ├── acquis.yaml                   # Generated acquisition config (AppSec block auto-appended)
+│   │   ├── profiles.yaml                 # Custom ban profiles (7d repeat, 24h standard, 48h range)
+│   │   ├── captcha_keys.csv              # CAPTCHA credentials registry (git-ignored)
+│   │   ├── parsers/                      # Custom parsers (IP whitelist auto-generated by start.sh)
+│   │   └── scenarios/                    # Custom detection scenarios
+│   │
+│   ├── anubis/
+│   │   ├── botPolicy.yaml                # Bot challenge policy (allow/deny/challenge rules)
+│   │   └── assets/                       # Anubis challenge page assets
+│   │       ├── custom.css.dist           # Default stylesheet template
+│   │       └── static/img/               # Challenge page images (.dist versions)
+│   │
+│   ├── crowdsec-web-ui/                  # Data directory for CrowdSec LAPI interface
+│   ├── dashboard/                        # Admin UI backend (Python/Flask)
+│   │   ├── app.py                        # Flask application
+│   │   ├── Dockerfile
+│   │   ├── static/                       # Frontend assets
+│   │   └── templates/                    # HTML templates
+│   │
+│   ├── maintenance/
+│   │   └── index.html                    # Premium HTML page for maintenance mode
+│   │
+│   ├── grafana/
+│   │   ├── dashboards/                   # Pre-built JSON dashboards (Traefik, CrowdSec, Redis, Node)
+│   │   └── provisioning/
+│   │       ├── datasources/datasources.yaml  # Prometheus + Loki datasource definitions
+│   │       ├── dashboards/dashboards.yaml    # Dashboard folder loader config
+│   │       └── alerting/
+│   │           ├── rules.yaml            # 13 alert rules (infrastructure, HTTP, host, Redis)
+│   │           ├── contact-points.yaml   # Placeholder (contact point created via API at startup)
+│   │           └── notification-policies.yaml  # Placeholder (policy created via API at startup)
+│   │
+│   ├── loki/config.yaml                  # Loki storage and ingestion config
+│   ├── prometheus/
+│   │   ├── prometheus.yml                # Scrape configs and remote_write receiver
+│   │   └── rules.yml                     # Prometheus recording/alerting rules (mirrors Grafana rules)
+│   ├── redis/redis.conf                  # Valkey/Redis config (allkeys-lru, no persistence)
+│   ├── alloy/config.alloy               # Alloy collector config (log discovery, metric scraping)
+│   └── watchdog/
+│       ├── Dockerfile
+│       ├── check-certs.sh               # Certificate expiration checker
+│       ├── check-crowdsec.sh            # CrowdSec health monitor
+│       ├── check-dns.sh                 # DNS resolution verifier
+│       ├── check-system.sh              # Host and container resources monitor
+│       └── check-traefik.sh             # Traefik routing config health monitor
 │
-└── docker-compose-*.yaml     # Modular compose files (one per logical group)
+└── Docker Compose Files:
+    ├── docker-compose-edge.yaml              # Edge: Traefik (TLS termination, routing)
+    ├── docker-compose-security.yaml          # Security: CrowdSec, Redis, Redis Exporter, CrowdSec Web UI
+    ├── docker-compose-observability.yaml     # Observability: Grafana, Loki, Alloy, Prometheus
+    ├── docker-compose-dashboard.yaml         # Dashboard: Dashboard, Dozzle, Watchdog, ctop
+    ├── docker-compose-anubis.yaml            # Bot Defense: Anubis base template + Assets server
+    ├── docker-compose-anubis-generated.yaml  # Auto-generated Anubis instances (per TLD, do not edit)
+    ├── docker-compose-maintenance.yaml       # Maintenance: Global 503 fallback container
+    └── docker-compose-apache-logs.yaml       # Apache log extension (auto-included if Apache detected)
 ```
 
 ---

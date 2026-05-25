@@ -117,6 +117,9 @@ source scripts/compose-files.sh
 
 # Build compose command with explicit project name
 COMPOSE_CMD="docker compose -p ${PROJECT_NAME:-stack}"
+if [[ "${CROWDSEC_ENABLE:-true}" == "true" ]]; then
+    COMPOSE_CMD="$COMPOSE_CMD --profile crowdsec"
+fi
 
 # Audit config for drift (helpful for debugging in modal log)
 echo "   🔍 Validating compose configuration..."

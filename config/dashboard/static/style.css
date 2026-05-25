@@ -118,7 +118,7 @@ body::before {
     transform: translate(-50%, -50%);
     width: 100vw;
     height: 100vh;
-    background-image: url('badge-round.png');
+    background-image: url('favicon.webp');
     background-repeat: no-repeat;
     background-position: center;
     background-size: min(90vw, 900px);

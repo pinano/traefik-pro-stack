@@ -482,6 +482,7 @@ fi
 
 COMPOSE_CMD="$COMPOSE_BASE"
 if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
+    COMPOSE_CMD="$COMPOSE_CMD --profile crowdsec"
     echo "   🛡️ CrowdSec firewall is ENABLED."
 else
     echo "   ⚠️ CrowdSec firewall is DISABLED."

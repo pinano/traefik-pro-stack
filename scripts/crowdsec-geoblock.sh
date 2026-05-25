@@ -67,7 +67,7 @@ fi
 # -----------------------------------------------------------------------------
 # Locate the CrowdSec container (independent of project name / compose files)
 # -----------------------------------------------------------------------------
-CROWDSEC_ID=$(docker ps --filter "name=crowdsec" --filter "status=running" --format "{{.ID}}" | head -1)
+CROWDSEC_ID=$(docker ps --filter "label=com.docker.compose.service=crowdsec" --filter "status=running" --format "{{.ID}}" | head -1)
 if [ -z "$CROWDSEC_ID" ]; then
     die "CrowdSec container is not running. Start the stack first."
 fi

@@ -7,15 +7,15 @@
 ##@ Grafana Observability
 
 GRAFANA_CONTAINER := $(PROJECT_NAME)-grafana-1
-GRAFANA_AUTH      := $(if $(GRAFANA_ADMIN_USER),$(GRAFANA_ADMIN_USER),admin):$(GRAFANA_ADMIN_PASSWORD)
+GRAFANA_AUTH      := $(if $(DASHBOARD_ADMIN_USER),$(DASHBOARD_ADMIN_USER),admin):$(DASHBOARD_ADMIN_PASSWORD)
 
 ##@help grafana-setup-telegram
 ## Configures the Telegram alerting contact point inside Grafana via the Provisioning API.
 .PHONY: grafana-setup-telegram
 grafana-setup-telegram: ## Configure Grafana Alerting: Telegram contact point + notification policy
 	@PROJECT_NAME=$(PROJECT_NAME) \
-	 GRAFANA_ADMIN_USER=$(GRAFANA_ADMIN_USER) \
-	 GRAFANA_ADMIN_PASSWORD=$(GRAFANA_ADMIN_PASSWORD) \
+	 DASHBOARD_ADMIN_USER=$(DASHBOARD_ADMIN_USER) \
+	 DASHBOARD_ADMIN_PASSWORD=$(DASHBOARD_ADMIN_PASSWORD) \
 	 WATCHDOG_TELEGRAM_BOT_TOKEN=$(WATCHDOG_TELEGRAM_BOT_TOKEN) \
 	 WATCHDOG_TELEGRAM_RECIPIENT_ID=$(WATCHDOG_TELEGRAM_RECIPIENT_ID) \
 	 bash ./scripts/setup-grafana-alerting.sh

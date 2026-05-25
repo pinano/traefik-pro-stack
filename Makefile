@@ -74,7 +74,11 @@ tail ?= all
 TRAEFIK_ACME_ENV_TYPE := $(shell grep '^TRAEFIK_ACME_ENV_TYPE=' .env 2>/dev/null | cut -d= -f2)
 
 # Base Docker Compose command
-DOCKER_COMPOSE := docker compose -p $(PROJECT_NAME) $(COMPOSE_FILES)
+ifeq ($(CROWDSEC_ENABLE),false)
+    DOCKER_COMPOSE := docker compose -p $(PROJECT_NAME) $(COMPOSE_FILES)
+else
+    DOCKER_COMPOSE := docker compose -p $(PROJECT_NAME) --profile crowdsec $(COMPOSE_FILES)
+endif
 
 # =============================================================================
 # TARGETS
