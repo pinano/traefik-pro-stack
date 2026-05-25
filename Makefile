@@ -135,7 +135,7 @@ release: ## Generate a new CalVer release, update CHANGELOG.md, and create a git
 ## - Fetches the latest tags from the remote repository.
 ## - Checks out the highest available version tag.
 ## - Will NEVER pull untagged intermediate commits.
-## - Interactively prompts you to restart the stack to apply changes.
+## - Interactively prompts you to rebuild and start the stack to apply changes.
 ## Usage: make update [version=vYYYY.MM.DD]
 
 .PHONY: update

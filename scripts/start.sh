@@ -258,16 +258,7 @@ if [ -z "$REDIS_PASSWORD" ] || [ "$REDIS_PASSWORD" == "REPLACE_ME" ]; then
     set +a
 fi
 
-# Grafana Admin Password (auto-generate on first run)
-if [ -z "$GRAFANA_ADMIN_PASSWORD" ] || [ "$GRAFANA_ADMIN_PASSWORD" == "password" ] || [ "$GRAFANA_ADMIN_PASSWORD" == "admin" ]; then
-    echo "   🔄 Generating secure Grafana admin password..."
-    NEW_GRAFANA_PASS=$(openssl rand -base64 20 | tr -dc 'a-zA-Z0-9' | head -c 20)
-    update_env_var "GRAFANA_ADMIN_PASSWORD" "$NEW_GRAFANA_PASS"
-    export GRAFANA_ADMIN_PASSWORD="$NEW_GRAFANA_PASS"
-    set -a
-    source .env
-    set +a
-fi
+
 
 # Anubis Redis Private Key (auto-generate on first run)
 if [ -z "$ANUBIS_REDIS_PRIVATE_KEY" ] || [ "$ANUBIS_REDIS_PRIVATE_KEY" == "REPLACE_ME" ]; then

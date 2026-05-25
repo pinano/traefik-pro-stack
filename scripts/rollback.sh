@@ -59,10 +59,11 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo "Rebuilding and restarting..."
     make rebuild
-    make restart
+    make start
     echo "Stack updated successfully!"
 else
     echo "Note: To apply these changes manually later, run:"
     echo "  make rebuild"
-    echo "  make restart"
+    echo "  make rebuild"
+    echo "  make start"
 fi

@@ -15,14 +15,14 @@
 #   1 — unexpected script error (set -e)
 #
 # Environment variables required (loaded from .env by Makefile):
-#   PROJECT_NAME, GRAFANA_ADMIN_USER, GRAFANA_ADMIN_PASSWORD
+#   PROJECT_NAME, DASHBOARD_ADMIN_USER, DASHBOARD_ADMIN_PASSWORD
 #   WATCHDOG_TELEGRAM_BOT_TOKEN, WATCHDOG_TELEGRAM_RECIPIENT_ID
 
 set -euo pipefail
 
 # ─── Config ──────────────────────────────────────────────────────────────────
 GRAFANA_CONTAINER="${PROJECT_NAME:-stack}-grafana-1"
-AUTH="${GRAFANA_ADMIN_USER:-admin}:${GRAFANA_ADMIN_PASSWORD}"
+AUTH="${DASHBOARD_ADMIN_USER:-admin}:${DASHBOARD_ADMIN_PASSWORD}"
 CONTACT_POINT_NAME="Telegram"
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -85,10 +85,13 @@ if echo "${AUTH_CHECK}" | grep -q '"id"'; then
     : # OK — /api/org returns the current org details for authenticated users
 else
     warn "Admin credentials rejected by Grafana (HTTP 401/403)."
-    warn "The GRAFANA_ADMIN_PASSWORD in .env may not match the password stored in Grafana's database."
+    warn "The DASHBOARD_ADMIN_PASSWORD in .env may not match the password stored in Grafana's database."
     warn ""
     warn "To fix, reset the Grafana admin password to match .env:"
-    warn "  docker exec ${GRAFANA_CONTAINER} grafana-cli admin reset-admin-password \"\${GRAFANA_ADMIN_PASSWORD}\""
+    warn "  docker exec ${GRAFANA_CONTAINER} grafana cli admin reset-admin-password \"\${DASHBOARD_ADMIN_PASSWORD}\""
+    warn ""
+    warn "  (Note: This command resets the password for the main admin user (ID 1)"
+    warn "   even if you have changed their username to something other than 'admin')"
     warn ""
     warn "Then run: make grafana-setup-telegram"
     exit 0  # Non-fatal
