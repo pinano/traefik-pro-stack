@@ -28,7 +28,7 @@
 4. [Step-by-Step Quick Start Guide](#step-by-step-quick-start-guide)
 5. [Comprehensive Repository Layout](#comprehensive-repository-layout)
 6. [Security Model and Border Middleware Flow](#security-model-and-border-middleware-flow)
-7. [CrowdSec AppSec WAF Architecture and Rules](#crowdsec-appsec-waf-architecture-and-rules)
+7. [CrowdSec AppSec WAF and Custom Scenarios](#crowdsec-appsec-waf-and-custom-scenarios)
 8. [Operational Automation Scripts](#operational-automation-scripts)
 9. [Detailed Environment Variables Configuration](#detailed-environment-variables-configuration)
 10. [Domain Routing Inventory Design](#domain-routing-inventory-design)
@@ -387,7 +387,7 @@ sequenceDiagram
 
 ---
 
-## CrowdSec AppSec WAF Architecture and Rules
+## CrowdSec AppSec WAF and Custom Scenarios
 
 The CrowdSec AppSec component provides Web Application Firewall (WAF) capabilities inside the edge proxy stack, enabling Layer-7 payload inspection. It is built to block exploitation attempts targeting vulnerabilities such as SQL injection, Cross-Site Scripting, Local/Remote File Inclusion (LFI/RFI), and arbitrary code execution before they reach backend application containers.
 
@@ -421,6 +421,29 @@ The WAF settings are integrated into the automated startup pipeline:
 *   **Dynamic Rule Ingest**: If `CROWDSEC_APPSEC_ENABLE=true` is set in `.env`, the startup script (`start.sh`) modifies `/etc/crowdsec/acquis.yaml` to declare the AppSec listener port `7422` and injects `crowdsecurity/appsec-virtual-patching` and `crowdsecurity/appsec-generic-rules` into the collections registry. This automatically pulls the latest virtual patches and generic web protection rules from the CrowdSec hub.
 *   **Fail-Open WAF Operations**: In line with the stack's resilience goals, WAF checks are configured as fail-open by default (`crowdsecAppsecFailureBlock: false` and `crowdsecAppsecUnreachableBlock: false` inside `generate-config.py`). If the AppSec daemon experiences extreme load or crashes, traffic continues to route normally without generating false-positive service outages.
 *   **Immediate Remediation Profiles**: While standard HTTP behavior anomalies (such as brute force or rapid scanning) trigger temporary CAPTCHA challenges to allow human recovery, AppSec WAF triggers bypass CAPTCHAs. In `config/crowdsec/profiles.yaml`, the captcha rule filters out AppSec triggers (`!(Alert.GetScenario() contains "appsec")`), sending WAF matches directly to the aggressive 24-hour IP ban remediation, as payload vulnerabilities represent high-confidence attack signatures.
+
+### Custom Rate-Limit Flood Scenario (Leaky Bucket)
+
+To complement Traefik's application-level rate limiting, the stack incorporates a custom behavioral scenario: `custom/traefik-flood-429`.
+
+#### Purpose and Mechanics
+
+By default, Traefik's rate-limiting middleware operates in memory. When a client exceeds the threshold, Traefik throttles the request and returns an HTTP `429 Too Many Requests` status code. However, Traefik itself does not block the client at the IP layer. A malicious scanner or script could continue to flood the proxy, consuming CPU and network capacity.
+
+The `traefik-flood-429` scenario bridges this gap by scanning Traefik's access logs:
+1. **Event Detection**: Each log entry carrying an HTTP status code `429` is parsed.
+2. **Leaky Bucket Accumulation**: The scenario uses a Leaky Bucket model:
+   * **Capacity (50 tokens)**: The maximum number of 429 errors allowed before overflow.
+   * **Leak Speed (1s)**: The rate at which the bucket drains (1 token per second).
+3. **Overflow Action**: If an IP triggers rate limiting repeatedly and exceeds 50 accumulated events (meaning it triggers 429s faster than the 1s leak rate), the bucket overflows.
+4. **Remediation**: The overflow event is reported to the LAPI engine, which immediately applies a 24-hour IP ban, dropping all traffic from that IP at the proxy perimeter.
+
+#### Tuning and Configuration
+
+* **Default Lenient Settings**: Out of the box, the scenario template (`traefik-flood-429.yaml.dist`) is tuned to `capacity: 50` and `leakspeed: 1s`. This prevents false positives during normal AJAX-heavy dashboard actions (such as WordPress updates) while ensuring aggressive automated scanners are quickly banned.
+* **Disabling the Scenario**: If your site uses highly concurrent or non-cached AJAX operations that trigger false bans, you can disable the scenario by setting `CROWDSEC_RATE_LIMIT_BAN_ENABLE=false` in `.env`.
+* **Rate Limits Optimization**: Rather than relaxing Traefik's global limits in `.env` (which might expose other services), it is recommended to apply custom rate, burst, and concurrency parameters in `domains.csv` specifically for AJAX-heavy subdomains.
+
 
 ---
 
