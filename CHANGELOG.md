@@ -1,3 +1,8 @@
+## v2026.05.28.1 (2026-05-28)
+
+- feat: add nginx optimization config for anubis and inject preload link headers via traefik middleware (aee3a51)
+- chore: update static image distribution assets (7a48e67)
+
 ## v2026.05.28 (2026-05-28)
 
 - feat: add CSS minification script and configure immutable caching headers for Anubis assets (2ccb118)
