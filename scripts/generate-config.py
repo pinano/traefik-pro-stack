@@ -650,6 +650,14 @@ def generate_configs():
                         }
                     }
                 },
+                # 11. Anubis Main Page Preload Link Headers
+                'anubis-preload-headers': {
+                    'headers': {
+                        'customResponseHeaders': {
+                            'Link': '</.within.website/x/xess/xess.min.css>; rel=preload; as=style, </.within.website/x/cmd/anubis/static/img/pensive.webp>; rel=preload; as=image'
+                        }
+                    }
+                },
             },
             'routers': {},
             'services': {
@@ -964,7 +972,7 @@ def generate_configs():
             'entryPoints': ["websecure"],
             'service': f"{anubis_service_name}@docker",
             'tls': {}, 
-            'middlewares': ["security-headers"]
+            'middlewares': ["security-headers", "anubis-preload-headers"]
         }
         apply_tls_config(traefik_dynamic_conf['http']['routers'][panel_router_name], auth_domain, domain_to_cert_def)
 
