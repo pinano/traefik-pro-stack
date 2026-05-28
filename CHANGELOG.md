@@ -1,3 +1,10 @@
+## v2026.05.28 (2026-05-28)
+
+- feat: add CSS minification script and configure immutable caching headers for Anubis assets (2ccb118)
+- docs: update initialization and startup orchestrator documentation to reflect configuration and deployment workflow changes (cd0da2d)
+- docs: add port allocation table, release pipeline documentation, and operational warnings to README (490a403)
+- docs: update CrowdSec documentation to include custom rate-limit flood scenario details (ce0a255)
+
 ## v2026.05.25.1 (2026-05-25)
 
 - refactor: implement dynamic crowdsec scenario management and update architecture documentation (8cfba76)
