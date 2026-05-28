@@ -639,7 +639,15 @@ def generate_configs():
                 # 8. Anubis CSS Replacement
                 'anubis-css-replace': {
                     'replacePath': {
-                        'path': '/custom.css'
+                        'path': '/custom.min.css'
+                    }
+                },
+                # 10. Anubis Assets Caching Headers
+                'anubis-assets-headers': {
+                    'headers': {
+                        'customResponseHeaders': {
+                            'Cache-Control': 'public, max-age=31536000, immutable'
+                        }
                     }
                 },
             },
@@ -933,7 +941,7 @@ def generate_configs():
             'service': "anubis-assets@docker", 
             'priority': 2000, 
             'tls': {},
-            'middlewares': ["security-headers", "anubis-assets-stripper", "global-compress"]
+            'middlewares': ["security-headers", "anubis-assets-stripper", "anubis-assets-headers", "global-compress"]
         }
         apply_tls_config(traefik_dynamic_conf['http']['routers'][assets_router_name], auth_domain, domain_to_cert_def)
 
@@ -945,7 +953,7 @@ def generate_configs():
             'service': "anubis-assets@docker", 
             'priority': 2000, 
             'tls': {},
-            'middlewares': ["security-headers", "anubis-css-replace", "global-compress"]
+            'middlewares': ["security-headers", "anubis-css-replace", "anubis-assets-headers", "global-compress"]
         }
         apply_tls_config(traefik_dynamic_conf['http']['routers'][css_router_name], auth_domain, domain_to_cert_def)
 
@@ -1011,6 +1019,58 @@ def generate_policy_file():
     except Exception as e:
         print(f"   ❌ Error generating policy: {e}")
 
+def generate_minified_css():
+    import tempfile
+    assets_dir = 'config/anubis/assets'
+    css_path = os.path.join(assets_dir, 'custom.css')
+    css_dist_path = os.path.join(assets_dir, 'custom.css.dist')
+    min_css_path = os.path.join(assets_dir, 'custom.min.css')
+
+    # Read from custom.css if exists, else from custom.css.dist
+    src_path = None
+    if os.path.exists(css_path):
+        src_path = css_path
+    elif os.path.exists(css_dist_path):
+        src_path = css_dist_path
+    
+    if not src_path:
+        print("   ⚠️  Anubis: Neither custom.css nor custom.css.dist was found. Skipping minification.")
+        return
+
+    try:
+        with open(src_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Simple CSS Minification regex
+        # 1. Remove comments
+        minified = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
+        # 2. Remove whitespace around delimiters ({ } : ; ,)
+        minified = re.sub(r'\s*([\{\}:;,])\s*', r'\1', minified)
+        # 3. Collapse multiple whitespace chars to single space
+        minified = re.sub(r'\s+', ' ', minified)
+        # 4. Trim
+        minified = minified.strip()
+
+        # Atomic write
+        temp_fd, temp_path = tempfile.mkstemp(dir=assets_dir, text=True)
+        try:
+            with os.fdopen(temp_fd, 'w', encoding='utf-8') as f:
+                f.write(minified)
+            os.chmod(temp_path, 0o644)
+            os.replace(temp_path, min_css_path)
+            orig_size = os.path.getsize(src_path)
+            min_size = len(minified.encode('utf-8'))
+            reduction = ((orig_size - min_size) / orig_size) * 100
+            print(f"   ⚡ Anubis CSS Minified: {orig_size} B ➜ {min_size} B (-{reduction:.1f}%) saved to custom.min.css")
+        except Exception as e:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            raise e
+
+    except Exception as e:
+        print(f"   ❌ Anubis: Error minifying CSS: {e}")
+
 if __name__ == "__main__":
     generate_configs()
+    generate_minified_css()
     generate_policy_file()

@@ -31,6 +31,7 @@ config/anubis/botPolicy-generated.yaml
 
 # Anubis custom assets (only .dist defaults are tracked)
 config/anubis/assets/custom.css
+config/anubis/assets/custom.min.css
 config/anubis/assets/static/img/happy.webp
 config/anubis/assets/static/img/pensive.webp
 config/anubis/assets/static/img/reject.webp
