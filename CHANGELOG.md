@@ -1,3 +1,7 @@
+## v2026.05.30 (2026-05-30)
+
+- feat: propagate DASHBOARD_APP_PATH_HOST to dashboard environment and improve .env initialization logic (b324a5f)
+
 ## v2026.05.28.1 (2026-05-28)
 
 - feat: add nginx optimization config for anubis and inject preload link headers via traefik middleware (aee3a51)
