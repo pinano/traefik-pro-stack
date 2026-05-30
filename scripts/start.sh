@@ -297,15 +297,20 @@ else
     DETECTED_PATH=$(pwd -P)
 fi
 
-# Update .env only if it's currently missing or placeholder (REPLACE_ME).
-# This avoids 'path shifts' that trigger recreations when running via UI.
-if [ -z "$DASHBOARD_APP_PATH_HOST" ] || [ "$DASHBOARD_APP_PATH_HOST" == "REPLACE_ME" ] || [ "$DASHBOARD_APP_PATH_HOST" == "null" ]; then
-    update_env_var "DASHBOARD_APP_PATH_HOST" "$DETECTED_PATH"
-    export DASHBOARD_APP_PATH_HOST="$DETECTED_PATH"
-    echo "   ✅ Project path initialized: $DETECTED_PATH"
+# Check if it is currently set in .env
+ENV_VAL=$(awk -F= -v name="DASHBOARD_APP_PATH_HOST" '$1 == name { sub(/^[^=]*=/, ""); gsub(/^[[:space:]]*["'\'']?|["'\'']?[[:space:]]*$/, ""); print; exit }' "$ENV_FILE")
+
+if [ -z "$ENV_VAL" ] || [ "$ENV_VAL" == "REPLACE_ME" ] || [ "$ENV_VAL" == "null" ]; then
+    PATH_TO_WRITE="${DASHBOARD_APP_PATH_HOST:-$DETECTED_PATH}"
+    if [ "$PATH_TO_WRITE" == "REPLACE_ME" ] || [ "$PATH_TO_WRITE" == "null" ] || [ -z "$PATH_TO_WRITE" ]; then
+        PATH_TO_WRITE="$DETECTED_PATH"
+    fi
+    update_env_var "DASHBOARD_APP_PATH_HOST" "$PATH_TO_WRITE"
+    export DASHBOARD_APP_PATH_HOST="$PATH_TO_WRITE"
+    echo "   ✅ Project path initialized in .env: $PATH_TO_WRITE"
 else
-    # Ensure current process has the value from .env, NOT the detected path in container
-    echo "   ✅ Using existing project path: $DASHBOARD_APP_PATH_HOST"
+    export DASHBOARD_APP_PATH_HOST="$ENV_VAL"
+    echo "   ✅ Using existing project path from .env: $DASHBOARD_APP_PATH_HOST"
 fi
 
 # Normalize CROWDSEC_ENABLE to lowercase

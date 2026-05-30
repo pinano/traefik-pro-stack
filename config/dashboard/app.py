@@ -246,7 +246,7 @@ def build_compose_env():
     # 1. System essentials for docker CLI to function
     for key in ('PATH', 'HOME', 'USER', 'DOCKER_HOST', 'DOCKER_CONFIG',
                 'DOCKER_CERT_PATH', 'DOCKER_TLS_VERIFY', 'TMPDIR',
-                'XDG_RUNTIME_DIR', 'DOCKER_BUILDKIT'):
+                'XDG_RUNTIME_DIR', 'DOCKER_BUILDKIT', 'DASHBOARD_APP_PATH_HOST'):
         if key in os.environ:
             env[key] = os.environ[key]
 
