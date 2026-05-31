@@ -17,6 +17,7 @@ services:
       # Operational Rclone parameters
       - RCLONE_TPSLIMIT=2
       - RCLONE_TPSLIMIT_BURST=2
+      - RCLONE_TRANSFERS=2
     volumes:
       - ./config/backrest/data:/data
       - ./config/backrest/config:/config
@@ -36,8 +37,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 1G
+          cpus: '2.0'
+          memory: 2G
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
