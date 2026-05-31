@@ -20,6 +20,12 @@
 
 set -uo pipefail
 
+# Ensure script is running as root
+if [ "$EUID" -ne 0 ]; then
+    echo "ERROR: This script must be run as root (using sudo)." >&2
+    exit 1
+fi
+
 BACKUP_DIR="/var/backups/incoming"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 ERRORS=0
@@ -40,23 +46,31 @@ for CONTAINER in $DB_CONTAINERS; do
     echo "--- Dumping: $CONTAINER ---"
     OUTPUT_FILE="$BACKUP_DIR/${CONTAINER}_${TIMESTAMP}.sql"
 
-    if docker exec "$CONTAINER" which mysqldump >/dev/null 2>&1; then
+    # Detect MySQL/MariaDB dump tools (mariadb-dump is preferred in newer versions)
+    DUMP_TOOL=""
+    if docker exec "$CONTAINER" sh -c 'command -v mariadb-dump' >/dev/null 2>&1; then
+        DUMP_TOOL="mariadb-dump"
+    elif docker exec "$CONTAINER" sh -c 'command -v mysqldump' >/dev/null 2>&1; then
+        DUMP_TOOL="mysqldump"
+    fi
+
+    if [ -n "$DUMP_TOOL" ]; then
         # Try with root password env var first (MYSQL_ROOT_PASSWORD / MARIADB_ROOT_PASSWORD),
         # then fall back to no-password auth (e.g. containers using socket auth).
         if docker exec "$CONTAINER" sh -c \
-            'mysqldump --all-databases -u root -p"${MYSQL_ROOT_PASSWORD:-${MARIADB_ROOT_PASSWORD:-}}"' \
+            "$DUMP_TOOL --all-databases -u root -p\"\${MYSQL_ROOT_PASSWORD:-\${MARIADB_ROOT_PASSWORD:-}}\"" \
             > "$OUTPUT_FILE" 2>/dev/null; then
             echo "  OK: MySQL/MariaDB dump saved (root password)."
         elif docker exec "$CONTAINER" sh -c \
-            'mysqldump --all-databases -u root' > "$OUTPUT_FILE" 2>/dev/null; then
+            "$DUMP_TOOL --all-databases -u root" > "$OUTPUT_FILE" 2>/dev/null; then
             echo "  OK: MySQL/MariaDB dump saved (no password)."
         else
-            echo "  ERROR: mysqldump failed for $CONTAINER"
+            echo "  ERROR: $DUMP_TOOL failed for $CONTAINER"
             rm -f "$OUTPUT_FILE"
             ERRORS=$((ERRORS + 1))
         fi
 
-    elif docker exec "$CONTAINER" which pg_dumpall >/dev/null 2>&1; then
+    elif docker exec "$CONTAINER" sh -c 'command -v pg_dumpall' >/dev/null 2>&1; then
         if docker exec "$CONTAINER" pg_dumpall -U postgres > "$OUTPUT_FILE" 2>/dev/null; then
             echo "  OK: PostgreSQL dump saved."
         else
