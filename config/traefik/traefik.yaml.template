@@ -21,7 +21,7 @@ entryPoints:
     transport:
       respondingTimeouts:
         readTimeout: "TRAEFIK_TIMEOUT_ACTIVE_PLACEHOLDER"
-        writeTimeout: "TRAEFIK_TIMEOUT_ACTIVE_PLACEHOLDER"
+        writeTimeout: 0s
         idleTimeout: "TRAEFIK_TIMEOUT_IDLE_PLACEHOLDER"
 
   websecure:
@@ -31,7 +31,7 @@ entryPoints:
     transport:
       respondingTimeouts:
         readTimeout: "TRAEFIK_TIMEOUT_ACTIVE_PLACEHOLDER"
-        writeTimeout: "TRAEFIK_TIMEOUT_ACTIVE_PLACEHOLDER"
+        writeTimeout: 0s
         idleTimeout: "TRAEFIK_TIMEOUT_IDLE_PLACEHOLDER"
 
   # NOTE: Add TCP entrypoints here if needed (e.g. mariadb: ":3306")
