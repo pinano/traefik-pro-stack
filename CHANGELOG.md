@@ -1,3 +1,8 @@
+## v2026.05.31.1 (2026-05-31)
+
+- refactor: update backup script to clean existing files instead of deleting the directory to preserve mount point inodes (5caab75)
+- feat: enforce root execution and add support for mariadb-dump in backup script (28e707f)
+
 ## v2026.05.31 (2026-05-31)
 
 - fix: disable write timeouts in Traefik configuration by setting to 0s (b0c62eb)
