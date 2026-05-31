@@ -37,4 +37,10 @@ if [ -f ".maintenance_mode" ]; then
     COMPOSE_FILES="$COMPOSE_FILES -f docker-compose-maintenance.yaml"
 fi
 
+# Add Backrest (Restic Web UI) if enabled
+BACKREST_ENABLE="${BACKREST_ENABLE:-true}"
+if [ "$BACKREST_ENABLE" = "true" ]; then
+    COMPOSE_FILES="$COMPOSE_FILES -f docker-compose-backrest.yaml"
+fi
+
 export COMPOSE_FILES

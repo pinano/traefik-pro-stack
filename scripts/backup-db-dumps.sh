@@ -1,0 +1,73 @@
+#!/bin/bash
+# =============================================================================
+# backup-db-dumps.sh — LXC Database Dump Script
+# =============================================================================
+# Runs directly on the LXC OS (not inside a container).
+# Discovers all running MySQL/MariaDB/PostgreSQL containers and dumps them
+# to BACKUP_DIR. Each container is processed independently — a failure in one
+# does NOT abort the dumps for the others.
+#
+# Usage:
+#   sudo /usr/local/bin/backup-db-dumps.sh
+#
+# Intended to run as a root cron job, 15 minutes before the Backrest
+# backup plan is scheduled (e.g. 02:45 if Backrest runs at 03:00).
+#
+# Install:
+#   sudo cp scripts/backup-db-dumps.sh /usr/local/bin/backup-db-dumps.sh
+#   sudo chmod +x /usr/local/bin/backup-db-dumps.sh
+# =============================================================================
+
+set -uo pipefail
+
+BACKUP_DIR="/var/backups/incoming"
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+ERRORS=0
+
+echo "=== Starting LXC DB Dumps: $TIMESTAMP ==="
+
+rm -rf "$BACKUP_DIR"
+mkdir -p "$BACKUP_DIR"
+
+DB_CONTAINERS=$(docker ps --format '{{.Names}}' | grep -E "mysql|mariadb|postgres|db" || true)
+
+if [ -z "$DB_CONTAINERS" ]; then
+    echo "No database containers found. Skipping."
+    exit 0
+fi
+
+for CONTAINER in $DB_CONTAINERS; do
+    echo "--- Dumping: $CONTAINER ---"
+    OUTPUT_FILE="$BACKUP_DIR/${CONTAINER}_${TIMESTAMP}.sql"
+
+    if docker exec "$CONTAINER" which mysqldump >/dev/null 2>&1; then
+        # Try with root password env var first (MYSQL_ROOT_PASSWORD / MARIADB_ROOT_PASSWORD),
+        # then fall back to no-password auth (e.g. containers using socket auth).
+        if docker exec "$CONTAINER" sh -c \
+            'mysqldump --all-databases -u root -p"${MYSQL_ROOT_PASSWORD:-${MARIADB_ROOT_PASSWORD:-}}"' \
+            > "$OUTPUT_FILE" 2>/dev/null; then
+            echo "  OK: MySQL/MariaDB dump saved (root password)."
+        elif docker exec "$CONTAINER" sh -c \
+            'mysqldump --all-databases -u root' > "$OUTPUT_FILE" 2>/dev/null; then
+            echo "  OK: MySQL/MariaDB dump saved (no password)."
+        else
+            echo "  ERROR: mysqldump failed for $CONTAINER"
+            rm -f "$OUTPUT_FILE"
+            ERRORS=$((ERRORS + 1))
+        fi
+
+    elif docker exec "$CONTAINER" which pg_dumpall >/dev/null 2>&1; then
+        if docker exec "$CONTAINER" pg_dumpall -U postgres > "$OUTPUT_FILE" 2>/dev/null; then
+            echo "  OK: PostgreSQL dump saved."
+        else
+            echo "  ERROR: pg_dumpall failed for $CONTAINER"
+            rm -f "$OUTPUT_FILE"
+            ERRORS=$((ERRORS + 1))
+        fi
+    else
+        echo "  SKIP: No supported dump tool found in $CONTAINER."
+    fi
+done
+
+echo "=== DB Dumps Completed. Errors: $ERRORS ==="
+exit $ERRORS

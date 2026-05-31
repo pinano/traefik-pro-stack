@@ -1,0 +1,51 @@
+services:
+
+  # ===========================
+  #  BACKREST (Restic Web UI)
+  # ===========================
+  backrest:
+    image: garethgeorge/backrest:v1.13.0
+    restart: unless-stopped
+    networks:
+      - traefik
+    environment:
+      - BACKREST_DATA=/data
+      - BACKREST_CONFIG=/config/config.json
+      - XDG_CACHE_HOME=/cache
+      - TMPDIR=/tmp
+      - TZ=${TZ}
+    volumes:
+      - ./config/backrest/data:/data
+      - ./config/backrest/config:/config
+      - ./config/backrest/cache:/cache
+      - ./config/backrest/tmp:/tmp
+      - ${BACKREST_PROJECTS_DIR:-/opt/docker}:/userdata/projects:ro
+      - ${BACKREST_DUMPS_DIR:-/var/backups/incoming}:/userdata/db_dumps:ro
+      - ./config/backrest/rclone:/root/.config/rclone
+    security_opt:
+      - no-new-privileges=true
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:9898/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.services.backrest.loadbalancer.server.port=9898"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  traefik:
+    name: traefik
+    external: true

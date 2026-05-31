@@ -67,6 +67,7 @@ REDIS_PASSWORD = os.getenv('REDIS_PASSWORD')
 CROWDSEC_ENABLE = os.getenv('CROWDSEC_ENABLE', 'true').lower() == 'true'
 CROWDSEC_APPSEC_ENABLE = os.getenv('CROWDSEC_APPSEC_ENABLE', 'true').lower() == 'true'
 CROWDSEC_CAPTCHA_GRACE_PERIOD = int(os.getenv('CROWDSEC_CAPTCHA_GRACE_PERIOD', 3600))
+BACKREST_ENABLE = os.getenv('BACKREST_ENABLE', 'true').lower() == 'true'
 TRAEFIK_ENV_TYPE = os.getenv('TRAEFIK_ACME_ENV_TYPE', 'staging')
 IS_LOCAL_DEV = (TRAEFIK_ENV_TYPE == 'local')
 TRAEFIK_CERT_RESOLVER = os.getenv('TRAEFIK_CERT_RESOLVER', 'le')
@@ -892,6 +893,40 @@ def generate_configs():
             'priority': 100,
             'tls': traefik_dynamic_conf['http']['routers'][base_router_name]['tls'],
             'middlewares': cswebui_mw
+        }
+
+    # --- Backrest Router (only when BACKREST_ENABLE=true) ---
+    if BACKREST_ENABLE:
+        # Pattern: same as other SSO-protected sub-routes.
+        # Insert redirect + SSO middlewares before the last entry (global-compress),
+        # then add the strip prefix after SSO so the backend receives paths without /backups.
+        backrest_mw = base_middlewares.copy()
+        if 'global-buffering' in backrest_mw:
+            backrest_mw.remove('global-buffering')
+        for mw in reversed(['backrest-redirect'] + sso_middlewares + ['backrest-strip']):
+            backrest_mw.insert(-1, mw)
+
+        traefik_dynamic_conf['http']['routers']['backrest-frontend'] = {
+            'rule': f"Host(`{dashboard_domain}`) && PathPrefix(`/backups`)",
+            'entryPoints': ["websecure"],
+            'service': "backrest@docker",
+            'priority': 100,
+            'tls': traefik_dynamic_conf['http']['routers'][base_router_name]['tls'],
+            'middlewares': backrest_mw
+        }
+
+        traefik_dynamic_conf['http']['middlewares']['backrest-redirect'] = {
+            'redirectRegex': {
+                'regex': '^https?://([^/]+)/backups$',
+                'replacement': 'https://${1}/backups/',
+                'permanent': True
+            }
+        }
+
+        traefik_dynamic_conf['http']['middlewares']['backrest-strip'] = {
+            'stripPrefix': {
+                'prefixes': ['/backups']
+            }
         }
 
     # -------------------------------------------------------------------------

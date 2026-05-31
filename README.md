@@ -55,6 +55,7 @@ Instead of relying on basic reverse proxies that require manually maintained con
 *   **Single Sign-On and Access Control**: A centralized Python/Flask administrative dashboard allows you to manage routing settings, inspect certificate health, and oversee captcha keys. This dashboard integrates directly into Traefik using its ForwardAuth middleware to serve as a Single Sign-On (SSO) gateway, protecting administrative interfaces (Dozzle logs, Traefik's internal API dashboard, Grafana, and the CrowdSec LAPI console) behind a unified, session-secured portal.
 *   **Observability Pipeline**: Telemetry is structured via Grafana Alloy, Loki, Prometheus, and Grafana. Alloy discovers running containers, parses access logs, and scrapes Prometheus endpoints. Logs are shipped to Loki and metrics to Prometheus, feeding pre-configured Grafana dashboards that display security statistics, system resources, and request routing anomalies.
 *   **System Watchdog**: An isolated background daemon monitors certificate lifetimes, domain DNS resolutions, host hardware metrics (CPU, memory, disk, and IO), and Traefik dynamic configuration drift. Any anomalies trigger notifications dispatched directly to a Telegram group.
+*   **Automated Backups**: An optional Backrest service (Restic + Rclone) provides encrypted, deduplicated backups to cloud storage (Dropbox, Google Drive, S3, etc.). A two-layer strategy separates database dump generation (LXC cron) from backup orchestration (Backrest scheduler), keeping the backup container isolated with read-only access to project files.
 *   **Fail-Open Border Resilience**: To prevent operational downtime, the CrowdSec integration is configured as fail-open. If the security database, the WAF listener, or the session cache goes offline, edge traffic is permitted to flow through rather than being dropped, maintaining availability under anomalous conditions.
 
 ---
@@ -176,6 +177,7 @@ To ensure network isolation and avoid socket binding conflicts, the stack maps s
 | `loki` | `3100` | None | `traefik` | Log archive aggregation database |
 | `alloy` | `12345` | None | `traefik` / Host logs | Grafana Alloy collector service |
 | `dozzle` | `8080` | None | `traefik` | Container logs web console viewer |
+| `backrest` | `9898` | None | `traefik` | Restic backup Web UI (optional, controlled by `BACKREST_ENABLE`) |
 | `apache-host` | `8080` | `8080` | Host Network | Legacy Apache web service running on the host |
 
 ---
@@ -280,7 +282,9 @@ This section details the layout of the project, including configuration files, t
 ├── VERSION                                # Current CalVer release tag (e.g. 2026.05.25)
 │
 ├── scripts/                               # Automation and health verification scripts
-│   ├── backup.sh                          # Creates timestamped configuration backups
+│   ├── backup-traefik-stack.sh            # Creates timestamped configuration backups
+│   ├── backup-db-dumps.sh                # LXC cron script: dumps all Docker databases to disk
+│   ├── LXC_DEBIAN_SETUP.md               # Proxmox LXC deployment and backup strategy guide
 │   ├── compose-files.sh                   # Builds the active Compose file list dynamically
 │   ├── create-local-certs.sh              # Automates self-signed CA and certificate generation
 │   ├── crowdsec-geoblock.sh               # Downloads CIDR blocks to block geo-specific traffic
@@ -343,6 +347,7 @@ This section details the layout of the project, including configuration files, t
 │   ├── prometheus/                       # Prometheus scraper definitions and rules
 │   ├── redis/                            # Valkey/Redis cache configuration templates
 │   ├── alloy/                            # Grafana Alloy metric and log ingestion pipelines
+│   ├── backrest/                         # Backrest state: config, data, rclone credentials (git-ignored)
 │   └── watchdog/                         # Watchdog monitor scripts
 │
 └── docker-compose-*.yaml                  # Modular Compose files divided by service areas
@@ -576,6 +581,9 @@ These variables control system behaviors, resource limits, timeouts, and notific
 | `DASHBOARD_ANUBIS_SUBDOMAIN` | Dashboard | (blank) | Subdomain prefix for protecting Flask panel via PoW challenges (leave blank to disable). |
 | `DASHBOARD_ADMIN_USER` | Dashboard | `admin` | SSO and portal master admin username. |
 | `DASHBOARD_ADMIN_PASSWORD` | Dashboard | `password` | SSO and portal master admin password. Update before deploying. |
+| `BACKREST_ENABLE` | Backups | `true` | Toggles the Backrest service. Set to `false` to disable cloud backups entirely on this instance. |
+| `BACKREST_PROJECTS_DIR` | Backups | `/opt/docker` | Host path containing Docker projects. Mounted read-only to `/userdata/projects` inside the Backrest container. |
+| `BACKREST_DUMPS_DIR` | Backups | `/var/backups/incoming` | Host path where the LXC cron writes SQL dumps. Mounted read-only to `/userdata/db_dumps` inside Backrest. |
 
 > [!CAUTION]
 > Setting a high HSTS Max Age value (`TRAEFIK_HSTS_MAX_AGE`) before confirming that SSL/TLS certificates solve and renew successfully can permanently lock out clients from accessing your web applications for up to one year. Always verify staging and production HTTPS handshakes with a low HSTS value first.
@@ -665,6 +673,21 @@ Example command to restore a specific backup tarball file:
 ```bash
 make restore file=backups/traefik-stack_20260525_220000.tar.gz
 ```
+
+#### Cloud Backups with Backrest (Restic + Rclone)
+
+When `BACKREST_ENABLE=true`, the stack deploys Backrest — a web UI for managing Restic backups with Rclone cloud storage backends. Backrest is accessible at `https://dashboard.<domain>/backups/` behind SSO authentication.
+
+The backup strategy uses two independent layers:
+1. **LXC Cron** (`backup-db-dumps.sh`): Runs 15 minutes before the Backrest schedule, dumping all running MySQL/MariaDB/PostgreSQL databases to `BACKREST_DUMPS_DIR`.
+2. **Backrest scheduler**: Reads project files and SQL dumps (both mounted read-only), deduplicates and encrypts with Restic, then uploads to the configured Rclone remote.
+
+**Rclone setup (required before creating a backup plan):** Cloud providers like Dropbox and Google Drive require an OAuth flow that opens a browser window. Since the server is headless, you must first run `rclone authorize "dropbox"` (or `"drive"`) on your local PC to obtain an access token. Then configure the remote using one of these methods:
+
+*   **Option A — Configure inside the container:** Run `docker compose exec -it backrest rclone config`, follow the interactive assistant, and paste the token when prompted. The configuration is automatically persisted in `./config/backrest/rclone/rclone.conf`.
+*   **Option B — Copy an existing config:** If you already have a working `rclone.conf` on another machine, copy it directly to `./config/backrest/rclone/rclone.conf` and restart the container.
+
+See [`scripts/LXC_DEBIAN_SETUP.md`](scripts/LXC_DEBIAN_SETUP.md) for the complete setup guide including cron scheduling, retention policies, and backup plan configuration.
 
 ### Maintenance & Reset
 

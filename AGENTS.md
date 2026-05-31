@@ -28,6 +28,7 @@ The core mission: protect multiple Docker-based web applications (and optionally
 | **Admin UI** | Dashboard | Flask/Python UI to manage `domains.csv` + SSO provider |
 | **Security UI** | CrowdSec Web UI | Web interface for LAPI alert management and decision overview |
 | **Monitor** | Watchdog | Checks SSL expiry, DNS records, CrowdSec health → Telegram |
+| **Backups** | Backrest (Restic + Rclone) | Encrypted, deduplicated backups to cloud storage |
 | **Orchestration** | Docker Compose | Modular multi-file compose structure |
 | **Automation** | Python + Bash | Config generation, environment management, cert tools |
 
@@ -44,7 +45,8 @@ The core mission: protect multiple Docker-based web applications (and optionally
 ├── Makefile                               # Project management commands
 │
 ├── scripts/                               # Core automation scripts
-│   ├── backup.sh                          # Configuration and data backup script
+│   ├── backup-traefik-stack.sh            # Configuration and data backup script
+│   ├── backup-db-dumps.sh                 # LXC cron script: dumps all Docker databases to disk
 │   ├── compose-files.sh                   # Shared compose file list builder (single source of truth)
 │   ├── create-local-certs.sh              # Local mkcert certificate generator
 │   ├── crowdsec-geoblock.sh               # CrowdSec country banning/unbanning utility
@@ -64,6 +66,7 @@ The core mission: protect multiple Docker-based web applications (and optionally
 │   ├── stop.sh                            # Graceful stack shutdown
 │   ├── update.sh                          # Versioning: Safe upgrade to latest release
 │   ├── validate-env.py                    # .env validation & sync tool
+│   ├── LXC_DEBIAN_SETUP.md                # Proxmox LXC deployment guide
 │   └── make/                              # Conditional Makefile includes
 │       ├── certs.mk                       # Local cert targets (included only if TRAEFIK_ACME_ENV_TYPE=local)
 │       ├── crowdsec.mk                    # CrowdSec management targets (included if CrowdSec enabled)
@@ -75,7 +78,7 @@ The core mission: protect multiple Docker-based web applications (and optionally
 │   │   ├── traefik-generated.yaml         # Generated static config (do not edit)
 │   │   ├── acme.json                      # Let's Encrypt certificate storage (mode 600, git-ignored)
 │   │   ├── certs-local-dev/               # mkcert certificates for local mode
-│   │   └── dynamic-config/               # Generated routers/middlewares (from generate-config.py)
+│   │   └── dynamic-config/                # Generated routers/middlewares (from generate-config.py)
 │   │
 │   ├── crowdsec/
 │   │   ├── acquis-base.yaml              # Base log acquisition config (Traefik + SFTP)
@@ -91,6 +94,7 @@ The core mission: protect multiple Docker-based web applications (and optionally
 │   │       ├── custom.css.dist           # Default stylesheet template
 │   │       └── static/img/               # Challenge page images (.dist versions)
 │   │
+│   ├── backrest/                         # Backrest state: config, data, cache, rclone (git-ignored)
 │   ├── crowdsec-web-ui/                  # Data directory for CrowdSec LAPI interface
 │   ├── dashboard/                        # Admin UI backend (Python/Flask)
 │   │   ├── app.py                        # Flask application
@@ -116,7 +120,7 @@ The core mission: protect multiple Docker-based web applications (and optionally
 │   │   ├── prometheus.yml                # Scrape configs and remote_write receiver
 │   │   └── rules.yml                     # Prometheus recording/alerting rules (mirrors Grafana rules)
 │   ├── redis/redis.conf                  # Valkey/Redis config (allkeys-lru, no persistence)
-│   ├── alloy/config.alloy               # Alloy collector config (log discovery, metric scraping)
+│   ├── alloy/config.alloy                # Alloy collector config (log discovery, metric scraping)
 │   └── watchdog/
 │       ├── Dockerfile
 │       ├── check-certs.sh               # Certificate expiration checker
@@ -132,6 +136,7 @@ The core mission: protect multiple Docker-based web applications (and optionally
     ├── docker-compose-dashboard.yaml         # Dashboard: Dashboard, Dozzle, Watchdog, ctop
     ├── docker-compose-anubis.yaml            # Bot Defense: Anubis base template + Assets server
     ├── docker-compose-anubis-generated.yaml  # Auto-generated Anubis instances (per TLD, do not edit)
+    ├── docker-compose-backrest.yaml          # Backups: Backrest (Restic Web UI + Rclone)
     ├── docker-compose-maintenance.yaml       # Maintenance: Global 503 fallback container
     └── docker-compose-apache-logs.yaml       # Apache log extension (auto-included if Apache detected)
 ```
@@ -190,6 +195,7 @@ The stack uses multiple compose files to keep concerns separated:
 | `docker-compose-dashboard.yaml` | Dashboard (Flask), Dozzle, Watchdog, ctop |
 | `docker-compose-anubis.yaml` | Anubis base template + Anubis Assets server |
 | `docker-compose-anubis-generated.yaml` | Auto-generated Anubis instances (from `generate-config.py`) |
+| `docker-compose-backrest.yaml` | Backrest (Restic + Rclone) — conditionally included when `BACKREST_ENABLE=true` |
 | `docker-compose-apache-logs.yaml` | Apache log integration (auto-included only when Apache is detected) |
 
 The active compose file list is determined by `scripts/compose-files.sh` — the **single source of truth** used by both `start.sh`, `stop.sh`, and the `Makefile`. Never hard-code compose file lists elsewhere.
@@ -261,6 +267,8 @@ Key variables an agent must understand before making changes:
 | `TRAEFIK_HSTS_MAX_AGE` | High value + no HTTPS = users locked out of the domain for up to 1 year |
 | `TRAEFIK_TIMEOUT_ACTIVE` | Too low = legitimate slow requests time out; too high = opens DoS vector |
 | `PROMETHEUS_RETENTION_DAYS` | Very high values + low `PROMETHEUS_MEM_LIMIT` = OOM kills |
+| `BACKREST_ENABLE` | `false` disables Backrest entirely — the compose file is not loaded |
+| `BACKREST_PROJECTS_DIR` | Must point to the parent directory of all Docker projects on this LXC |
 
 Variables managed automatically by `start.sh` — **never suggest editing these manually**:
 - `TRAEFIK_CERT_RESOLVER`

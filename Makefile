@@ -167,7 +167,7 @@ rollback: ## Interactively list recent versions and rollback to a specific one
 
 .PHONY: backup
 backup: ## Create a secure backup of configuration state (excludes heavy logs)
-	@./scripts/backup.sh
+	@./scripts/backup-traefik-stack.sh
 
 ##@help restore
 ## Restores a previously created backup tarball.

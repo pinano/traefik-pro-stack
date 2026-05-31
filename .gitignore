@@ -42,6 +42,7 @@ config/anubis/assets/static/img/reject.webp
 # Service data / databases (runtime state — never commit)
 data/
 config/crowdsec-web-ui/*
+config/backrest/
 
 # Python cache files
 __pycache__
