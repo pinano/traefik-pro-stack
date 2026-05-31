@@ -32,8 +32,11 @@ ERRORS=0
 
 echo "=== Starting LXC DB Dumps: $TIMESTAMP ==="
 
-rm -rf "$BACKUP_DIR"
+# Ensure the backup directory exists
 mkdir -p "$BACKUP_DIR"
+
+# Clean previous dumps without deleting the directory itself to preserve the Docker bind mount inode
+find "$BACKUP_DIR" -mindepth 1 -delete
 
 DB_CONTAINERS=$(docker ps --format '{{.Names}}' | grep -E "mysql|mariadb|postgres|db" || true)
 
