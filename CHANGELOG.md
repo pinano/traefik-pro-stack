@@ -1,3 +1,10 @@
+## v2026.05.31 (2026-05-31)
+
+- fix: disable write timeouts in Traefik configuration by setting to 0s (b0c62eb)
+- chore: increase Backrest resource limits and add concurrency settings (a5fe9ad)
+- chore: add Rclone rate limiting environment variables and reformat healthcheck command in backrest service (a53ba68)
+- feat: integrate Backrest backup solution with Traefik routing and configuration support. (59d1073)
+
 ## v2026.05.30 (2026-05-30)
 
 - feat: propagate DASHBOARD_APP_PATH_HOST to dashboard environment and improve .env initialization logic (b324a5f)
