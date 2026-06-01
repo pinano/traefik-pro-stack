@@ -1,3 +1,7 @@
+## v2026.06.01.1 (2026-06-01)
+
+- feat: add DASHBOARD_APP_PATH_HOST environment variable to .env.dist (681af35)
+
 ## v2026.06.01 (2026-06-01)
 
 - fix: secure database dumps and environment files by setting restrictive 600 file permissions and updating MySQL authentication method (01f7b42)
