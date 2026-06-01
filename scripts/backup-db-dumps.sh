@@ -59,14 +59,17 @@ for CONTAINER in $DB_CONTAINERS; do
 
     if [ -n "$DUMP_TOOL" ]; then
         # Try with root password env var first (MYSQL_ROOT_PASSWORD / MARIADB_ROOT_PASSWORD),
-        # then fall back to no-password auth (e.g. containers using socket auth).
+        # using MYSQL_PWD inside the container shell to prevent CLI exposure and warning messages.
+        # Fall back to no-password auth (e.g. containers using socket auth).
         if docker exec "$CONTAINER" sh -c \
-            "$DUMP_TOOL --all-databases -u root -p\"\${MYSQL_ROOT_PASSWORD:-\${MARIADB_ROOT_PASSWORD:-}}\"" \
-            > "$OUTPUT_FILE" 2>/dev/null; then
+            "MYSQL_PWD=\"\${MYSQL_ROOT_PASSWORD:-\${MARIADB_ROOT_PASSWORD:-}}\" $DUMP_TOOL --all-databases -u root" \
+            > "$OUTPUT_FILE"; then
             echo "  OK: MySQL/MariaDB dump saved (root password)."
+            chmod 600 "$OUTPUT_FILE"
         elif docker exec "$CONTAINER" sh -c \
-            "$DUMP_TOOL --all-databases -u root" > "$OUTPUT_FILE" 2>/dev/null; then
+            "$DUMP_TOOL --all-databases -u root" > "$OUTPUT_FILE"; then
             echo "  OK: MySQL/MariaDB dump saved (no password)."
+            chmod 600 "$OUTPUT_FILE"
         else
             echo "  ERROR: $DUMP_TOOL failed for $CONTAINER"
             rm -f "$OUTPUT_FILE"
@@ -74,8 +77,9 @@ for CONTAINER in $DB_CONTAINERS; do
         fi
 
     elif docker exec "$CONTAINER" sh -c 'command -v pg_dumpall' >/dev/null 2>&1; then
-        if docker exec "$CONTAINER" pg_dumpall -U postgres > "$OUTPUT_FILE" 2>/dev/null; then
+        if docker exec "$CONTAINER" pg_dumpall -U postgres > "$OUTPUT_FILE"; then
             echo "  OK: PostgreSQL dump saved."
+            chmod 600 "$OUTPUT_FILE"
         else
             echo "  ERROR: pg_dumpall failed for $CONTAINER"
             rm -f "$OUTPUT_FILE"

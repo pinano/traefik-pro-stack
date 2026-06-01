@@ -111,6 +111,7 @@ done < "$ENV_FILE"
 
 cat "$TEMP_ENV" > "$ENV_FILE"
 rm "$TEMP_ENV"
+chmod 600 "$ENV_FILE"
 
 if [ $ADDED_VARS -gt 0 ]; then
     echo "   ✅ Added $ADDED_VARS new variables from .env.dist."
@@ -223,6 +224,7 @@ update_env_var() {
     
     cat "$TMP_ENV" > "$ENV_FILE"
     rm "$TMP_ENV"
+    chmod 600 "$ENV_FILE"
 }
 
 # Dashboard Secret Key (auto-generate on first run)
