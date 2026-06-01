@@ -292,7 +292,7 @@ echo "7. Configuring Zabbix Agent..."
 if [ -f /etc/zabbix/zabbix_agent2.conf ]; then
     sed -i "s/^#\?\s*Server=.*/Server=$ZABBIX_SERVER/" /etc/zabbix/zabbix_agent2.conf
     sed -i "s/^#\?\s*ServerActive=.*/ServerActive=$ZABBIX_SERVER_ACTIVE/" /etc/zabbix/zabbix_agent2.conf
-    sed -i "s/^#\?\s*Hostname=.*/Hostname=\$(hostname)/" /etc/zabbix/zabbix_agent2.conf
+    sed -i "s/^#\?\s*Hostname=.*/Hostname=$(hostname)/" /etc/zabbix/zabbix_agent2.conf
     systemctl enable zabbix-agent2
     systemctl restart zabbix-agent2
     echo "Zabbix Agent 2 configured, enabled, and restarted."
