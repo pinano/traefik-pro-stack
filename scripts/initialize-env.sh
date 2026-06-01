@@ -140,6 +140,11 @@ prompt_val "TRAEFIK_ACME_EMAIL" "Let's Encrypt email"
 prompt_val "TRAEFIK_LISTEN_IP" "Traefik Listen IP (default: 0.0.0.0 for all)"
 prompt_val "TRAEFIK_ACME_ENV_TYPE" "ACME Environment (production/staging/local)"
 
+# Set dynamic default for BACKREST_PROJECTS_DIR to parent directory
+PARENT_DIR=$(dirname "$(pwd)")
+replace_val "BACKREST_PROJECTS_DIR" "$PARENT_DIR"
+prompt_val "BACKREST_PROJECTS_DIR" "Host path containing all Docker projects (for backups)"
+
 prompt_val "ANUBIS_DIFFICULTY" "Anubis challenge difficulty (1-5)"
 prompt_val "ANUBIS_CPU_LIMIT" "Anubis CPU limit per instance"
 prompt_val "ANUBIS_MEM_LIMIT" "Anubis memory limit per instance"
@@ -186,7 +191,7 @@ prompt_val "CROWDSEC_WHITELIST_IPS" "CrowdSec whitelist IPs (leave empty for non
 prompt_val "TRAEFIK_GLOBAL_RATE_AVG" "Traefik default rate limit (requests/sec)"
 prompt_val "TRAEFIK_GLOBAL_RATE_BURST" "Traefik default burst limit"
 prompt_val "TRAEFIK_GLOBAL_CONCURRENCY" "Traefik global concurrency"
-prompt_val "TRAEFIK_TIMEOUT_ACTIVE" "Traefik active timeout (read/write/header) in seconds"
+prompt_val "TRAEFIK_TIMEOUT_ACTIVE" "Traefik active read timeout in seconds"
 prompt_val "TRAEFIK_TIMEOUT_IDLE" "Traefik idle timeout in seconds"
 prompt_val "TRAEFIK_BLOCKED_PATHS" "Global Blocked Paths (e.g. /wp-admin/,/admin/)"
 prompt_val "TRAEFIK_BAD_USER_AGENTS" "Bad User Agents (regex, comma-separated)"

@@ -102,7 +102,8 @@ timezone: host
 
 # --- Storage (Adjust <vmid> and <disk-size>) ---
 # Local path on ext4 host (uses native overlay2 storage driver for Docker)
-rootfs: local:<vmid>/vm-<vmid>-disk-0.raw,size=<disk-size>
+# Once started, resize disk from the Proxmox UI 
+rootfs: local:<vmid>/vm-<vmid>-disk-0.raw,size=4G
 
 # --- Network and Firewall ---
 # firewall=1 enables Proxmox VE firewall for this container
@@ -142,7 +143,12 @@ lxc.environment: PROXMOX_HOST=pve-node-01
 
 ## 3. Phase 2: Automated Container Configuration (Bootstrap)
 
-To minimize manual steps once the `<container-name>` container is created and started, we will use a single bootstrap script. This script will automate system updates, create the admin user, set up SSH keys, harden SSH, and install Docker configured to use the `overlay2` driver.
+To minimize manual steps once the `<container-name>` container is created and started, we will use a single bootstrap script. This script will:
+*   Configure system **locales** (en_US.UTF-8) and **timezone** (default: Europe/Madrid).
+*   *Note on NTP:* In unprivileged LXC containers, NTP synchronization cannot run inside the container because it lacks the `SYS_TIME` capability. The container automatically inherits the time of the Proxmox host. Thus, we do not install or run any NTP daemon here.
+*   Automate system updates and install essential utilities (`htop`, `btop`, `zabbix-agent2`, and `ctop` for Docker container monitoring).
+*   Download and configure the `git-prompt.sh` script to customize the user's terminal prompt.
+*   Create the admin user, configure `.bashrc` environments, set up SSH keys, harden SSH, and install Docker configured to use the `overlay2` driver.
 
 ### A. Running the Bootstrap Script
 
@@ -156,6 +162,9 @@ set -euo pipefail
 
 USER_NAME="<your-admin-username>"   # ← EDIT: Set to the desired admin username for this LXC
 SSH_PUBKEY="your-ssh-public-key-here" # Change this to your public SSH key (optional)
+TZ_VAL="Europe/Madrid"              # ← EDIT: Set to your desired timezone
+ZABBIX_SERVER="your-zabbix-server-ip"       # ← EDIT: Set your Zabbix Server IP/Hostname
+ZABBIX_SERVER_ACTIVE="your-zabbix-server-ip" # ← EDIT: Set your Zabbix Server Active IP/Hostname
 
 echo "=== Starting LXC Bootstrap ==="
 
@@ -163,7 +172,26 @@ echo "=== Starting LXC Bootstrap ==="
 echo "1. Updating system packages..."
 export DEBIAN_FRONTEND=noninteractive
 apt update && apt upgrade -y
-apt install -y sudo curl git tmux make dnsutils openssl python3 python3-venv
+apt install -y sudo curl git tmux make dnsutils openssl python3 python3-venv locales htop btop zabbix-agent2
+
+# Configure Locales
+echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
+locale-gen en_US.UTF-8
+update-locale LANG=en_US.UTF-8
+
+# Configure Timezone
+ln -fs "/usr/share/zoneinfo/$TZ_VAL" /etc/localtime
+dpkg-reconfigure --frontend noninteractive tzdata
+
+# Install ctop (Docker metrics UI)
+echo "Installing ctop..."
+curl -fsSL https://github.com/bcicen/ctop/releases/download/v0.7.7/ctop-0.7.7-linux-amd64 -o /usr/local/bin/ctop
+chmod +x /usr/local/bin/ctop
+
+# Install git-prompt.sh
+echo "Downloading git-prompt.sh..."
+curl -fsSL https://raw.githubusercontent.com/git/git/refs/heads/master/contrib/completion/git-prompt.sh -o /usr/local/bin/git-prompt.sh
+chmod +x /usr/local/bin/git-prompt.sh
 
 # Create admin user
 echo "2. Creating admin user: $USER_NAME..."
@@ -184,6 +212,29 @@ if [ "$SSH_PUBKEY" != "your-ssh-public-key-here" ] && [ -n "$SSH_PUBKEY" ]; then
     chmod 700 "$USER_HOME/.ssh"
     chmod 600 "$USER_HOME/.ssh/authorized_keys"
 fi
+
+# Configure .bashrc for admin user and root (Git prompt + aliases)
+echo "Configuring shell environments (.bashrc)..."
+for HOME_DIR in "$USER_HOME" "/root"; do
+    if [ -f "$HOME_DIR/.bashrc" ]; then
+        if ! grep -q "git-prompt.sh" "$HOME_DIR/.bashrc"; then
+            cat <<'BASHRC' >> "$HOME_DIR/.bashrc"
+
+# Command alias
+alias ls='ls --color=auto'
+alias ll='ls -al'
+
+# Git prompt
+source /usr/local/bin/git-prompt.sh
+
+# Nice prompt
+PS1='\[\033[36m\]\u\[\033[m\]@\[\033[32m\]\h:\[\033[33;1m\]\w\[\033[31m\]$(__git_ps1 " (%s)")\[\033[m\] \$ '
+export PS1
+BASHRC
+        fi
+    fi
+done
+chown "$USER_NAME:$USER_NAME" "$USER_HOME/.bashrc"
 
 # SSH Hardening (No root login, no password auth)
 cat <<SSH_CONF > /etc/ssh/sshd_config.d/security.conf
@@ -209,6 +260,7 @@ echo \
 apt update
 apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 usermod -aG docker "$USER_NAME"
+usermod -aG docker zabbix
 
 # Configure Docker Daemon
 echo "5. Configuring Docker Daemon..."
@@ -233,6 +285,19 @@ if tr '\0' '\n' < /proc/1/environ | grep -q PROXMOX_HOST; then
     echo "Persisted: PROXMOX_HOST=$PROXMOX_HOST_VAL"
 else
     echo "Warning: PROXMOX_HOST variable not found in PID 1 environment."
+fi
+
+# Configure Zabbix Agent 2
+echo "7. Configuring Zabbix Agent..."
+if [ -f /etc/zabbix/zabbix_agent2.conf ]; then
+    sed -i "s/^#\?\s*Server=.*/Server=$ZABBIX_SERVER/" /etc/zabbix/zabbix_agent2.conf
+    sed -i "s/^#\?\s*ServerActive=.*/ServerActive=$ZABBIX_SERVER_ACTIVE/" /etc/zabbix/zabbix_agent2.conf
+    sed -i "s/^#\?\s*Hostname=.*/Hostname=\$(hostname)/" /etc/zabbix/zabbix_agent2.conf
+    systemctl enable zabbix-agent2
+    systemctl restart zabbix-agent2
+    echo "Zabbix Agent 2 configured, enabled, and restarted."
+else
+    echo "Warning: /etc/zabbix/zabbix_agent2.conf not found."
 fi
 
 echo "=== Bootstrap successfully completed ==="
