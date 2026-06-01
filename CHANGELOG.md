@@ -1,3 +1,7 @@
+## v2026.06.01.2 (2026-06-01)
+
+- feat: enhance LXC bootstrap with locale, timezone, monitoring tools, and Zabbix integration while updating environment initialization variables (70ac77a)
+
 ## v2026.06.01.1 (2026-06-01)
 
 - feat: add DASHBOARD_APP_PATH_HOST environment variable to .env.dist (681af35)
