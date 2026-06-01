@@ -197,6 +197,20 @@ MaxRetentionSec=1month
 JOURNALD_CONF
 systemctl restart systemd-journald || true
 
+# Configure system-wide file descriptor limits (ulimit) for user sessions
+echo "Configuring file descriptor limits..."
+mkdir -p /etc/security/limits.d
+cat <<'LIMITS_CONF' > /etc/security/limits.d/99-nofile.conf
+* soft nofile 65535
+* hard nofile 65535
+root soft nofile 65535
+root hard nofile 65535
+LIMITS_CONF
+
+# Configure systemd limit defaults for services and user sessions
+sed -i 's/#\?DefaultLimitNOFILE=.*/DefaultLimitNOFILE=65535/' /etc/systemd/system.conf
+sed -i 's/#\?DefaultLimitNOFILE=.*/DefaultLimitNOFILE=65535/' /etc/systemd/user.conf
+
 # Configure unattended-upgrades for automatic security updates
 echo "Configuring unattended-upgrades..."
 echo 'APT::Periodic::Update-Package-Lists "1";' > /etc/apt/apt.conf.d/20auto-upgrades
