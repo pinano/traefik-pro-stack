@@ -877,7 +877,8 @@ def auth_check():
 def dashboard():
     cs_enable = os.environ.get('CROWDSEC_ENABLE', 'true').lower() == 'true'
     certs_enabled = os.environ.get('TRAEFIK_ACME_ENV_TYPE', 'production').lower() != 'local'
-    return render_template('index.html', domain=DOMAIN, crowdsec_enabled=cs_enable, certs_enabled=certs_enabled)
+    backrest_enabled = os.environ.get('BACKREST_ENABLE', 'true').lower() == 'true'
+    return render_template('index.html', domain=DOMAIN, crowdsec_enabled=cs_enable, certs_enabled=certs_enabled, backrest_enabled=backrest_enabled)
 
 @app.route('/domains')
 @login_required

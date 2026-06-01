@@ -29,7 +29,8 @@
                         </span>
                         <h1 style="display: flex; align-items: baseline; gap: 0.5rem;">
                             Traefik Pro Stack
-                            <span style="font-size: 1.1rem; color: var(--text-muted); font-weight: 400;">/ Dashboard</span>
+                            <span style="font-size: 1.1rem; color: var(--text-muted); font-weight: 400;">/
+                                Dashboard</span>
                         </h1>
                     </div>
                     <div class="logo-subtitles" style="margin-top: 0.1rem;">
@@ -139,13 +140,22 @@
                 </a>
 
                 <!-- Backups Manager -->
+                {% if backrest_enabled %}
                 <a href="/backups/" target="_blank" class="app-card">
                     <i data-lucide="archive" class="app-icon" style="color: #e11d48;"></i>
-                    <h2 class="app-title">Backups Manager <i data-lucide="external-link"
+                    <h2 class="app-title">Backup Manager <i data-lucide="external-link"
                             style="width: 1.1rem; height: 1.1rem; display: inline-block; vertical-align: middle; margin-left: 0.35rem; opacity: 0.6;"></i>
                     </h2>
                     <p class="app-desc">Navigate, restore, and verify your restic backups.</p>
                 </a>
+                {% else %}
+                <div class="app-card" style="opacity: 0.6; cursor: not-allowed;"
+                    title="Backups are disabled (BACKREST_ENABLE=false)">
+                    <i data-lucide="archive" class="app-icon" style="color: #94a3b8;"></i>
+                    <h2 class="app-title" style="color: #6b7280;">Backup Manager</h2>
+                    <p class="app-desc">Backups are currently disabled.</p>
+                </div>
+                {% endif %}
 
                 <!-- Documentation -->
                 <a href="https://github.com/pinano/traefik-pro-stack" target="_blank" class="app-card">
