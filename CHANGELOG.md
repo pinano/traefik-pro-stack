@@ -1,3 +1,8 @@
+## v2026.06.01 (2026-06-01)
+
+- fix: secure database dumps and environment files by setting restrictive 600 file permissions and updating MySQL authentication method (01f7b42)
+- feat: add conditional visibility and configuration for Backrest backup manager in dashboard (c568abd)
+
 ## v2026.05.31.1 (2026-05-31)
 
 - refactor: update backup script to clean existing files instead of deleting the directory to preserve mount point inodes (5caab75)
