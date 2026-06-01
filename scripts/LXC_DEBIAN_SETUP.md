@@ -148,7 +148,7 @@ To minimize manual steps once the `<container-name>` container is created and st
 *   *Note on NTP:* In unprivileged LXC containers, NTP synchronization cannot run inside the container because it lacks the `SYS_TIME` capability. The container automatically inherits the time of the Proxmox host. Thus, we do not install or run any NTP daemon here.
 *   Automate system updates and install essential utilities (`htop`, `btop`, `zabbix-agent2`, and `ctop` for Docker container monitoring).
 *   Download and configure the `git-prompt.sh` script to customize the user's terminal prompt.
-*   Create the admin user, configure `.bashrc` environments, set up SSH keys, harden SSH, and install Docker configured to use the `overlay2` driver.
+*   Create the admin user (with password setup), configure `.bashrc` environments, set up SSH keys (optional), configure SSH, and install Docker configured to use the `overlay2` driver.
 
 ### A. Running the Bootstrap Script
 
@@ -161,6 +161,7 @@ cat <<'EOF' > /tmp/bootstrap.sh
 set -euo pipefail
 
 USER_NAME="<your-admin-username>"   # ← EDIT: Set to the desired admin username for this LXC
+USER_PASSWORD="your-strong-password-here" # ← EDIT: Set to your desired strong password (optional, falls back to interactive if unchanged)
 SSH_PUBKEY="your-ssh-public-key-here" # Change this to your public SSH key (optional)
 TZ_VAL="Europe/Madrid"              # ← EDIT: Set to your desired timezone
 ZABBIX_SERVER="your-zabbix-server-ip"       # ← EDIT: Set your Zabbix Server IP/Hostname
@@ -193,10 +194,17 @@ echo "Downloading git-prompt.sh..."
 curl -fsSL https://raw.githubusercontent.com/git/git/refs/heads/master/contrib/completion/git-prompt.sh -o /usr/local/bin/git-prompt.sh
 chmod +x /usr/local/bin/git-prompt.sh
 
-# Create admin user
+# Create admin user and set password
 echo "2. Creating admin user: $USER_NAME..."
 if ! id -u "$USER_NAME" >/dev/null 2>&1; then
     adduser --disabled-password --gecos "" "$USER_NAME"
+    if [ "$USER_PASSWORD" != "your-strong-password-here" ] && [ -n "$USER_PASSWORD" ]; then
+        echo "$USER_NAME:$USER_PASSWORD" | chpasswd
+        echo "Password configured for user $USER_NAME."
+    else
+        echo "=== Setting password for admin user: $USER_NAME ==="
+        passwd "$USER_NAME"
+    fi
 fi
 usermod -aG sudo "$USER_NAME"
 echo "$USER_NAME ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/$USER_NAME
@@ -236,10 +244,10 @@ BASHRC
 done
 chown "$USER_NAME:$USER_NAME" "$USER_HOME/.bashrc"
 
-# SSH Hardening (No root login, no password auth)
+# SSH Configuration (No root login, password auth enabled temporarily)
 cat <<SSH_CONF > /etc/ssh/sshd_config.d/security.conf
 PermitRootLogin no
-PasswordAuthentication no
+PasswordAuthentication yes
 PubkeyAuthentication yes
 AllowUsers $USER_NAME
 PermitEmptyPasswords no
@@ -303,7 +311,7 @@ fi
 echo "=== Bootstrap successfully completed ==="
 EOF
 
-# ⚠️  IMPORTANT: Before running, open the script and set USER_NAME to your desired admin username:
+# ⚠️  IMPORTANT: Before running, open the script and set USER_NAME and USER_PASSWORD to your desired values:
 #   nano /tmp/bootstrap.sh
 
 # 2. Make executable and run the script
@@ -311,7 +319,7 @@ chmod +x /tmp/bootstrap.sh
 /tmp/bootstrap.sh
 ```
 
-Once the bootstrap script completes, close the Proxmox web console. All remaining work will be done remotely by connecting via SSH using your public key:
+Once the bootstrap script completes, close the Proxmox web console. All remaining work will be done remotely by connecting via SSH (using the password configured during bootstrap, or via SSH key):
 
 ```bash
 ssh <your-admin-username>@<IP_OR_HOSTNAME_LXC>
