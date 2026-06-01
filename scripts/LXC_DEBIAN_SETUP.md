@@ -10,6 +10,7 @@ The admin username is configurable and is set during the bootstrap script (Secti
 
 *   **LXC vs VM:** LXC offers near-bare-metal performance with minimal RAM and CPU overhead compared to KVM. Since it shares the kernel with the host, Docker runs without any virtualization penalty.
 *   **Storage (Ext4):** Docker will use the native `overlay2` storage driver out of the box. No extra configuration (such as `fuse-overlayfs` on ZFS) is required.
+*   **TRIM / fstrim:** In unprivileged LXC containers, running `fstrim` directly from inside the container will fail due to lack of `SYS_ADMIN` capability. To prevent performance degradation and reclaim unused SSD space, ensure that the Proxmox host has its global fstrim timer active (`systemctl status fstrim.timer`) and that the storage pool has the "Discard" option enabled in Proxmox (*Datacenter -> Storage -> Edit*).
 *   **Security:** Unprivileged container. If the container is compromised, the attacker does not gain root access to the Proxmox host.
 
 > [!CAUTION]
@@ -173,7 +174,7 @@ echo "=== Starting LXC Bootstrap ==="
 echo "1. Updating system packages..."
 export DEBIAN_FRONTEND=noninteractive
 apt update && apt upgrade -y
-apt install -y sudo curl git tmux make dnsutils openssl python3 python3-venv locales htop btop zabbix-agent2
+apt install -y sudo curl git tmux make dnsutils openssl python3 python3-venv locales htop btop zabbix-agent2 unattended-upgrades apt-listchanges
 
 # Configure Locales
 echo "en_US.UTF-8 UTF-8" > /etc/locale.gen
@@ -183,6 +184,28 @@ update-locale LANG=en_US.UTF-8
 # Configure Timezone
 ln -fs "/usr/share/zoneinfo/$TZ_VAL" /etc/localtime
 dpkg-reconfigure --frontend noninteractive tzdata
+
+# Configure journald limits to reduce disk wear
+echo "Configuring journald limits..."
+mkdir -p /etc/systemd
+cat <<'JOURNALD_CONF' > /etc/systemd/journald.conf
+[Journal]
+Storage=persistent
+SystemMaxUse=100M
+SystemMaxFileSize=20M
+MaxRetentionSec=1month
+JOURNALD_CONF
+systemctl restart systemd-journald || true
+
+# Configure unattended-upgrades for automatic security updates
+echo "Configuring unattended-upgrades..."
+echo 'APT::Periodic::Update-Package-Lists "1";' > /etc/apt/apt.conf.d/20auto-upgrades
+echo 'APT::Periodic::Unattended-Upgrade "1";' >> /etc/apt/apt.conf.d/20auto-upgrades
+if [ -f /etc/apt/apt.conf.d/50unattended-upgrades ]; then
+    if ! grep -q "Remove-Unused-Dependencies" /etc/apt/apt.conf.d/50unattended-upgrades; then
+        echo 'Unattended-Upgrade::Remove-Unused-Dependencies "true";' >> /etc/apt/apt.conf.d/50unattended-upgrades
+    fi
+fi
 
 # Install ctop (Docker metrics UI)
 echo "Installing ctop..."
@@ -251,6 +274,8 @@ PasswordAuthentication yes
 PubkeyAuthentication yes
 AllowUsers $USER_NAME
 PermitEmptyPasswords no
+ClientAliveInterval 300
+ClientAliveCountMax 2
 SSH_CONF
 systemctl restart sshd
 
@@ -366,6 +391,18 @@ fs.inotify.max_user_instances = 512
 # --- Network backlogs and ports ---
 # Max TCP backlog queue for pending connections (matches Traefik net.core.somaxconn)
 net.core.somaxconn = 4096
+
+# Enable TCP Fast Open (TFO) to reduce latency in TLS handshakes (Traefik)
+net.ipv4.tcp_fastopen = 3
+
+# Allow quick reuse of sockets in TIME_WAIT state (prevents ephemeral port exhaustion)
+net.ipv4.tcp_tw_reuse = 1
+
+# Reduce the time a socket remains in FIN-WAIT-2 state (frees network memory faster)
+net.ipv4.tcp_fin_timeout = 15
+
+# Increase the maximum length of the network device input queue
+net.core.netdev_max_backlog = 10000
 
 # Expand the range of ephemeral ports to prevent exhaustion under high traffic
 net.ipv4.ip_local_port_range = 1024 65535
