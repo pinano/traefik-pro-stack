@@ -160,8 +160,39 @@
                 </button>
             </div>
 
+            <!-- Dashboard Domain (SSO & Admin Portal) -->
+            <div class="system-section" style="margin-top: 2rem;">
+                <div class="system-section-header">
+                    <h2>
+                        <i data-lucide="shield" style="color: var(--primary-color); vertical-align: middle; margin-right: 0.5rem; width: 1.3rem; height: 1.3rem;"></i>
+                        Dashboard Domain (SSO & Admin Portal)
+                    </h2>
+                </div>
+                <div class="table-container system-table-container">
+                    <table id="system-domain-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 6%;">Valid</th>
+                                <th style="width: 32%;">Domain</th>
+                                <th style="width: 22%;">Anubis Subdomain</th>
+                                <th style="width: 10%;">Rate</th>
+                                <th style="width: 10%;">Burst</th>
+                                <th style="width: 10%;">Concurrency</th>
+                                <th style="width: 10%;">Role</th>
+                            </tr>
+                        </thead>
+                        <tbody id="system-domain-body">
+                            <!-- Rendered by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <div class="deleted-section">
-                <h2>Deleted Records</h2>
+                <h2>
+                    <i data-lucide="trash-2" style="color: var(--text-muted); vertical-align: middle; margin-right: 0.5rem; width: 1.3rem; height: 1.3rem;"></i>
+                    Deleted Records
+                </h2>
                 <div class="table-container">
                     <table id="deleted-domains-table">
                         <thead>

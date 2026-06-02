@@ -404,7 +404,7 @@ function renderTables() {
                 </td>
                 <td data-label="Action" style="text-align: center;">
                     <button class="btn btn-danger btn-xs clear-keys-btn" title="Clear keys (Disable CAPTCHA)">
-                        <i data-lucide="eraser"></i>
+                        <i data-lucide="x-circle"></i>
                     </button>
                 </td>
             `;

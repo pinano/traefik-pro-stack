@@ -159,6 +159,16 @@
     background-color: #431407 !important;
 }
 
+[data-theme="dark"] .row-dashboard {
+    background-color: rgba(129, 140, 248, 0.12) !important;
+}
+
+[data-theme="dark"] .row-dashboard .data-input {
+    background-color: var(--input-bg);
+    border-color: rgba(129, 140, 248, 0.25);
+}
+
+
 [data-theme="dark"] .row-error {
     background-color: #450a0a !important;
 }
@@ -1513,6 +1523,21 @@ button:disabled {
     transition: background-color 0.3s;
 }
 
+/* Dashboard Row Highlight */
+.row-dashboard {
+    background-color: rgba(99, 102, 241, 0.08) !important;
+    /* Soft Indigo Tint */
+    box-shadow: inset 3px 0 0 0 var(--primary-color) !important;
+    /* Primary Indigo vertical indicator */
+    transition: background-color 0.3s;
+}
+
+.row-dashboard .data-input {
+    background-color: #fff;
+    border-color: rgba(99, 102, 241, 0.25);
+}
+
+
 /* Ensure unsaved input fields stand out slightly */
 .row-unsaved .data-input {
     background-color: #fff;
@@ -1906,4 +1931,59 @@ select.data-input:focus {
     background-color: rgba(245, 158, 11, 0.15);
     color: var(--warning-color);
     border-color: rgba(245, 158, 11, 0.3);
+}
+
+/* Dashboard Domain Section & Badge */
+.system-section {
+    margin-bottom: 2.25rem;
+}
+
+.system-section-header {
+    margin-bottom: 0.75rem;
+}
+
+.system-section-header h2 {
+    font-size: 1.1rem;
+    color: var(--text-color);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+}
+
+.system-table-container {
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.04), 0 2px 4px -1px rgba(99, 102, 241, 0.02);
+}
+
+/* Ensure the inputs inside the system table look premium and locked-in */
+#system-domain-table {
+    table-layout: fixed;
+}
+
+#system-domain-table td {
+    padding: 0.35rem 0.5rem;
+}
+
+#system-domain-table .data-input {
+    background-color: var(--input-bg);
+}
+
+.badge-system {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(99, 102, 241, 0.08);
+    color: var(--primary-color);
+    padding: 0.25rem 0.55rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid rgba(99, 102, 241, 0.15);
+    white-space: nowrap;
+}
+
+[data-theme="dark"] .badge-system {
+    background-color: rgba(129, 140, 248, 0.12);
+    color: #a5b4fc;
+    border-color: rgba(129, 140, 248, 0.25);
 }

@@ -532,20 +532,36 @@ def generate_configs():
     
     dashboard_anubis_sub = os.getenv('DASHBOARD_ANUBIS_SUBDOMAIN', '').strip().lower()
     
-    dashboard_entry = {
-        'domain': dashboard_domain,
-        'redirection': '',
-        'service': 'dashboard',
-        'anubis_sub': dashboard_anubis_sub,
-        'extra': {},
-        'root': get_root_domain(dashboard_domain)
-    }
-    raw_entries.append(dashboard_entry)
-    
-    if dashboard_anubis_sub:
-        stats['anubis'] += 1
+    # Look for any existing entry for the dashboard service to migrate it in-memory if needed
+    dashboard_csv_entry = None
+    for entry in raw_entries:
+        if entry['service'] == 'dashboard':
+            dashboard_csv_entry = entry
+            break
+
+    if dashboard_csv_entry:
+        if dashboard_csv_entry['domain'].lower() != dashboard_domain.lower():
+            print(f"   🔄 Auto-migrating dashboard domain in config from '{dashboard_csv_entry['domain']}' to '{dashboard_domain}'")
+            dashboard_csv_entry['domain'] = dashboard_domain
+            dashboard_csv_entry['root'] = get_root_domain(dashboard_domain)
     else:
-        stats['standard'] += 1
+        # Fallback synthetic entry if no dashboard service exists in CSV
+        dashboard_entry = {
+            'domain': dashboard_domain,
+            'redirection': '',
+            'service': 'dashboard',
+            'anubis_sub': dashboard_anubis_sub,
+            'extra': {},
+            'root': get_root_domain(dashboard_domain)
+        }
+        raw_entries.append(dashboard_entry)
+        
+        if dashboard_anubis_sub:
+            stats['anubis'] += 1
+        else:
+            stats['standard'] += 1
+
+
 
     if raw_entries:
         print(f"   ✅ Successfully processed {len(raw_entries)} domains:")

@@ -77,7 +77,7 @@ def set_security_headers(response):
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
         "img-src 'self' data:; "
-        "connect-src 'self' https://raw.githubusercontent.com; "
+        "connect-src 'self' https://raw.githubusercontent.com https://unpkg.com; "
         "frame-ancestors 'none';"
     )
     return response
@@ -751,6 +751,9 @@ def get_external_services():
     if is_apache_on_host():
         services.append('apache-host')
     
+    # Always allow 'dashboard' as a service since it is our own admin interface
+    services.append('dashboard')
+    
     try:
         # Get container names with their compose project label
         cmd = [
@@ -1063,7 +1066,37 @@ def captchas_view():
 @login_required
 def api_domains():
     if request.method == 'GET':
-        return jsonify(read_csv())
+        csv_data = read_csv()
+        DASHBOARD_SUBDOMAIN = os.environ.get('DASHBOARD_SUBDOMAIN', 'dashboard')
+        DOMAIN = os.environ.get('DOMAIN', 'localhost')
+        dashboard_domain = f"{DASHBOARD_SUBDOMAIN}.{DOMAIN}".lower()
+        
+        # Look for any existing entry for the dashboard service to migrate it if needed
+        dashboard_entry = None
+        for entry in csv_data:
+            if entry.get('service_name', '').lower() == 'dashboard':
+                dashboard_entry = entry
+                break
+                
+        if dashboard_entry:
+            if dashboard_entry.get('domain', '').lower() != dashboard_domain:
+                log.info(f"Auto-migrating dashboard domain in CSV from '{dashboard_entry['domain']}' to '{dashboard_domain}'")
+                dashboard_entry['domain'] = dashboard_domain
+        else:
+            dashboard_anubis_sub = os.environ.get('DASHBOARD_ANUBIS_SUBDOMAIN', '').strip().lower()
+            csv_data.append({
+                'domain': dashboard_domain,
+                'redirection': '',
+                'service_name': 'dashboard',
+                'anubis_subdomain': dashboard_anubis_sub,
+                'rate': '',
+                'burst': '',
+                'concurrency': '',
+                'enabled': True
+            })
+
+        return jsonify(csv_data)
+
     
     if request.method == 'POST':
         data = request.json

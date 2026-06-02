@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     const domainsBody = document.getElementById('domains-body');
+    const systemDomainBody = document.getElementById('system-domain-body');
     const saveBtn = document.getElementById('save-btn');
     const checkBtn = document.getElementById('validate-btn');
     const exportBtn = document.getElementById('export-btn');
@@ -239,12 +240,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     const r = row.querySelector('.root-domain-cell').textContent;
                     row.style.backgroundColor = getColorForRoot(r);
                 });
+            } else if (key === 'service_name') {
+                if (value.trim().toLowerCase() === 'dashboard') {
+                    tr.classList.add('row-dashboard');
+                } else {
+                    tr.classList.remove('row-dashboard');
+                }
             }
         }
     }
 
-    // Event Delegation for Domains Table
-    domainsBody.addEventListener('input', (e) => {
+
+    // Event Delegation for Table Inputs
+    const handleTableInput = (e) => {
         if (e.target.classList.contains('data-input')) {
             const input = e.target;
             const tr = input.closest('tr');
@@ -267,7 +275,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // If domain changed, reset status on potential duplicates too
                 if (key === 'domain') {
                     const changedDomain = val.trim().toLowerCase();
-                    document.querySelectorAll('#domains-body tr').forEach(row => {
+                    document.querySelectorAll('#domains-body tr, #system-domain-body tr').forEach(row => {
                         const rowId = row.dataset.id;
                         const otherObj = allDomains.find(d => d._id === rowId);
                         if (otherObj && otherObj._id !== id && (otherObj.domain || '').trim().toLowerCase() === changedDomain) {
@@ -302,7 +310,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateGlobalDropdownPosition();
             }
         }
-    });
+    };
+
+    domainsBody.addEventListener('input', handleTableInput);
+    if (systemDomainBody) {
+        systemDomainBody.addEventListener('input', handleTableInput);
+    }
+
 
     domainsBody.addEventListener('focusin', (e) => {
         if (e.target.classList.contains('service-input')) {
@@ -473,14 +487,64 @@ document.addEventListener('DOMContentLoaded', () => {
         domainsBody.innerHTML = '';
         const fragment = document.createDocumentFragment();
         data.forEach(domain => {
-            if (domain.enabled !== false) {
+            if (domain.enabled !== false && domain.service_name !== 'dashboard') {
                 const tr = addRow(domain, false); // false = don't append, just return
                 fragment.appendChild(tr);
             }
         });
         domainsBody.appendChild(fragment);
+        renderSystemTable();
         renderDeletedTable();
     }
+
+    function renderSystemTable() {
+        if (!systemDomainBody) return;
+        systemDomainBody.innerHTML = '';
+        const systemDomainObj = allDomains.find(d => d.enabled !== false && d.service_name === 'dashboard');
+        if (systemDomainObj) {
+            const tr = addSystemRow(systemDomainObj);
+            systemDomainBody.appendChild(tr);
+        }
+    }
+
+    function addSystemRow(data) {
+        const id = data._id;
+        const tr = document.createElement('tr');
+        tr.classList.add('row-dashboard');
+        if (data._unsaved) tr.classList.add('row-unsaved');
+        tr.dataset.id = id;
+
+        let statusHtml = '';
+        if (data._status === 'loading') {
+            statusHtml = '<i data-lucide="loader-2" class="animate-spin" style="width: 1rem; height: 1rem; color: #666;"></i>';
+        } else if (data._status === 'valid') {
+            statusHtml = '<i data-lucide="check-circle" style="color: #059669; width: 1.2rem; height: 1.2rem;"></i>';
+        } else if (data._status === 'invalid') {
+            const errors = data._validation_errors || [];
+            statusHtml = `<i data-lucide="x-circle" style="color: #7f1d1d; width: 1.2rem; height: 1.2rem;" title="${escapeHtml(errors.join('\n'))}"></i>`;
+            tr.classList.add('row-error');
+        } else {
+            statusHtml = '<i data-lucide="help-circle" style="color: #94a3b8; width: 1.2rem; height: 1.2rem;" title="Not validated"></i>';
+        }
+
+        tr.innerHTML = `
+            <td class="check-status-cell" style="text-align: center;">${statusHtml}</td>
+            <td data-label="Domain"><input type="text" class="data-input" data-key="domain" value="${escapeHtml(data.domain || '')}" placeholder="dashboard.example.com"></td>
+            <td data-label="Anubis Subdomain"><input type="text" class="data-input" data-key="anubis_subdomain" value="${escapeHtml(data.anubis_subdomain || '')}" placeholder="anubis"></td>
+            <td data-label="Rate"><input type="text" class="data-input" data-key="rate" value="${escapeHtml(data.rate || '')}" placeholder="${defaultRateAvg}"></td>
+            <td data-label="Burst"><input type="text" class="data-input" data-key="burst" value="${escapeHtml(data.burst || '')}" placeholder="${defaultRateBurst}"></td>
+            <td data-label="Concurrency"><input type="text" class="data-input" data-key="concurrency" value="${escapeHtml(data.concurrency || '')}" placeholder="${defaultConcurrency}"></td>
+            <td style="text-align: center; vertical-align: middle;">
+                <span class="badge badge-system">
+                    <i data-lucide="lock" style="width: 0.8rem; height: 0.8rem; margin-right: 0.25rem;"></i> Dashboard Domain
+                </span>
+            </td>
+        `;
+
+        if (window.lucide) lucide.createIcons({ root: tr });
+        return tr;
+    }
+
 
     function renderDeletedTable() {
         if (!deletedDomainsBody) return;
@@ -589,6 +653,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const tr = document.createElement('tr');
         if (!data._id || data._unsaved) tr.classList.add('row-unsaved');
+        if (data.service_name === 'dashboard') tr.classList.add('row-dashboard');
         tr.dataset.id = id;
         const root = data._root_domain || getRootDomain(data.domain);
         tr.style.backgroundColor = getColorForRoot(root);
@@ -637,7 +702,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function validateAllRows() {
-        const rows = Array.from(domainsBody.querySelectorAll('tr'));
+        const mainRows = Array.from(domainsBody.querySelectorAll('tr'));
+        const systemRows = systemDomainBody ? Array.from(systemDomainBody.querySelectorAll('tr')) : [];
+        const rows = [...systemRows, ...mainRows];
         let allValid = true;
         let globalErrors = [];
 
@@ -658,7 +725,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return (domainInput && domainInput.value.trim() !== '') ||
                 (serviceInput && serviceInput.value.trim() !== '') ||
                 (redirectionInput && redirectionInput.value.trim() !== '') ||
-                (anubisInput && anubisInput.value.trim() !== '');
+                (anubisInput && anubisInput.value.trim() !== '') ||
+                row.closest('tbody').id === 'system-domain-body';
         });
 
         if (rowsToValidate.length === 0) {
@@ -674,14 +742,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const serviceInput = row.querySelector('input[data-key="service_name"]');
             const statusCell = row.querySelector('.check-status-cell');
 
+            const domainId = row.dataset.id;
+            const domainObj = allDomains.find(d => d._id === domainId);
+
             const domain = domainInput ? domainInput.value.trim().toLowerCase() : '';
-            const redirection = redirectionInput ? redirectionInput.value.trim() : '';
-            const serviceName = serviceInput ? serviceInput.value.trim() : '';
+            const redirection = redirectionInput ? redirectionInput.value.trim() : (domainObj ? domainObj.redirection : '');
+            const serviceName = serviceInput ? serviceInput.value.trim() : (domainObj ? domainObj.service_name : '');
             const anubisSubdomain = row.querySelector('input[data-key="anubis_subdomain"]')?.value.trim() || '';
 
             const rowLabel = domain || `Row ${index + 1}`;
-            const domainId = row.dataset.id;
-            const domainObj = allDomains.find(d => d._id === domainId);
+
 
             // Show loading spinner
             if (statusCell) {
