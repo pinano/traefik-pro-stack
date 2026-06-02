@@ -1,3 +1,10 @@
+## v2026.06.02.2 (2026-06-02)
+
+- Fix certs-watch command and make dashboard domain readonly in domain manager (ef316a8)
+- refactor: add crossorigin attribute to manifest links and remove redis directory from startup script (e5fc699)
+- feat: allow static and assets path patterns in bot policy (0412b62)
+- feat: add DASHBOARD_ANUBIS_SUBDOMAIN support and automatic entry persistence to domains.csv (0cd9856)
+
 ## v2026.06.02.1 (2026-06-02)
 
 - feat: add system domain management section to dashboard and implement automatic config migration for dashboard service (1a61d0e)
