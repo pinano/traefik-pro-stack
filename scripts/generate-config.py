@@ -831,7 +831,7 @@ def generate_configs():
     # --- Traefik API Router ---
     api_mw = base_middlewares.copy()
     # Insert SSO and strip middlewares right before global-compress (which is the last one)
-    for mw in reversed(sso_middlewares + ["traefik-strip"]):
+    for mw in ["traefik-strip"] + sso_middlewares:
         api_mw.insert(-1, mw)
         
     traefik_dynamic_conf['http']['routers']['traefik-dashboard'] = {
@@ -868,7 +868,7 @@ def generate_configs():
 
     # --- Grafana Router ---
     grafana_mw = base_middlewares.copy()
-    for mw in reversed(sso_middlewares):
+    for mw in sso_middlewares:
         grafana_mw.insert(-1, mw)
 
     traefik_dynamic_conf['http']['routers']['grafana-frontend'] = {
@@ -883,7 +883,7 @@ def generate_configs():
     # --- CrowdSec Web UI Router (only when CrowdSec is enabled) ---
     if CROWDSEC_ENABLE:
         cswebui_mw = base_middlewares.copy()
-        for mw in reversed(sso_middlewares):
+        for mw in sso_middlewares:
             cswebui_mw.insert(-1, mw)
 
         traefik_dynamic_conf['http']['routers']['crowdsec-web-ui'] = {
@@ -899,15 +899,15 @@ def generate_configs():
     if BACKREST_ENABLE:
         # Pattern: same as other SSO-protected sub-routes.
         # Insert redirect + SSO middlewares before the last entry (global-compress),
-        # then add the strip prefix after SSO so the backend receives paths without /backups.
+        # then add the strip prefix after SSO so the backend receives paths without /backrest.
         backrest_mw = base_middlewares.copy()
         if 'global-buffering' in backrest_mw:
             backrest_mw.remove('global-buffering')
-        for mw in reversed(['backrest-redirect'] + sso_middlewares + ['backrest-strip']):
+        for mw in ['backrest-redirect'] + sso_middlewares + ['backrest-strip']:
             backrest_mw.insert(-1, mw)
 
         traefik_dynamic_conf['http']['routers']['backrest-frontend'] = {
-            'rule': f"Host(`{dashboard_domain}`) && PathPrefix(`/backups`)",
+            'rule': f"Host(`{dashboard_domain}`) && PathPrefix(`/backrest`)",
             'entryPoints': ["websecure"],
             'service': "backrest@docker",
             'priority': 100,
@@ -917,15 +917,15 @@ def generate_configs():
 
         traefik_dynamic_conf['http']['middlewares']['backrest-redirect'] = {
             'redirectRegex': {
-                'regex': '^https?://([^/]+)/backups$',
-                'replacement': 'https://${1}/backups/',
+                'regex': '^https?://([^/]+)/backrest$',
+                'replacement': 'https://${1}/backrest/',
                 'permanent': True
             }
         }
 
         traefik_dynamic_conf['http']['middlewares']['backrest-strip'] = {
             'stripPrefix': {
-                'prefixes': ['/backups']
+                'prefixes': ['/backrest']
             }
         }
 

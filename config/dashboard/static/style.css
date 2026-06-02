@@ -32,6 +32,45 @@
     --header-bg: #f1f5f9;
     --neutral-alt-bg: #f1f5f9;
     /* Slate 100 */
+    --github-icon-filter: none;
+    --backrest-icon-filter: none;
+
+    /* Card Custom Colors - Light Mode */
+    --card-domains-bg: rgba(14, 165, 233, 0.07);
+    --card-domains-hover-bg: rgba(14, 165, 233, 0.12);
+    --card-domains-border: rgba(14, 165, 233, 0.18);
+
+    --card-certs-bg: rgba(16, 185, 129, 0.07);
+    --card-certs-hover-bg: rgba(16, 185, 129, 0.12);
+    --card-certs-border: rgba(16, 185, 129, 0.18);
+
+    --card-captchas-bg: rgba(245, 158, 11, 0.07);
+    --card-captchas-hover-bg: rgba(245, 158, 11, 0.12);
+    --card-captchas-border: rgba(245, 158, 11, 0.18);
+
+    --card-crowdsec-bg: rgba(99, 102, 241, 0.07);
+    --card-crowdsec-hover-bg: rgba(99, 102, 241, 0.12);
+    --card-crowdsec-border: rgba(99, 102, 241, 0.18);
+
+    --card-grafana-bg: rgba(168, 85, 247, 0.07);
+    --card-grafana-hover-bg: rgba(168, 85, 247, 0.12);
+    --card-grafana-border: rgba(168, 85, 247, 0.18);
+
+    --card-dozzle-bg: rgba(20, 184, 166, 0.07);
+    --card-dozzle-hover-bg: rgba(20, 184, 166, 0.12);
+    --card-dozzle-border: rgba(20, 184, 166, 0.18);
+
+    --card-traefik-bg: rgba(56, 189, 248, 0.07);
+    --card-traefik-hover-bg: rgba(56, 189, 248, 0.12);
+    --card-traefik-border: rgba(56, 189, 248, 0.18);
+
+    --card-backrest-bg: rgba(225, 29, 72, 0.07);
+    --card-backrest-hover-bg: rgba(225, 29, 72, 0.12);
+    --card-backrest-border: rgba(225, 29, 72, 0.18);
+
+    --card-docs-bg: rgba(100, 116, 139, 0.07);
+    --card-docs-hover-bg: rgba(100, 116, 139, 0.12);
+    --card-docs-border: rgba(100, 116, 139, 0.18);
 }
 
 [data-theme="dark"] {
@@ -54,9 +93,56 @@
     /* Slate 700 */
     --neutral-alt-bg: #0f172a;
     /* Slate 900 */
+    --github-icon-filter: invert(1) brightness(1.8);
+    --backrest-icon-filter: invert(1) brightness(1.8);
+
+    /* Card Custom Colors - Dark Mode */
+    --card-domains-bg: rgba(14, 165, 233, 0.10);
+    --card-domains-hover-bg: rgba(14, 165, 233, 0.16);
+    --card-domains-border: rgba(14, 165, 233, 0.22);
+
+    --card-certs-bg: rgba(16, 185, 129, 0.10);
+    --card-certs-hover-bg: rgba(16, 185, 129, 0.16);
+    --card-certs-border: rgba(16, 185, 129, 0.22);
+
+    --card-captchas-bg: rgba(245, 158, 11, 0.10);
+    --card-captchas-hover-bg: rgba(245, 158, 11, 0.16);
+    --card-captchas-border: rgba(245, 158, 11, 0.22);
+
+    --card-crowdsec-bg: rgba(99, 102, 241, 0.10);
+    --card-crowdsec-hover-bg: rgba(99, 102, 241, 0.16);
+    --card-crowdsec-border: rgba(99, 102, 241, 0.22);
+
+    --card-grafana-bg: rgba(168, 85, 247, 0.10);
+    --card-grafana-hover-bg: rgba(168, 85, 247, 0.16);
+    --card-grafana-border: rgba(168, 85, 247, 0.22);
+
+    --card-dozzle-bg: rgba(20, 184, 166, 0.10);
+    --card-dozzle-hover-bg: rgba(20, 184, 166, 0.16);
+    --card-dozzle-border: rgba(20, 184, 166, 0.22);
+
+    --card-traefik-bg: rgba(56, 189, 248, 0.10);
+    --card-traefik-hover-bg: rgba(56, 189, 248, 0.16);
+    --card-traefik-border: rgba(56, 189, 248, 0.22);
+
+    --card-backrest-bg: rgba(225, 29, 72, 0.10);
+    --card-backrest-hover-bg: rgba(225, 29, 72, 0.16);
+    --card-backrest-border: rgba(225, 29, 72, 0.22);
+
+    --card-docs-bg: rgba(148, 163, 184, 0.10);
+    --card-docs-hover-bg: rgba(148, 163, 184, 0.16);
+    --card-docs-border: rgba(148, 163, 184, 0.22);
 
     /* Enhance contrast for dark mode tables */
     --row-hover-bg: #334155;
+}
+
+.github-icon {
+    filter: var(--github-icon-filter);
+}
+
+.backrest-icon {
+    filter: var(--backrest-icon-filter);
 }
 
 [data-theme="dark"] table .data-input {
@@ -1491,15 +1577,15 @@ button:disabled {
 }
 
 .app-card {
-    background: var(--card-bg);
+    background: var(--card-background-color, var(--card-bg));
     border-radius: 8px;
     padding: 2rem;
     text-align: center;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s, background 0.2s, border-color 0.2s;
     text-decoration: none;
     color: inherit;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--card-border, var(--border-color));
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1507,10 +1593,105 @@ button:disabled {
     height: 100%;
 }
 
-.app-card:hover {
+.app-card:not(.disabled):hover {
     transform: translateY(-5px);
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    border-color: var(--primary-color);
+}
+
+.app-card.disabled {
+    opacity: 0.75;
+    cursor: not-allowed;
+}
+
+.app-card.disabled img.app-icon {
+    filter: grayscale(100%) opacity(0.4);
+}
+
+[data-theme="dark"] .app-card.disabled img.app-icon.backrest-icon {
+    filter: invert(1) brightness(1.8) grayscale(100%) opacity(0.4);
+}
+
+/* Card Specific Colored Backgrounds and Borders */
+.app-card.card-domains {
+    --card-background-color: var(--card-domains-bg);
+    --card-border: var(--card-domains-border);
+}
+.app-card.card-domains:not(.disabled):hover {
+    --card-background-color: var(--card-domains-hover-bg);
+    --card-border: #0ea5e9;
+}
+
+.app-card.card-certs {
+    --card-background-color: var(--card-certs-bg);
+    --card-border: var(--card-certs-border);
+}
+.app-card.card-certs:not(.disabled):hover {
+    --card-background-color: var(--card-certs-hover-bg);
+    --card-border: #10b981;
+}
+
+.app-card.card-captchas {
+    --card-background-color: var(--card-captchas-bg);
+    --card-border: var(--card-captchas-border);
+}
+.app-card.card-captchas:not(.disabled):hover {
+    --card-background-color: var(--card-captchas-hover-bg);
+    --card-border: #f59e0b;
+}
+
+.app-card.card-crowdsec {
+    --card-background-color: var(--card-crowdsec-bg);
+    --card-border: var(--card-crowdsec-border);
+}
+.app-card.card-crowdsec:not(.disabled):hover {
+    --card-background-color: var(--card-crowdsec-hover-bg);
+    --card-border: #6366f1;
+}
+
+.app-card.card-grafana {
+    --card-background-color: var(--card-grafana-bg);
+    --card-border: var(--card-grafana-border);
+}
+.app-card.card-grafana:not(.disabled):hover {
+    --card-background-color: var(--card-grafana-hover-bg);
+    --card-border: #a855f7;
+}
+
+.app-card.card-dozzle {
+    --card-background-color: var(--card-dozzle-bg);
+    --card-border: var(--card-dozzle-border);
+}
+.app-card.card-dozzle:not(.disabled):hover {
+    --card-background-color: var(--card-dozzle-hover-bg);
+    --card-border: #14b8a6;
+}
+
+.app-card.card-traefik {
+    --card-background-color: var(--card-traefik-bg);
+    --card-border: var(--card-traefik-border);
+}
+.app-card.card-traefik:not(.disabled):hover {
+    --card-background-color: var(--card-traefik-hover-bg);
+    --card-border: #38bdf8;
+}
+
+.app-card.card-backrest {
+    --card-background-color: var(--card-backrest-bg);
+    --card-border: var(--card-backrest-border);
+}
+.app-card.card-backrest:not(.disabled):hover {
+    --card-background-color: var(--card-backrest-hover-bg);
+    --card-border: #e11d48;
+}
+
+
+.app-card.card-docs {
+    --card-background-color: var(--card-docs-bg);
+    --card-border: var(--card-docs-border);
+}
+.app-card.card-docs:not(.disabled):hover {
+    --card-background-color: var(--card-docs-hover-bg);
+    --card-border: #64748b;
 }
 
 .app-icon {

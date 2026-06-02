@@ -29,7 +29,7 @@ echo "   🔍 Scanning $HOSTS_FILE for 127.0.0.1 entries..."
 # 3. replace spaces/tabs with newlines to get one host per line
 # 4. filter out common defaults and empty lines
 # 5. sort and uniq
-DOMAINS=$(grep "^127\.0\.0\.1" "$HOSTS_FILE" | sed 's/127\.0\.0\.1//' | tr '[:space:]' '\n' | grep -v "localhost" | grep -v "broadcasthost" | grep -v "^$" | sort -u | tr '\n' ' ')
+DOMAINS=$(grep "^127\.0\.0\.1" "$HOSTS_FILE" | sed 's/127\.0\.0\.1//' | tr '[:space:]' '\n' | grep -v "^localhost$" | grep -v "^broadcasthost$" | grep -v "^$" | sort -u | tr '\n' ' ')
 
 if [ -z "$DOMAINS" ]; then
     echo "❌ No local domains found in $HOSTS_FILE (pointing to 127.0.0.1, excluding localhost)."

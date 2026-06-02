@@ -661,22 +661,39 @@ The Makefile provides command wrappers to simplify stack administration:
 
 ### Backup Management
 
-*   `make backup`: Generates a timestamped tarball file inside `./backups/` capturing environment settings and certificates, excluding heavy databases.
-*   `make restore file=[PATH]`: Overwrites current configs and restores settings from a backup tarball file.
+The stack includes two separate backup mechanisms to protect your data:
+1. **Traefik Configuration Backup (`make backup` / `scripts/backup-traefik-stack.sh`)**: Creates a timestamped tarball of configurations, `.env`, `domains.csv`, and certificates, excluding heavy databases.
+2. **Database Dumps (`scripts/backup-db-dumps.sh`)**: Runs directly on the host (or LXC OS) to discover all running database containers (MySQL, MariaDB, PostgreSQL) and write consistent SQL dumps to the host filesystem.
 
-Example cron job to automate backups daily at 02:00 AM:
-```cron
-0 2 * * * cd /path/to/traefik-stack && make backup > /dev/null 2>&1
+#### 1. Preparing the Database Backup Script
+To use the database backup script on the host, ensure it has execution permissions:
+```bash
+chmod +x /path/to/traefik-stack/scripts/backup-db-dumps.sh
 ```
 
-Example command to restore a specific backup tarball file:
+#### 2. Automating Backups with Crontab (1:00 AM Daily)
+To run both the database dumps and the Traefik configuration backups every day at 1:00 AM, edit your host crontab (`crontab -e`) and add the following lines (adjust `/path/to/traefik-stack` to your actual installation path):
+
+```cron
+# 1. Docker Database backups (runs as root on the host)
+0 1 * * * /path/to/traefik-stack/scripts/backup-db-dumps.sh >> /var/log/backup-db-dumps.log 2>&1
+
+# 2. Traefik configuration backup with automatic retention (default: keeps last 7 days)
+0 1 * * * cd /path/to/traefik-stack && make backup > /dev/null 2>&1
+```
+
+#### 3. Backup Retention and Rotation Policy
+The `make backup` task manages its own retention: after generating a new backup, the script automatically cleans up backup files older than 7 days inside the `backups/` directory. No additional configuration or cron rules are needed for rotation.
+
+#### 4. Restoring Configuration Backups
+To restore a configuration backup:
 ```bash
-make restore file=backups/traefik-stack_20260525_220000.tar.gz
+make restore file=backups/traefik-stack_YYYYMMDD_HHMMSS.tar.gz
 ```
 
 #### Cloud Backups with Backrest (Restic + Rclone)
 
-When `BACKREST_ENABLE=true`, the stack deploys Backrest — a web UI for managing Restic backups with Rclone cloud storage backends. Backrest is accessible at `https://dashboard.<domain>/backups/` behind SSO authentication.
+When `BACKREST_ENABLE=true`, the stack deploys Backrest — a web UI for managing Restic backups with Rclone cloud storage backends. Backrest is accessible at `https://dashboard.<domain>/backrest/` behind SSO authentication.
 
 The backup strategy uses two independent layers:
 1. **LXC Cron** (`backup-db-dumps.sh`): Runs 15 minutes before the Backrest schedule, dumping all running MySQL/MariaDB/PostgreSQL databases to `BACKREST_DUMPS_DIR`.

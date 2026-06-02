@@ -620,29 +620,25 @@ Projects should be located under the path defined in `BACKREST_PROJECTS_DIR` in 
 
 ### B. SQL Dumps Generation Script
 
-The script is located in the repository at [`scripts/backup-db-dumps.sh`](scripts/backup-db-dumps.sh). Install it in the LXC by copying it directly from the stack directory:
+The script is located in the repository at [`scripts/backup-db-dumps.sh`](scripts/backup-db-dumps.sh). To use it, simply ensure it has execution permissions inside the repository scripts directory:
 
 ```bash
-sudo cp /path/to/traefik-pro-stack/scripts/backup-db-dumps.sh /usr/local/bin/backup-db-dumps.sh
-sudo chmod +x /usr/local/bin/backup-db-dumps.sh
+chmod +x /path/to/traefik-pro-stack/scripts/backup-db-dumps.sh
 ```
-
-> [!TIP]
-> Adjust the source path to the actual repository location in this LXC. This way, any future updates to the script can be deployed by simply running the `cp` command again.
 
 ---
 
 ### C. LXC Cron (Execution Prior to Backrest)
 
-The dump must complete before Backrest starts. If Backrest is scheduled at 03:00, execute the dump at 02:45:
+The dump must complete before Backrest starts. If Backrest is scheduled at 01:15, execute the dump at 01:00:
 
 ```bash
 sudo crontab -e
 ```
 Add the following line:
 ```cron
-# Generate fresh DB dumps 15 minutes before the Backrest backup plan runs
-45 2 * * * /usr/local/bin/backup-db-dumps.sh >> /var/log/backup-db-dumps.log 2>&1
+# Generate fresh DB dumps daily at 01:00 AM (15 minutes before Backrest runs)
+0 1 * * * /path/to/traefik-pro-stack/scripts/backup-db-dumps.sh >> /var/log/backup-db-dumps.log 2>&1
 ```
 
 Configure log rotation to avoid accumulating logs indefinitely:
@@ -662,7 +658,7 @@ EOF
 
 ### D. Backrest Configuration (Web UI)
 
-All repository, plan, and retention management is performed from `https://dashboard.<your-domain>/backups/`.
+All repository, plan, and retention management is performed from `https://dashboard.<your-domain>/backrest/`.
 
 #### 1. Configure Rclone inside the Backrest container
 
@@ -704,7 +700,7 @@ In the Web UI → **Repositories** → **Add Repository**:
 | **Sources** | `/userdata/projects`, `/userdata/db_dumps` |
 | **Exclusions** | `**/mariadb_data`, `**/.venv`, `**/node_modules`, `**/.git`, `**/cache` |
 | **Pre-backup Hook** | *(Empty — the external cron already generated the dumps)* |
-| **Schedule** | `0 3 * * *` (03:00 AM, 15 min after the dump cron) |
+| **Schedule** | `15 1 * * *` (01:15 AM, 15 min after the dump cron) |
 | **Keep Daily** | 30 |
 | **Keep Weekly** | 26 |
 | **Keep Monthly** | 6 |

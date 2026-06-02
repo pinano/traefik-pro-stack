@@ -33,5 +33,11 @@ fi
 tar -czf "$BACKUP_FILE" "${EXCLUDES[@]}" .env domains.csv config/ $OPTIONAL_FILES
 
 echo "Success: Backup created at $BACKUP_FILE"
+
+# Clean up backups older than 7 days
+RETENTION_DAYS=7
+echo "Cleaning up backups older than ${RETENTION_DAYS} days..."
+find "$BACKUP_DIR" -name "traefik-stack_*.tar.gz" -type f -mtime +"$RETENTION_DAYS" -delete
+
 echo "To restore this backup later, run:"
 echo "  make restore file=$BACKUP_FILE"

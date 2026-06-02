@@ -56,7 +56,7 @@
         <main>
             <div class="dashboard-grid">
                 <!-- Domain Manager -->
-                <a href="/domains" class="app-card">
+                <a href="/domains" class="app-card card-domains">
                     <i data-lucide="globe" class="app-icon" style="color: #0ea5e9;"></i>
                     <h2 class="app-title">Domain Manager</h2>
                     <p class="app-desc">Manage DNS records, redirections and traefik parameters.</p>
@@ -64,13 +64,13 @@
 
                 <!-- Certificates -->
                 {% if certs_enabled %}
-                <a href="/certs" class="app-card">
+                <a href="/certs" class="app-card card-certs">
                     <i data-lucide="shield-check" class="app-icon" style="color: #10b981;"></i>
                     <h2 class="app-title">Certificates Inspector</h2>
                     <p class="app-desc">Inspect SSL/TLS certificates.</p>
                 </a>
                 {% else %}
-                <div class="app-card" style="opacity: 0.6; cursor: not-allowed;"
+                <div class="app-card card-certs disabled"
                     title="Certificates are not managed in local environment (TRAEFIK_ACME_ENV_TYPE=local)">
                     <i data-lucide="shield-off" class="app-icon" style="color: #94a3b8;"></i>
                     <h2 class="app-title" style="color: #6b7280;">Certificates Inspector</h2>
@@ -80,13 +80,13 @@
 
                 <!-- CAPTCHA Keys -->
                 {% if crowdsec_enabled %}
-                <a href="/captchas" class="app-card">
+                <a href="/captchas" class="app-card card-captchas">
                     <i data-lucide="key-round" class="app-icon" style="color: #f59e0b;"></i>
                     <h2 class="app-title">CAPTCHA Keys</h2>
                     <p class="app-desc">Manage CAPTCHA providers and keys by root domain.</p>
                 </a>
                 {% else %}
-                <div class="app-card" style="opacity: 0.6; cursor: not-allowed;"
+                <div class="app-card card-captchas disabled"
                     title="CrowdSec is disabled (CROWDSEC_ENABLE=false)">
                     <i data-lucide="key-round" class="app-icon" style="color: #94a3b8;"></i>
                     <h2 class="app-title" style="color: #6b7280;">CAPTCHA Keys</h2>
@@ -96,25 +96,25 @@
 
                 <!-- CrowdSec UI -->
                 {% if crowdsec_enabled %}
-                <a href="/crowdsec/" target="_blank" class="app-card">
-                    <i data-lucide="shield-alert" class="app-icon" style="color: #6366f1;"></i>
+                <a href="/crowdsec/" target="_blank" class="app-card card-crowdsec">
+                    <img src="{{ url_for('static', filename='img/crowdsec.svg') }}" class="app-icon" alt="CrowdSec">
                     <h2 class="app-title">CrowdSec UI <i data-lucide="external-link"
-                            style="width: 1.1rem; height: 1.1rem; display: inline-block; vertical-align: middle; margin-left: 0.35rem; opacity: 0.6;"></i>
+                             style="width: 1.1rem; height: 1.1rem; display: inline-block; vertical-align: middle; margin-left: 0.35rem; opacity: 0.6;"></i>
                     </h2>
                     <p class="app-desc">Manage security alerts and IP bans.</p>
                 </a>
                 {% else %}
-                <div class="app-card" style="opacity: 0.6; cursor: not-allowed;"
+                <div class="app-card card-crowdsec disabled"
                     title="CrowdSec is disabled (CROWDSEC_ENABLE=false)">
-                    <i data-lucide="shield-off" class="app-icon" style="color: #94a3b8;"></i>
+                    <img src="{{ url_for('static', filename='img/crowdsec.svg') }}" class="app-icon" alt="CrowdSec">
                     <h2 class="app-title" style="color: #6b7280;">CrowdSec UI</h2>
                     <p class="app-desc">Security firewall is currently disabled.</p>
                 </div>
                 {% endif %}
 
                 <!-- Grafana -->
-                <a href="/grafana/" target="_blank" class="app-card">
-                    <i data-lucide="bar-chart-2" class="app-icon" style="color: #a855f7;"></i>
+                <a href="/grafana/" target="_blank" class="app-card card-grafana">
+                    <img src="{{ url_for('static', filename='img/grafana.svg') }}" class="app-icon" alt="Grafana">
                     <h2 class="app-title">Grafana <i data-lucide="external-link"
                             style="width: 1.1rem; height: 1.1rem; display: inline-block; vertical-align: middle; margin-left: 0.35rem; opacity: 0.6;"></i>
                     </h2>
@@ -122,8 +122,8 @@
                 </a>
 
                 <!-- Dozzle -->
-                <a href="/dozzle/" target="_blank" class="app-card">
-                    <i data-lucide="container" class="app-icon" style="color: #14b8a6;"></i>
+                <a href="/dozzle/" target="_blank" class="app-card card-dozzle">
+                    <img src="{{ url_for('static', filename='img/dozzle.svg') }}" class="app-icon" alt="Dozzle">
                     <h2 class="app-title">Dozzle <i data-lucide="external-link"
                             style="width: 1.1rem; height: 1.1rem; display: inline-block; vertical-align: middle; margin-left: 0.35rem; opacity: 0.6;"></i>
                     </h2>
@@ -131,35 +131,35 @@
                 </a>
 
                 <!-- Traefik -->
-                <a href="/traefik/" target="_blank" class="app-card">
-                    <i data-lucide="activity" class="app-icon" style="color: #f97316;"></i>
+                <a href="/traefik/" target="_blank" class="app-card card-traefik">
+                    <img src="{{ url_for('static', filename='img/traefik.svg') }}" class="app-icon" alt="Traefik">
                     <h2 class="app-title">Traefik <i data-lucide="external-link"
                             style="width: 1.1rem; height: 1.1rem; display: inline-block; vertical-align: middle; margin-left: 0.35rem; opacity: 0.6;"></i>
                     </h2>
                     <p class="app-desc">Edge router dashboard and metrics.</p>
                 </a>
 
-                <!-- Backups Manager -->
+                <!-- Backrest Backup Manager -->
                 {% if backrest_enabled %}
-                <a href="/backups/" target="_blank" class="app-card">
-                    <i data-lucide="archive" class="app-icon" style="color: #e11d48;"></i>
-                    <h2 class="app-title">Backup Manager <i data-lucide="external-link"
+                <a href="/backrest/" target="_blank" class="app-card card-backrest">
+                    <img src="{{ url_for('static', filename='img/backrest.svg') }}" class="app-icon backrest-icon" alt="Backrest">
+                    <h2 class="app-title">Backrest <i data-lucide="external-link"
                             style="width: 1.1rem; height: 1.1rem; display: inline-block; vertical-align: middle; margin-left: 0.35rem; opacity: 0.6;"></i>
                     </h2>
                     <p class="app-desc">Navigate, restore, and verify your restic backups.</p>
                 </a>
                 {% else %}
-                <div class="app-card" style="opacity: 0.6; cursor: not-allowed;"
+                <div class="app-card card-backrest disabled"
                     title="Backups are disabled (BACKREST_ENABLE=false)">
-                    <i data-lucide="archive" class="app-icon" style="color: #94a3b8;"></i>
-                    <h2 class="app-title" style="color: #6b7280;">Backup Manager</h2>
+                    <img src="{{ url_for('static', filename='img/backrest.svg') }}" class="app-icon backrest-icon" alt="Backrest">
+                    <h2 class="app-title" style="color: #6b7280;">Backrest</h2>
                     <p class="app-desc">Backups are currently disabled.</p>
                 </div>
                 {% endif %}
 
                 <!-- Documentation -->
-                <a href="https://github.com/pinano/traefik-pro-stack" target="_blank" class="app-card">
-                    <i data-lucide="book-open" class="app-icon" style="color: #ec4899;"></i>
+                <a href="https://github.com/pinano/traefik-pro-stack" target="_blank" class="app-card card-docs">
+                    <img src="{{ url_for('static', filename='img/github.svg') }}" class="app-icon github-icon" alt="GitHub">
                     <h2 class="app-title">Documentation <i data-lucide="external-link"
                             style="width: 1.1rem; height: 1.1rem; display: inline-block; vertical-align: middle; margin-left: 0.35rem; opacity: 0.6;"></i>
                     </h2>

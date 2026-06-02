@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let rootColorMap = new Map();
 
     function updateRootColors() {
-        const selectedStyle = document.getElementById('group-style-select')?.value || localStorage.getItem('group-style') || 'neutral';
+        const selectedStyle = document.getElementById('group-style-select')?.value || localStorage.getItem('group-style') || 'vibrant';
 
         // Extract unique roots, filter empty/invalid, and sort consistently
         const roots = [...new Set(allDomains.map(d => d._root_domain || getRootDomain(d.domain)))]
@@ -936,7 +936,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize group style selector
     const groupStyleSelect = document.getElementById('group-style-select');
     if (groupStyleSelect) {
-        const initialStyle = localStorage.getItem('group-style') || 'neutral';
+        const initialStyle = localStorage.getItem('group-style') || 'vibrant';
         groupStyleSelect.value = initialStyle;
 
         groupStyleSelect.addEventListener('change', () => {
