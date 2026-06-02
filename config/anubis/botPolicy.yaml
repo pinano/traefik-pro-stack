@@ -13,6 +13,12 @@ bots:
   - name: robots-txt
     path_regex: ^/robots.txt$
     action: ALLOW
+  - name: static-assets
+    path_regex: ^/static/.*$
+    action: ALLOW
+  - name: assets
+    path_regex: ^/assets/.*$
+    action: ALLOW
   - name: good-bots # --- SEO FRIENDLY ---
     user_agent_regex: "(Googlebot|Bingbot|Slurp|DuckDuckBot|Baiduspider|YandexBot)"
     action: ALLOW
