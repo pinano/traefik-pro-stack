@@ -561,6 +561,23 @@ def generate_configs():
         else:
             stats['standard'] += 1
 
+        # Automatically append the missing dashboard entry to domains.csv physically so it is persisted
+        try:
+            with open(INPUT_FILE, 'a', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow([
+                    dashboard_domain,
+                    '',
+                    'dashboard',
+                    dashboard_anubis_sub,
+                    '',
+                    '',
+                    ''
+                ])
+            print(f"   📝 Automatically added missing dashboard entry to {INPUT_FILE}: {dashboard_domain} (Anubis: {dashboard_anubis_sub or 'None'})")
+        except Exception as e:
+            print(f"   ⚠️ Warning: Could not automatically write dashboard entry to {INPUT_FILE}: {e}")
+
 
 
     if raw_entries:
