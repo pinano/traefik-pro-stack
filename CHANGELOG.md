@@ -1,3 +1,7 @@
+## v2026.06.02.1 (2026-06-02)
+
+- feat: add system domain management section to dashboard and implement automatic config migration for dashboard service (1a61d0e)
+
 ## v2026.06.02 (2026-06-02)
 
 - feat: add service icons and update dashboard templates, scripts, and documentation (98a46ab)
