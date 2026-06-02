@@ -1,3 +1,11 @@
+## v2026.06.02 (2026-06-02)
+
+- feat: add service icons and update dashboard templates, scripts, and documentation (98a46ab)
+- feat: increase system-wide and service file descriptor limits in setup script (164b21f)
+- chore: update LXC setup script with automated security updates, journald optimization, SSH hardening, and kernel networking tweaks (9f04534)
+- Add user password in lxc script (c86be17)
+- fix: correct variable expansion for Hostname in Zabbix agent configuration script (89ba2d2)
+
 ## v2026.06.01.2 (2026-06-01)
 
 - feat: enhance LXC bootstrap with locale, timezone, monitoring tools, and Zabbix integration while updating environment initialization variables (70ac77a)
