@@ -92,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (roots.length > 0) {
             roots.forEach((root, index) => {
                 const varName = `--root-color-${index}`;
-                
+
                 if (selectedStyle === 'neutral') {
                     // Two-tone neutral theme: alternate between card-bg and neutral-alt-bg
                     const colorVal = index % 2 === 0 ? 'var(--card-bg)' : 'var(--neutral-alt-bg)';
@@ -105,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const h = (index * 137.5) % 360;
                     const lLight = (index % 2 === 0) ? 96 : 93;
                     const sLight = 15;
-                    
+
                     const lDark = (index % 2 === 0) ? 14 : 17;
                     const sDark = 10;
 
@@ -118,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const h = (index * 137.5) % 360;
                     const lLight = (index % 2 === 0) ? 94 : 88;
                     const sLight = (index % 2 === 0) ? 80 : 90;
-                    
+
                     const lDark = (index % 2 === 0) ? 18 : 22;
                     const sDark = (index % 2 === 0) ? 35 : 45;
 
@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         [data-theme="dark"] { ${varName}: hsl(${h}, ${sDark}%, ${lDark}%); }
                     `;
                 }
-                
+
                 rootColorMap.set(root, `var(${varName})`);
             });
         }
@@ -529,7 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         tr.innerHTML = `
             <td class="check-status-cell" style="text-align: center;">${statusHtml}</td>
-            <td data-label="Domain"><input type="text" class="data-input" data-key="domain" value="${escapeHtml(data.domain || '')}" placeholder="dashboard.example.com"></td>
+            <td data-label="Domain"><input type="text" readonly class="data-input" data-key="domain" value="${escapeHtml(data.domain || '')}" placeholder="dashboard.example.com"></td>
             <td data-label="Anubis Subdomain"><input type="text" class="data-input" data-key="anubis_subdomain" value="${escapeHtml(data.anubis_subdomain || '')}" placeholder="anubis"></td>
             <td data-label="Rate"><input type="text" class="data-input" data-key="rate" value="${escapeHtml(data.rate || '')}" placeholder="${defaultRateAvg}"></td>
             <td data-label="Burst"><input type="text" class="data-input" data-key="burst" value="${escapeHtml(data.burst || '')}" placeholder="${defaultRateBurst}"></td>
@@ -974,10 +974,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Determine if an action is required before we update state
                 const currentPayloadStr = JSON.stringify(payload);
-                const actionRequired = currentPayloadStr !== pristineData 
-                    ? determinePostSaveAction(pristineData, currentPayloadStr) 
+                const actionRequired = currentPayloadStr !== pristineData
+                    ? determinePostSaveAction(pristineData, currentPayloadStr)
                     : null;
-                
+
                 // Update pristineData immediately so refreshUnsavedUI knows there are no unsaved changes
                 pristineData = currentPayloadStr;
 
@@ -1012,10 +1012,10 @@ document.addEventListener('DOMContentLoaded', () => {
         groupStyleSelect.addEventListener('change', () => {
             const selected = groupStyleSelect.value;
             localStorage.setItem('group-style', selected);
-            
+
             // Re-generate styles and update table rows
             updateRootColors();
-            
+
             // Refresh colors on all rows in DOM
             document.querySelectorAll('#domains-body tr').forEach(row => {
                 const rootCell = row.querySelector('.root-domain-cell');
@@ -1152,7 +1152,7 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.classList.remove('has-notification');
         deployBtn.classList.remove('btn-deploy-needed');
         deployBtn.classList.remove('is-restart');
-        
+
         // Disable deploy button
         deployBtn.disabled = true;
         deployBtn.title = "Deployment in progress...";

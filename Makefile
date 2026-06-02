@@ -425,13 +425,13 @@ traefik-health: ## Check Traefik health status
 
 ##@help certs-watch
 ## Tails the Traefik logs, filtering specifically for ACME certificate negotiation events.
-## - Requires TRAEFIK_LOG_LEVEL=DEBUG in .env.
+## - Works with default INFO log level (captures lego logs).
 .PHONY: certs-watch
-certs-watch: ## Monitor ACME logs (Requires TRAEFIK_LOG_LEVEL=DEBUG in .env)
+certs-watch: ## Monitor ACME logs (Works at default INFO level)
 	@echo "Monitoring ACME/Certificate logs... (Ctrl+C to stop)"
 	@$(DOCKER_COMPOSE) logs -f traefik | \
-		grep --line-buffered -iE 'obtained|validated|solve.*challenge|acme.*error|fail' | \
-		grep --line-buffered -vE 'Trying to challenge|Adding certificate|Looking for|No ACME.*required|RequestHost|global-compress'
+		grep --line-buffered -iE 'obtain|validat|challenge|acme|lego|fail|err' | \
+		grep --line-buffered -vE 'Adding certificate|Looking for|No ACME.*required|RequestHost|global-compress'
 
 ##@help certs-info
 ## Analyzes the acme.json file against domains.csv.
