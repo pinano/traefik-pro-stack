@@ -533,7 +533,6 @@ echo " [3/6] 🎨 Preparing application assets..."
 DATA_DIRS=(
     "data/crowdsec/db"
     "data/crowdsec/config"
-    "data/redis"
     "data/grafana"
     "data/loki"
     "data/alloy"
