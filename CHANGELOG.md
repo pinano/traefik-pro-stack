@@ -1,3 +1,8 @@
+## v2026.06.02.3 (2026-06-02)
+
+- refactor: migrate from Redis to Valkey, add automated image update checks, and enhance internal service monitoring and configuration scripts. (c0db880)
+- Update traefik logo (88827c1)
+
 ## v2026.06.02.2 (2026-06-02)
 
 - Fix certs-watch command and make dashboard domain readonly in domain manager (ef316a8)
