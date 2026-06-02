@@ -389,26 +389,26 @@ clean: ## Clean generated configs and backup certificates (Requires confirmation
 		echo "Aborted."; \
 	fi
 
-##@ Redis Utilities
+##@ Valkey Utilities
 
-##@help redis-info
-## Displays statistical information and metrics from the Redis server.
-.PHONY: redis-info
-redis-info: ## Show Redis server statistics
-	@$(DOCKER_COMPOSE) exec redis redis-cli -a "$${REDIS_PASSWORD}" --no-auth-warning INFO
+##@help valkey-info
+## Displays statistical information and metrics from the Valkey server.
+.PHONY: valkey-info
+valkey-info: ## Show Valkey server statistics
+	@$(DOCKER_COMPOSE) exec redis valkey-cli -a "$${REDIS_PASSWORD}" --no-auth-warning INFO
 
-##@help redis-monitor
-## Streams every command processed by the Redis server in real-time.
+##@help valkey-monitor
+## Streams every command processed by the Valkey server in real-time.
 ## - Extremely useful for debugging cache hits/misses.
-.PHONY: redis-monitor
-redis-monitor: ## Monitor Redis commands in real-time (Ctrl+C to stop)
-	@-$(DOCKER_COMPOSE) exec redis redis-cli -a "$${REDIS_PASSWORD}" --no-auth-warning MONITOR
+.PHONY: valkey-monitor
+valkey-monitor: ## Monitor Valkey commands in real-time (Ctrl+C to stop)
+	@-$(DOCKER_COMPOSE) exec redis valkey-cli -a "$${REDIS_PASSWORD}" --no-auth-warning MONITOR
 
-##@help redis-ping
-## Sends a PING command to the Redis server to verify connectivity and responsiveness.
-.PHONY: redis-ping
-redis-ping: ## Ping Redis server
-	@$(DOCKER_COMPOSE) exec redis redis-cli -a "$${REDIS_PASSWORD}" --no-auth-warning PING
+##@help valkey-ping
+## Sends a PING command to the Valkey server to verify connectivity and responsiveness.
+.PHONY: valkey-ping
+valkey-ping: ## Ping Valkey server
+	@$(DOCKER_COMPOSE) exec redis valkey-cli -a "$${REDIS_PASSWORD}" --no-auth-warning PING
 
 ##@ Traefik Utilities
 
@@ -458,6 +458,16 @@ certs-prune: ## Remove old/unused certificates from acme.json (Dry-run)
 .PHONY: certs-prune-force
 certs-prune-force: ## Remove old/unused certificates from acme.json (Actual)
 	@$(PYTHON) scripts/prune-certs.py --force $(ARGS)
+
+##@ Image Utilities
+
+##@help check-updates
+## Scans compose files and audits registries for newer Docker image tags.
+## Filters tags matching the current tag's flavor (e.g. alpine, slim).
+.PHONY: check-updates
+check-updates: ## Check for Docker image updates
+	@$(PYTHON) scripts/check-image-updates.py
+
 
 # =============================================================================
 # OPTIONAL INCLUDES

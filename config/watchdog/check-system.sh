@@ -143,7 +143,7 @@ if [ -z "$REDIS_CONTAINER" ]; then
     printf '%b\n' "${YELLOW}⚠️ Redis/Valkey container not found.${NC}"
 else
     # Ping Redis
-    PING_RES=$(docker exec -e REDISCLI_AUTH="$REDIS_PASSWORD" "$REDIS_CONTAINER" redis-cli ping 2>/dev/null | tr -d '\r')
+    PING_RES=$(docker exec -e REDISCLI_AUTH="$REDIS_PASSWORD" -e VALKEYCLI_AUTH="$REDIS_PASSWORD" "$REDIS_CONTAINER" sh -c 'CLI=$(command -v valkey-cli || command -v redis-cli || echo redis-cli); $CLI ping' 2>/dev/null | tr -d '\r')
     if [ "$PING_RES" != "PONG" ]; then
         printf '%b\n' "${RED}❌ Redis is not responding to PING! Response: $PING_RES${NC}"
         ALERTS="${ALERTS}• *Redis Unresponsive*: Redis container is running but PING returned \`${PING_RES:-empty}\`!%0A"
@@ -152,7 +152,7 @@ else
         printf '%b\n' "${GREEN}✅ Redis PING OK${NC}"
         
         # Check memory
-        REDIS_MEM_INFO=$(docker exec -e REDISCLI_AUTH="$REDIS_PASSWORD" "$REDIS_CONTAINER" redis-cli info memory 2>/dev/null)
+        REDIS_MEM_INFO=$(docker exec -e REDISCLI_AUTH="$REDIS_PASSWORD" -e VALKEYCLI_AUTH="$REDIS_PASSWORD" "$REDIS_CONTAINER" sh -c 'CLI=$(command -v valkey-cli || command -v redis-cli || echo redis-cli); $CLI info memory' 2>/dev/null)
         if [ $? -eq 0 ]; then
             used_mem=$(echo "$REDIS_MEM_INFO" | grep "^used_memory:" | cut -d: -f2 | tr -d '\r')
             max_mem=$(echo "$REDIS_MEM_INFO" | grep "^maxmemory:" | cut -d: -f2 | tr -d '\r')

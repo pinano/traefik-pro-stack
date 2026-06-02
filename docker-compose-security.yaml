@@ -50,13 +50,13 @@ services:
   # ===========================
   redis:
     image: valkey/valkey:9.1.0-alpine
-    command: redis-server /redis.conf
+    command: valkey-server /valkey.conf
     restart: unless-stopped
     environment:
       - TZ=${TZ}
     volumes:
       - /etc/localtime:/etc/localtime:ro
-      - ./config/redis/redis-generated.conf:/redis.conf:ro
+      - ./config/valkey/valkey-generated.conf:/valkey.conf:ro
     networks:
       - anubis-backend
       - traefik
@@ -87,7 +87,7 @@ services:
   #  CROWDSEC WEB UI (Management interface for CrowdSec LAPI)
   # ===========================
   crowdsec-web-ui:
-    image: ghcr.io/theduffman85/crowdsec-web-ui:2026.5.6
+    image: ghcr.io/theduffman85/crowdsec-web-ui:2026.6.1
     restart: unless-stopped
     environment:
       - CROWDSEC_URL=http://crowdsec:8080

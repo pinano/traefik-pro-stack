@@ -58,7 +58,7 @@ if [ "$CROWDSEC_ENABLE" != "false" ]; then
 else
     echo -e "🟡 \033[1mcrowdsec\033[0m: Disabled in .env"
 fi
-check_container "redis" "redis-cli -a ${REDIS_PASSWORD:-} PING"
+check_container "redis" "sh -c 'CLI=\$(command -v valkey-cli || command -v redis-cli || echo redis-cli); \$CLI -a \"${REDIS_PASSWORD:-}\" PING'"
 
 echo ""
 echo "--- Observability ---"

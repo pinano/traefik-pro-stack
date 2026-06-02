@@ -119,7 +119,7 @@ The core mission: protect multiple Docker-based web applications (and optionally
 │   ├── prometheus/
 │   │   ├── prometheus.yml                # Scrape configs and remote_write receiver
 │   │   └── rules.yml                     # Prometheus recording/alerting rules (mirrors Grafana rules)
-│   ├── redis/redis.conf                  # Valkey/Redis config (allkeys-lru, no persistence)
+│   ├── valkey/valkey.conf                # Valkey config (allkeys-lru, no persistence)
 │   ├── alloy/config.alloy                # Alloy collector config (log discovery, metric scraping)
 │   └── watchdog/
 │       ├── Dockerfile
@@ -342,6 +342,7 @@ make validate         # Check .env for errors
 make crowdsec-decisions  # List active bans
 make crowdsec-unban 1.2.3.4
 make certs-info       # Certificate status overview
+make check-updates    # Check for Docker image updates in compose files
 make help             # Full command list
 ```
 

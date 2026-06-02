@@ -28,6 +28,13 @@ warn()    { echo -e "${YELLOW}[WARN]${RESET}  $*"; }
 error()   { echo -e "${RED}[ERROR]${RESET} $*" >&2; }
 die()     { error "$*"; exit 1; }
 
+# Global cleanup on exit/error
+cleanup() {
+    rm -f /tmp/geoblock_ban_* /tmp/geoblock_unban_* /tmp/geoblock_ranges_*
+}
+trap cleanup EXIT INT TERM
+
+
 # progress_bar CURRENT TOTAL LABEL
 # Prints an in-place progress bar to stderr. Call with CURRENT==TOTAL for the
 # final "done" line (which adds a newline so subsequent output is clean).
@@ -98,18 +105,20 @@ for RAW_COUNTRY in "${COUNTRIES[@]}"; do
     echo -e "${BOLD}══════════════════════════════════════════════${RESET}"
 
     info "Fetching IP ranges from IPDeny..."
-    HTTP_STATUS=$(curl -s -o /tmp/geoblock_ranges.txt -w "%{http_code}" "${IPDENY_URL}")
+    GEORANGES=$(mktemp /tmp/geoblock_ranges_XXXXXX.txt)
+    HTTP_STATUS=$(curl -s -o "$GEORANGES" -w "%{http_code}" "${IPDENY_URL}")
 
     if [[ "$HTTP_STATUS" != "200" ]]; then
         error "Failed to fetch ranges for '${COUNTRY}' (HTTP ${HTTP_STATUS}). Unknown country code?"
-        rm -f /tmp/geoblock_ranges.txt
+        rm -f "$GEORANGES"
         (( TOTAL_FAIL++ )) || true
         continue
     fi
 
-    RANGE_COUNT=$(wc -l < /tmp/geoblock_ranges.txt | tr -d ' ')
+    RANGE_COUNT=$(wc -l < "$GEORANGES" | tr -d ' ')
     if [[ "$RANGE_COUNT" -eq 0 ]]; then
         warn "No IP ranges found for '${COUNTRY}'. Skipping."
+        rm -f "$GEORANGES"
         (( TOTAL_FAIL++ )) || true
         continue
     fi
@@ -133,7 +142,7 @@ for RAW_COUNTRY in "${COUNTRIES[@]}"; do
             [[ -z "$CIDR" || "$CIDR" == \#* ]] && continue
             echo "cscli decisions add --range '${CIDR}' --reason '${REASON}' --duration '${DURATION}' --type ban" >> "$TMPSCRIPT"
             (( OK++ )) || true
-        done < /tmp/geoblock_ranges.txt
+        done < "$GEORANGES"
 
         # Stream docker exec output line-by-line to drive the progress bar.
         # cscli prints one line per range ("time=... level=info msg=Decision..."),
@@ -168,7 +177,7 @@ for RAW_COUNTRY in "${COUNTRIES[@]}"; do
                 [[ -z "$CIDR" || "$CIDR" == \#* ]] && continue
                 echo "cscli decisions delete --range '${CIDR}'" >> "$TMPSCRIPT"
                 (( OK++ )) || true
-            done < /tmp/geoblock_ranges.txt
+            done < "$GEORANGES"
             DONE=0
             progress_bar 0 "$OK" "unbanning ranges..."
             while IFS= read -r _line; do
@@ -181,7 +190,7 @@ for RAW_COUNTRY in "${COUNTRIES[@]}"; do
         fi
     fi
 
-    rm -f /tmp/geoblock_ranges.txt
+    rm -f "$GEORANGES"
     (( TOTAL_OK++ )) || true
 done
 

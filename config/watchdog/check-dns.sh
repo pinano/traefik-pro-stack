@@ -103,6 +103,13 @@ verify_dns_for_domain() {
     fi
 }
 
+# Guard: Skip check in local dev environment
+if [ "${TRAEFIK_ACME_ENV_TYPE:-}" = "local" ]; then
+    echo "🏠 Local development environment detected (TRAEFIK_ACME_ENV_TYPE=local)."
+    echo "   Bypassing external DNS checks (domains resolve locally to 127.0.0.1)."
+    exit 0
+fi
+
 # Verify requirements
 if ! command -v dig > /dev/null 2>&1 || ! command -v curl > /dev/null 2>&1; then
     echo "❌ Error: dig (bind-tools) and curl are required."
