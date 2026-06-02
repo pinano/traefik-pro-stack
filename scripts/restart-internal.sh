@@ -112,6 +112,25 @@ fi
 echo " --------------------------------------------------------"
 echo " [3/3] 🚀 Applying changes to the stack..."
 
+# --- Apache Detection ---
+# Probe port 8080 on the host — the only source of truth.
+APACHE_FLAG_FILE=".apache_host_available"
+APACHE_CHECK_PORT="${APACHE_HOST_PORT:-8080}"
+
+if [ -f /.dockerenv ] || [ "${DASHBOARD_INTERNAL:-}" == "true" ]; then
+    APACHE_CHECK_HOST="${APACHE_HOST_IP:-172.17.0.1}"
+else
+    APACHE_CHECK_HOST="localhost"
+fi
+
+if python3 -c "import socket; s = socket.socket(); s.settimeout(1); exit(0) if s.connect_ex(('${APACHE_CHECK_HOST}', int('${APACHE_CHECK_PORT}'))) == 0 else exit(1)" 2>/dev/null; then
+    export APACHE_HOST_AVAILABLE="true"
+    touch "$APACHE_FLAG_FILE"
+else
+    export APACHE_HOST_AVAILABLE="false"
+    rm -f "$APACHE_FLAG_FILE"
+fi
+
 # Build compose file list (same logic as compose-files.sh)
 source scripts/compose-files.sh
 

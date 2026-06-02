@@ -345,7 +345,7 @@ This section details the layout of the project, including configuration files, t
 │   │
 │   ├── loki/                             # Loki log aggregation configuration
 │   ├── prometheus/                       # Prometheus scraper definitions and rules
-│   ├── redis/                            # Valkey/Redis cache configuration templates
+│   ├── valkey/                           # Valkey cache configuration templates
 │   ├── alloy/                            # Grafana Alloy metric and log ingestion pipelines
 │   ├── backrest/                         # Backrest state: config, data, rclone credentials (git-ignored)
 │   └── watchdog/                         # Watchdog monitor scripts
@@ -354,7 +354,7 @@ This section details the layout of the project, including configuration files, t
 ```
 
 > [!IMPORTANT]
-> The dynamic files listed in `.gitignore` (such as `acquis.yaml`, `profiles.yaml`, `docker-compose-anubis-generated.yaml`, `traefik-generated.yaml`, `redis-generated.conf`, and `botPolicy-generated.yaml`) are built on every boot sequence. Do not modify these files directly as they are overwritten by `make start`. Make changes inside the `.dist` files or generator templates instead.
+> The dynamic files listed in `.gitignore` (such as `acquis.yaml`, `profiles.yaml`, `docker-compose-anubis-generated.yaml`, `traefik-generated.yaml`, `valkey-generated.conf`, and `botPolicy-generated.yaml`) are built on every boot sequence. Do not modify these files directly as they are overwritten by `make start`. Make changes inside the `.dist` files or generator templates instead.
 
 ---
 
@@ -649,7 +649,7 @@ The Makefile provides command wrappers to simplify stack administration:
 *   `make ctop`: Runs the interactive container hardware resource viewer.
 *   `make grafana-setup-telegram`: Triggers manual configuration setup for Grafana Telegram alerts.
 *   `make grafana-test-alert`: Sends a test alert payload to your Telegram channel to verify bot credentials.
-*   `make redis-info` / `make redis-ping` / `make redis-monitor`: Utility commands to test Valkey database latency and streams.
+*   `make valkey-info` / `make valkey-ping` / `make valkey-monitor`: Utility commands to test Valkey database latency and streams.
 
 ### SSL Certs Control
 
@@ -658,6 +658,10 @@ The Makefile provides command wrappers to simplify stack administration:
 *   `make certs-inspect`: Outputs detailed metadata for certificates (SANs, expiry dates).
 *   `make certs-prune`: Runs a dry-run check for unused/orphaned certificates in `acme.json`.
 *   `make certs-prune-force`: Removes orphan certificates from `acme.json`.
+
+### Image Management
+
+*   `make check-updates`: Scans all active docker-compose files and queries public registries (Docker Hub, GHCR, Quay) to find newer versions of running images, preserving specific tag flavors (e.g., `-alpine`, `-slim`).
 
 ### Backup Management
 

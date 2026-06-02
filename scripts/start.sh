@@ -664,22 +664,22 @@ else
     exit 1
 fi
 
-# Generate redis-generated.conf from template (idempotent write)
-echo "   ⚙️ Generating Redis static config..."
-if [ -f "./config/redis/redis.conf" ]; then
-    TMP_REDIS=$(mktemp)
+# Generate valkey-generated.conf from template (idempotent write)
+echo "   ⚙️ Generating Valkey static config..."
+if [ -f "./config/valkey/valkey.conf" ]; then
+    TMP_VALKEY=$(mktemp)
     sed "s#REDIS_PASSWORD_PLACEHOLDER#${REDIS_PASSWORD}#g" \
-        ./config/redis/redis.conf > "$TMP_REDIS"
+        ./config/valkey/valkey.conf > "$TMP_VALKEY"
     
-    TARGET_REDIS="./config/redis/redis-generated.conf"
-    if [ -f "$TARGET_REDIS" ] && cmp -s "$TMP_REDIS" "$TARGET_REDIS"; then
-        rm "$TMP_REDIS"
+    TARGET_VALKEY="./config/valkey/valkey-generated.conf"
+    if [ -f "$TARGET_VALKEY" ] && cmp -s "$TMP_VALKEY" "$TARGET_VALKEY"; then
+        rm "$TMP_VALKEY"
     else
-        cat "$TMP_REDIS" > "$TARGET_REDIS"
-        rm "$TMP_REDIS"
+        cat "$TMP_VALKEY" > "$TARGET_VALKEY"
+        rm "$TMP_VALKEY"
     fi
 else
-    echo "❌ Error: config/redis/redis.conf not found!"
+    echo "❌ Error: config/valkey/valkey.conf not found!"
     exit 1
 fi
 
