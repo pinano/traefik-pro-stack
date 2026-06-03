@@ -247,7 +247,7 @@ This prioritizes availability over security under fault conditions, which is app
 
 Do not prompt the user to generate secrets manually. `start.sh` auto-generates:
 - `DASHBOARD_SECRET_KEY` (Flask session key)
-- `CROWDSEC_API_KEY` (bouncer auth) — via `make init`
+- `CROWDSEC_LAPI_KEY` (bouncer auth) — via `make init`
 - `ANUBIS_REDIS_PRIVATE_KEY` — via `make init`
 - `REDIS_PASSWORD` — via `make init`
 - Dashboard auth hashes (bcrypt via `htpasswd`)
@@ -275,7 +275,7 @@ Variables managed automatically by `start.sh` — **never suggest editing these 
 - `DASHBOARD_APP_PATH_HOST`
 - `DASHBOARD_SECRET_KEY`
 - `CROWDSEC_WEB_UI_PASSWORD`
-- `CROWDSEC_API_KEY`
+- `CROWDSEC_LAPI_KEY`
 - `REDIS_PASSWORD`
 - `ANUBIS_REDIS_PRIVATE_KEY`
 - `TRAEFIK_DASHBOARD_AUTH`
