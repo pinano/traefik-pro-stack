@@ -537,6 +537,7 @@ DATA_DIRS=(
     "data/loki"
     "data/alloy"
     "data/prometheus"
+    "data/filebrowser"
 )
 DATA_CREATED=0
 for dir in "${DATA_DIRS[@]}"; do
@@ -551,6 +552,7 @@ done
 chown -R 472:472 ./data/grafana 2>/dev/null || chmod -R 777 ./data/grafana 2>/dev/null || true
 chown -R 10001:10001 ./data/loki 2>/dev/null || chmod -R 777 ./data/loki 2>/dev/null || true
 chown -R 65534:65534 ./data/prometheus 2>/dev/null || chmod -R 777 ./data/prometheus 2>/dev/null || true
+chown -R 1000:1000 ./data/filebrowser 2>/dev/null || chmod -R 777 ./data/filebrowser 2>/dev/null || true
 
 if [ $DATA_CREATED -gt 0 ]; then
     echo "   ✅ Created $DATA_CREATED persistent data director(ies) under ./data/."

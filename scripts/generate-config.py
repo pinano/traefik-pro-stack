@@ -68,6 +68,8 @@ CROWDSEC_ENABLE = os.getenv('CROWDSEC_ENABLE', 'true').lower() == 'true'
 CROWDSEC_APPSEC_ENABLE = os.getenv('CROWDSEC_APPSEC_ENABLE', 'true').lower() == 'true'
 CROWDSEC_CAPTCHA_GRACE_PERIOD = int(os.getenv('CROWDSEC_CAPTCHA_GRACE_PERIOD', 3600))
 BACKREST_ENABLE = os.getenv('BACKREST_ENABLE', 'true').lower() == 'true'
+PHPMYADMIN_ENABLE = os.getenv('PHPMYADMIN_ENABLE', 'true').lower() == 'true'
+FILEBROWSER_ENABLE = os.getenv('FILEBROWSER_ENABLE', 'true').lower() == 'true'
 TRAEFIK_ENV_TYPE = os.getenv('TRAEFIK_ACME_ENV_TYPE', 'staging')
 IS_LOCAL_DEV = (TRAEFIK_ENV_TYPE == 'local')
 TRAEFIK_CERT_RESOLVER = os.getenv('TRAEFIK_CERT_RESOLVER', 'le')
@@ -959,6 +961,62 @@ def generate_configs():
         traefik_dynamic_conf['http']['middlewares']['backrest-strip'] = {
             'stripPrefix': {
                 'prefixes': ['/backrest']
+            }
+        }
+
+    # --- phpMyAdmin Router (only when PHPMYADMIN_ENABLE=true) ---
+    if PHPMYADMIN_ENABLE:
+        phpmyadmin_mw = base_middlewares.copy()
+        if 'global-buffering' in phpmyadmin_mw:
+            phpmyadmin_mw.remove('global-buffering')
+        for mw in ['phpmyadmin-redirect'] + sso_middlewares + ['phpmyadmin-strip']:
+            phpmyadmin_mw.insert(-1, mw)
+
+        traefik_dynamic_conf['http']['routers']['phpmyadmin-frontend'] = {
+            'rule': f"Host(`{dashboard_domain}`) && PathPrefix(`/phpmyadmin`)",
+            'entryPoints': ["websecure"],
+            'service': "phpmyadmin@docker",
+            'priority': 100,
+            'tls': traefik_dynamic_conf['http']['routers'][base_router_name]['tls'],
+            'middlewares': phpmyadmin_mw
+        }
+
+        traefik_dynamic_conf['http']['middlewares']['phpmyadmin-redirect'] = {
+            'redirectRegex': {
+                'regex': '^https?://([^/]+)/phpmyadmin$',
+                'replacement': 'https://${1}/phpmyadmin/',
+                'permanent': True
+            }
+        }
+
+        traefik_dynamic_conf['http']['middlewares']['phpmyadmin-strip'] = {
+            'stripPrefix': {
+                'prefixes': ['/phpmyadmin']
+            }
+        }
+
+    # --- Filebrowser Router (only when FILEBROWSER_ENABLE=true) ---
+    if FILEBROWSER_ENABLE:
+        filebrowser_mw = base_middlewares.copy()
+        if 'global-buffering' in filebrowser_mw:
+            filebrowser_mw.remove('global-buffering')
+        for mw in ['filebrowser-redirect'] + sso_middlewares:
+            filebrowser_mw.insert(-1, mw)
+
+        traefik_dynamic_conf['http']['routers']['filebrowser-frontend'] = {
+            'rule': f"Host(`{dashboard_domain}`) && PathPrefix(`/filebrowser`)",
+            'entryPoints': ["websecure"],
+            'service': "filebrowser@docker",
+            'priority': 100,
+            'tls': traefik_dynamic_conf['http']['routers'][base_router_name]['tls'],
+            'middlewares': filebrowser_mw
+        }
+
+        traefik_dynamic_conf['http']['middlewares']['filebrowser-redirect'] = {
+            'redirectRegex': {
+                'regex': '^https?://([^/]+)/filebrowser$',
+                'replacement': 'https://${1}/filebrowser/',
+                'permanent': True
             }
         }
 
