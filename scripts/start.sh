@@ -154,8 +154,8 @@ validate_env() {
         fi
     fi
 
-    # 4. Check CrowdSec API Key (Deprecated - now auto-generated)
-    # CROWDSEC_API_KEY is now generated automatically during the sync phase if missing.
+    # 4. Check CrowdSec Local API Key (Deprecated - now auto-generated)
+    # CROWDSEC_LAPI_KEY is now generated automatically during the sync phase if missing.
 
     # 5. Check for trivial default passwords (only for staging/production)
     if [ "$TRAEFIK_ACME_ENV_TYPE" != "local" ]; then
@@ -273,12 +273,12 @@ if [ -z "$ANUBIS_REDIS_PRIVATE_KEY" ] || [ "$ANUBIS_REDIS_PRIVATE_KEY" == "REPLA
     set +a
 fi
 
-# CrowdSec API Key (auto-generate on first run)
-if [ -z "$CROWDSEC_API_KEY" ] || [ "$CROWDSEC_API_KEY" == "REPLACE_ME" ]; then
-    echo "   🔄 Generating secure CrowdSec API key..."
-    NEW_CS_API_KEY=$(openssl rand -hex 32)
-    update_env_var "CROWDSEC_API_KEY" "$NEW_CS_API_KEY"
-    export CROWDSEC_API_KEY="$NEW_CS_API_KEY"
+# CrowdSec Local API Key (auto-generate on first run)
+if [ -z "$CROWDSEC_LAPI_KEY" ] || [ "$CROWDSEC_LAPI_KEY" == "REPLACE_ME" ]; then
+    echo "   🔄 Generating secure CrowdSec Local API key..."
+    NEW_CS_LAPI_KEY=$(openssl rand -hex 32)
+    update_env_var "CROWDSEC_LAPI_KEY" "$NEW_CS_LAPI_KEY"
+    export CROWDSEC_LAPI_KEY="$NEW_CS_LAPI_KEY"
     set -a
     source .env
     set +a
@@ -1035,7 +1035,7 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
     # Delete first (silently) in case it already exists, then add fresh.
 
     docker exec "$CROWDSEC_ID" cscli bouncers delete traefik-bouncer > /dev/null 2>&1 || true
-    ADD_OUTPUT=$(docker exec "$CROWDSEC_ID" cscli bouncers add traefik-bouncer --key "${CROWDSEC_API_KEY}" 2>&1)
+    ADD_OUTPUT=$(docker exec "$CROWDSEC_ID" cscli bouncers add traefik-bouncer --key "${CROWDSEC_LAPI_KEY}" 2>&1)
     ADD_EXIT=$?
 
     if [ $ADD_EXIT -eq 0 ]; then

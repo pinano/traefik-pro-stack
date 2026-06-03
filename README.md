@@ -213,7 +213,7 @@ This target launches an interactive configuration wizard (`scripts/initialize-en
 3.  Creates your local `.env` configuration file from the template (`.env.dist`).
 4.  Prompts you for essential parameters (primary domain name, project name, timezone, SSL registration email, ACME environment type, Anubis difficulty, CrowdSec collections, rate limits, and administrator credentials).
 
-Note that cryptographic secrets (`DASHBOARD_SECRET_KEY`, `REDIS_PASSWORD`, `ANUBIS_REDIS_PRIVATE_KEY`, `CROWDSEC_API_KEY`, and `CROWDSEC_WEB_UI_PASSWORD`) are **not** generated during `make init`. They are auto-generated on the first `make start` execution when `start.sh` detects that these values are empty or set to their placeholder defaults. This design ensures that keys are only created once and are never silently overwritten on subsequent startups.
+Note that cryptographic secrets (`DASHBOARD_SECRET_KEY`, `REDIS_PASSWORD`, `ANUBIS_REDIS_PRIVATE_KEY`, `CROWDSEC_LAPI_KEY`, and `CROWDSEC_WEB_UI_PASSWORD`) are **not** generated during `make init`. They are auto-generated on the first `make start` execution when `start.sh` detects that these values are empty or set to their placeholder defaults. This design ensures that keys are only created once and are never silently overwritten on subsequent startups.
 
 ### Step 2: Customize Environment Variables
 
@@ -529,7 +529,7 @@ These keys must not be edited manually in the `.env` file, as the startup script
 *   `CROWDSEC_WEB_UI_PASSWORD`: Internal database password for the CrowdSec console client.
 *   `REDIS_PASSWORD`: Access password for the Valkey/Redis cache database.
 *   `ANUBIS_REDIS_PRIVATE_KEY`: Private Ed25519 signing key for Anubis PoW cookies.
-*   `CROWDSEC_API_KEY`: API bouncer key used by Traefik to query the CrowdSec LAPI.
+*   `CROWDSEC_LAPI_KEY`: API bouncer key used by Traefik to query the CrowdSec LAPI.
 *   `TRAEFIK_CERT_RESOLVER`: Set to `le` (Let's Encrypt) in production and staging, or left blank in local mode.
 
 ### User-Configured Variables
