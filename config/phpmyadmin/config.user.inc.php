@@ -74,13 +74,17 @@ if (is_dir($projectsDir)) {
                 
                 // We need a valid port to connect via the host bridge interface
                 if (!$dbPort) {
+                    error_log("phpMyAdmin autodiscovery: No database port resolved for project '$projectName'");
                     continue;
                 }
                 
                 // Only register server if it's currently online/reachable
                 if (!isDatabaseOnline('host.docker.internal', $dbPort)) {
+                    error_log("phpMyAdmin autodiscovery: Project '$projectName' database port $dbPort is OFFLINE or unreachable");
                     continue;
                 }
+                
+                error_log("phpMyAdmin autodiscovery: Project '$projectName' database port $dbPort is ONLINE - registering server");
                 
                 // 2. Discover credentials
                 // Check for Root User credentials
@@ -128,5 +132,9 @@ if (is_dir($projectsDir)) {
                 }
             }
         }
+    } else {
+        error_log("phpMyAdmin autodiscovery: No subdirectories found in '$projectsDir'");
     }
+} else {
+    error_log("phpMyAdmin autodiscovery: Projects directory '$projectsDir' does not exist or is not readable");
 }
