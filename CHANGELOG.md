@@ -1,3 +1,11 @@
+## v2026.06.03 (2026-06-03)
+
+- chore: update .gitignore to reference valkey-generated.conf instead of redis-generated.conf (4d4dc2b)
+- feat: add diagnostic logging for phpMyAdmin database autodiscovery process (7b107ea)
+- feat: add phpMyAdmin and Filebrowser services to dashboard and deployment configuration (b4c33a1)
+- refactor: rename CROWDSEC_API_KEY to CROWDSEC_LAPI_KEY for consistency across configuration and scripts (a616a42)
+- style: update dark theme input background and extend styling to domains table (1e0ff8c)
+
 ## v2026.06.02.3 (2026-06-02)
 
 - refactor: migrate from Redis to Valkey, add automated image update checks, and enhance internal service monitoring and configuration scripts. (c0db880)
