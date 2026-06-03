@@ -94,6 +94,42 @@
                 </div>
                 {% endif %}
 
+                <!-- phpMyAdmin -->
+                {% if phpmyadmin_enabled %}
+                <a href="/phpmyadmin/" target="_blank" class="app-card card-phpmyadmin">
+                    <img src="{{ url_for('static', filename='img/phpmyadmin.svg') }}" class="app-icon" alt="phpMyAdmin">
+                    <h2 class="app-title">phpMyAdmin <i data-lucide="external-link"
+                            style="width: 1.1rem; height: 1.1rem; display: inline-block; vertical-align: middle; margin-left: 0.35rem; opacity: 0.6;"></i>
+                    </h2>
+                    <p class="app-desc">Dynamic MySQL/MariaDB database administration portal.</p>
+                </a>
+                {% else %}
+                <div class="app-card card-phpmyadmin disabled"
+                    title="phpMyAdmin is disabled (PHPMYADMIN_ENABLE=false)">
+                    <img src="{{ url_for('static', filename='img/phpmyadmin.svg') }}" class="app-icon" alt="phpMyAdmin">
+                    <h2 class="app-title" style="color: #6b7280;">phpMyAdmin</h2>
+                    <p class="app-desc">Database administration portal is currently disabled.</p>
+                </div>
+                {% endif %}
+
+                <!-- Filebrowser -->
+                {% if filebrowser_enabled %}
+                <a href="/filebrowser/" target="_blank" class="app-card card-filebrowser">
+                    <img src="{{ url_for('static', filename='img/filebrowser.svg') }}" class="app-icon" alt="Filebrowser">
+                    <h2 class="app-title">Filebrowser <i data-lucide="external-link"
+                            style="width: 1.1rem; height: 1.1rem; display: inline-block; vertical-align: middle; margin-left: 0.35rem; opacity: 0.6;"></i>
+                    </h2>
+                    <p class="app-desc">Web-based file manager for project directory administration.</p>
+                </a>
+                {% else %}
+                <div class="app-card card-filebrowser disabled"
+                    title="Filebrowser is disabled (FILEBROWSER_ENABLE=false)">
+                    <img src="{{ url_for('static', filename='img/filebrowser.svg') }}" class="app-icon" alt="Filebrowser">
+                    <h2 class="app-title" style="color: #6b7280;">Filebrowser</h2>
+                    <p class="app-desc">File manager is currently disabled.</p>
+                </div>
+                {% endif %}
+
                 <!-- CrowdSec UI -->
                 {% if crowdsec_enabled %}
                 <a href="/crowdsec/" target="_blank" class="app-card card-crowdsec">

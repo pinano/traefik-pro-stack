@@ -881,7 +881,9 @@ def dashboard():
     cs_enable = os.environ.get('CROWDSEC_ENABLE', 'true').lower() == 'true'
     certs_enabled = os.environ.get('TRAEFIK_ACME_ENV_TYPE', 'production').lower() != 'local'
     backrest_enabled = os.environ.get('BACKREST_ENABLE', 'true').lower() == 'true'
-    return render_template('index.html', domain=DOMAIN, crowdsec_enabled=cs_enable, certs_enabled=certs_enabled, backrest_enabled=backrest_enabled)
+    phpmyadmin_enabled = os.environ.get('PHPMYADMIN_ENABLE', 'true').lower() == 'true'
+    filebrowser_enabled = os.environ.get('FILEBROWSER_ENABLE', 'true').lower() == 'true'
+    return render_template('index.html', domain=DOMAIN, crowdsec_enabled=cs_enable, certs_enabled=certs_enabled, backrest_enabled=backrest_enabled, phpmyadmin_enabled=phpmyadmin_enabled, filebrowser_enabled=filebrowser_enabled)
 
 @app.route('/domains')
 @login_required

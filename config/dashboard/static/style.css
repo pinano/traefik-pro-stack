@@ -71,6 +71,14 @@
     --card-docs-bg: rgba(100, 116, 139, 0.07);
     --card-docs-hover-bg: rgba(100, 116, 139, 0.12);
     --card-docs-border: rgba(100, 116, 139, 0.18);
+
+    --card-phpmyadmin-bg: rgba(108, 120, 175, 0.07);
+    --card-phpmyadmin-hover-bg: rgba(108, 120, 175, 0.12);
+    --card-phpmyadmin-border: rgba(108, 120, 175, 0.18);
+
+    --card-filebrowser-bg: rgba(14, 165, 233, 0.07);
+    --card-filebrowser-hover-bg: rgba(14, 165, 233, 0.12);
+    --card-filebrowser-border: rgba(14, 165, 233, 0.18);
 }
 
 [data-theme="dark"] {
@@ -132,6 +140,14 @@
     --card-docs-bg: rgba(148, 163, 184, 0.10);
     --card-docs-hover-bg: rgba(148, 163, 184, 0.16);
     --card-docs-border: rgba(148, 163, 184, 0.22);
+
+    --card-phpmyadmin-bg: rgba(108, 120, 175, 0.10);
+    --card-phpmyadmin-hover-bg: rgba(108, 120, 175, 0.16);
+    --card-phpmyadmin-border: rgba(108, 120, 175, 0.22);
+
+    --card-filebrowser-bg: rgba(14, 165, 233, 0.10);
+    --card-filebrowser-hover-bg: rgba(14, 165, 233, 0.16);
+    --card-filebrowser-border: rgba(14, 165, 233, 0.22);
 
     /* Enhance contrast for dark mode tables */
     --row-hover-bg: #334155;
@@ -1710,6 +1726,23 @@ button:disabled {
     --card-border: #e11d48;
 }
 
+.app-card.card-phpmyadmin {
+    --card-background-color: var(--card-phpmyadmin-bg);
+    --card-border: var(--card-phpmyadmin-border);
+}
+.app-card.card-phpmyadmin:not(.disabled):hover {
+    --card-background-color: var(--card-phpmyadmin-hover-bg);
+    --card-border: #6c78af;
+}
+
+.app-card.card-filebrowser {
+    --card-background-color: var(--card-filebrowser-bg);
+    --card-border: var(--card-filebrowser-border);
+}
+.app-card.card-filebrowser:not(.disabled):hover {
+    --card-background-color: var(--card-filebrowser-hover-bg);
+    --card-border: #0ea5e9;
+}
 
 .app-card.card-docs {
     --card-background-color: var(--card-docs-bg);

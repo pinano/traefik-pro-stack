@@ -1,0 +1,45 @@
+services:
+
+  # ===========================
+  #  PHPMYADMIN
+  # ===========================
+  phpmyadmin:
+    image: phpmyadmin:5.2.3
+    restart: unless-stopped
+    networks:
+      - traefik
+    environment:
+      - PMA_ABSOLUTE_URI=https://${DASHBOARD_SUBDOMAIN}.${DOMAIN}/phpmyadmin/
+      - TZ=${TZ}
+    volumes:
+      - ./config/phpmyadmin/config.user.inc.php:/etc/phpmyadmin/config.user.inc.php:ro
+      - ${BACKREST_PROJECTS_DIR:-/opt/docker}:/userdata/projects:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    security_opt:
+      - no-new-privileges=true
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://127.0.0.1:80/" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 256M
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.services.phpmyadmin.loadbalancer.server.port=80"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  traefik:
+    name: traefik
+    external: true

@@ -1,0 +1,56 @@
+services:
+
+  # ===========================
+  #  FILEBROWSER
+  # ===========================
+  filebrowser:
+    image: filebrowser/filebrowser:v2.63.6
+    restart: unless-stopped
+    networks:
+      - traefik
+    environment:
+      - FB_BASEURL=/filebrowser
+      - FB_DATABASE=/database/filebrowser.db
+      - TZ=${TZ}
+      - DASHBOARD_ADMIN_USER=${DASHBOARD_ADMIN_USER}
+    entrypoint:
+      - sh
+      - -c
+      - |
+        if [ ! -f /database/filebrowser.db ]; then
+          /bin/filebrowser config init -d /database/filebrowser.db
+        fi
+        /bin/filebrowser config set --root=/srv --address=0.0.0.0 --port=80 --baseURL=/filebrowser --auth.method=proxy --auth.header=X-Webauth-User -d /database/filebrowser.db
+        /bin/filebrowser users add "${DASHBOARD_ADMIN_USER:-admin}" "temporarypass123" --scope="/" -d /database/filebrowser.db || true
+        /bin/filebrowser users update "${DASHBOARD_ADMIN_USER:-admin}" --perm.admin=false -d /database/filebrowser.db || true
+        exec /bin/filebrowser -d /database/filebrowser.db
+    volumes:
+      - ${BACKREST_PROJECTS_DIR:-/opt/docker}:/srv
+      - ./data/filebrowser:/database
+    security_opt:
+      - no-new-privileges=true
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:80/filebrowser" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.30'
+          memory: 128M
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik"
+      - "traefik.http.services.filebrowser.loadbalancer.server.port=80"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  traefik:
+    name: traefik
+    external: true

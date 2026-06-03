@@ -43,4 +43,16 @@ if [ "$BACKREST_ENABLE" = "true" ]; then
     COMPOSE_FILES="$COMPOSE_FILES -f docker-compose-backrest.yaml"
 fi
 
+# Add phpMyAdmin if enabled
+PHPMYADMIN_ENABLE="${PHPMYADMIN_ENABLE:-true}"
+if [ "$PHPMYADMIN_ENABLE" = "true" ]; then
+    COMPOSE_FILES="$COMPOSE_FILES -f docker-compose-phpmyadmin.yaml"
+fi
+
+# Add Filebrowser if enabled
+FILEBROWSER_ENABLE="${FILEBROWSER_ENABLE:-true}"
+if [ "$FILEBROWSER_ENABLE" = "true" ]; then
+    COMPOSE_FILES="$COMPOSE_FILES -f docker-compose-filebrowser.yaml"
+fi
+
 export COMPOSE_FILES
