@@ -8,6 +8,7 @@ CROWDSEC_CONTAINER="${CROWDSEC_CONTAINER:-crowdsec}"
 CROWDSEC_CHECK_INTERVAL=${WATCHDOG_CROWDSEC_CHECK_INTERVAL:-3600}
 TELEGRAM_BOT_TOKEN="${WATCHDOG_TELEGRAM_BOT_TOKEN}"
 TELEGRAM_RECIPIENT_ID="${WATCHDOG_TELEGRAM_RECIPIENT_ID}"
+PROJECT_NAME="${PROJECT_NAME:-stack}"
 
 # Colors for local logs
 RED='\033[0;31m'
@@ -27,6 +28,13 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 echo "🛡️ Starting CrowdSec health check..."
+
+# Add a startup delay to avoid race conditions with other services booting
+if [ ! -f "/tmp/crowdsec_check_settled" ]; then
+    echo "⏳ Sleeping 30s to allow the stack and docker daemon to settle..."
+    sleep 30
+    touch "/tmp/crowdsec_check_settled"
+fi
 
 # Guard: if Telegram credentials are not configured, degrade gracefully
 if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_RECIPIENT_ID" ]; then
@@ -49,14 +57,18 @@ if [ ! -S /var/run/docker.sock ]; then
 fi
 
 # Check if CrowdSec container is running (with retries for robustness)
-MAX_RETRIES=3
+MAX_RETRIES=5
 RETRY_COUNT=0
 CONTAINER_STATUS=""
 REAL_CONTAINER_ID=""
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    # Try finding by label first (more robust with dynamic naming)
-    REAL_CONTAINER_ID=$(docker ps -aq --filter "label=com.docker.compose.service=crowdsec" | head -n 1)
+    # Try finding by label first (scoped to project for isolation)
+    if [ -n "$PROJECT_NAME" ]; then
+        REAL_CONTAINER_ID=$(docker ps -aq --filter "label=com.docker.compose.project=$PROJECT_NAME" --filter "label=com.docker.compose.service=crowdsec" | head -n 1)
+    else
+        REAL_CONTAINER_ID=$(docker ps -aq --filter "label=com.docker.compose.service=crowdsec" | head -n 1)
+    fi
 
     # If not found by label, fallback to name for custom non-compose setups
     if [ -z "$REAL_CONTAINER_ID" ]; then
@@ -70,8 +82,8 @@ while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
 
     RETRY_COUNT=$((RETRY_COUNT + 1))
     if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-        printf '%b\n' "${YELLOW}⚠️ Warning: CrowdSec container not found (Attempt $RETRY_COUNT/$MAX_RETRIES). Retrying in 2s...${NC}"
-        sleep 2
+        printf '%b\n' "${YELLOW}⚠️ Warning: CrowdSec container not found (Attempt $RETRY_COUNT/$MAX_RETRIES). Retrying in 5s...${NC}"
+        sleep 5
     fi
 done
 
@@ -166,7 +178,11 @@ else
         # Guard LAST_PULL_TS: if it's empty (last_pull was null), use 0 to avoid arithmetic errors.
         if [ $IS_REALLY_OLD -eq 1 ]; then
             _lpts=${LAST_PULL_TS:-0}
-            DIFF_H=$(( (_lpts > 0) ? (CURRENT_TIME - _lpts) / 3600 : 0 ))
+            if [ $_lpts -gt 0 ]; then
+                DIFF_H=$(( (CURRENT_TIME - _lpts) / 3600 ))
+            else
+                DIFF_H=0
+            fi
             printf '%b\n' "${YELLOW}🧹 Auto-pruning very old bouncer: $full_name (last pull: ${DIFF_H}h ago)${NC}"
             docker exec "$CROWDSEC_CONTAINER" cscli bouncers delete "$full_name" > /dev/null 2>&1
             continue # Skip to next bouncer — don't record this one in group status

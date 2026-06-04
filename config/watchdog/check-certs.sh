@@ -6,12 +6,27 @@ WATCHDOG_CERT_DAYS_WARNING=${WATCHDOG_CERT_DAYS_WARNING:-10}
 TELEGRAM_BOT_TOKEN="${WATCHDOG_TELEGRAM_BOT_TOKEN}"
 TELEGRAM_RECIPIENT_ID="${WATCHDOG_TELEGRAM_RECIPIENT_ID}"
 
+# Guard: Skip check in local dev environment
+if [ "${TRAEFIK_ACME_ENV_TYPE:-}" = "local" ]; then
+    echo "🏠 Local development environment detected (TRAEFIK_ACME_ENV_TYPE=local)."
+    echo "   Bypassing certificate checks (using local trusted certificates)."
+    exit 0
+fi
+
 # Colors for local logs
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m'
 
+
 echo "🔍 Starting certificate audit on $ACME_FILE..."
+
+# Add a startup delay to avoid race conditions with other services booting
+if [ ! -f "/tmp/certs_check_settled" ]; then
+    echo "⏳ Sleeping 5s to allow the stack to settle..."
+    sleep 5
+    touch "/tmp/certs_check_settled"
+fi
 
 # Guard: if Telegram credentials are not configured, degrade gracefully
 if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_RECIPIENT_ID" ]; then

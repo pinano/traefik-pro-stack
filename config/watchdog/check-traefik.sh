@@ -19,6 +19,13 @@ NC='\033[0m'
 
 echo "🔍 Starting Traefik configuration and health check..."
 
+# Add a startup delay to avoid race conditions with other services booting
+if [ ! -f "/tmp/traefik_check_settled" ]; then
+    echo "⏳ Sleeping 45s to allow the stack and Traefik to settle..."
+    sleep 45
+    touch "/tmp/traefik_check_settled"
+fi
+
 # Guard: if Telegram credentials are not configured, degrade gracefully
 if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_RECIPIENT_ID" ]; then
     echo "⚠️  Warning: Telegram credentials not configured — alerts will be logged locally only."
@@ -77,7 +84,11 @@ ERRORS=$(echo "$RAWDATA" | jq -r '
   )[]
 ' 2>/dev/null)
 
-ERROR_COUNT=$(echo "$ERRORS" | grep -c . || echo "0")
+if [ -n "$ERRORS" ]; then
+    ERROR_COUNT=$(echo "$ERRORS" | grep -c .)
+else
+    ERROR_COUNT=0
+fi
 
 # If error count has any characters (not empty) and is greater than 0
 if [ "$ERROR_COUNT" -gt 0 ] && [ -n "$ERRORS" ]; then

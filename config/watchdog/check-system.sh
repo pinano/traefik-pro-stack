@@ -25,6 +25,13 @@ NC='\033[0m'
 
 echo "🖥️ Starting stack health and system check..."
 
+# Add a startup delay to avoid race conditions with other services booting
+if [ ! -f "/tmp/system_check_settled" ]; then
+    echo "⏳ Sleeping 15s to allow the stack and docker daemon to settle..."
+    sleep 15
+    touch "/tmp/system_check_settled"
+fi
+
 # Guard: if Telegram credentials are not configured, degrade gracefully
 if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_RECIPIENT_ID" ]; then
     echo "⚠️  Warning: Telegram credentials not configured — alerts will be logged locally only."

@@ -21,6 +21,13 @@ NC='\033[0m'
 
 echo "🔍 Starting DNS verification check..."
 
+# Add a startup delay to avoid race conditions with other services booting
+if [ ! -f "/tmp/dns_check_settled" ]; then
+    echo "⏳ Sleeping 60s to allow the stack to settle..."
+    sleep 60
+    touch "/tmp/dns_check_settled"
+fi
+
 # Guard: if Telegram credentials are not configured, degrade gracefully
 if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_RECIPIENT_ID" ]; then
     echo "⚠️  Warning: Telegram credentials not configured — alerts will be logged locally only."
