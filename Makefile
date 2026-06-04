@@ -222,7 +222,6 @@ sync: ## Synchronize .env with .env.dist (Add missing, remove extras)
 .PHONY: start
 start: ## Start the stack (calls start.sh)
 	@./scripts/start.sh
-	@$(MAKE) --no-print-directory grafana-setup-telegram
 
 ##@help stop
 ## Gracefully stops and removes all containers in the stack.
