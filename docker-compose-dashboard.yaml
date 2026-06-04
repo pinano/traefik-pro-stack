@@ -173,6 +173,7 @@ services:
       - CROWDSEC_ENABLE=${CROWDSEC_ENABLE:-true}
       - PROJECT_NAME=${PROJECT_NAME}
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - TRAEFIK_ACME_ENV_TYPE=${TRAEFIK_ACME_ENV_TYPE}
     security_opt:
       - no-new-privileges=true
     deploy:
