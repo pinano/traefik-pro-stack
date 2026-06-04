@@ -1,3 +1,8 @@
+## v2026.06.04 (2026-06-04)
+
+- feat: implement startup delays across watchdog scripts and add environment-aware certificate bypass and container resolution logic. (1ee8c57)
+- Update filebrowser (945129b)
+
 ## v2026.06.03 (2026-06-03)
 
 - chore: update .gitignore to reference valkey-generated.conf instead of redis-generated.conf (4d4dc2b)
