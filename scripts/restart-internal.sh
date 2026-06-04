@@ -147,7 +147,7 @@ $COMPOSE_CMD $COMPOSE_FILES config --quiet || echo "   ⚠️ Warning: Config va
 # Routing changes are picked up by Traefik's file watcher automatically.
 # ACME certs for new domains are requested by Traefik when it sees a new
 # router with certResolver=le in the dynamic config.
-$COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d --no-recreate --remove-orphans > /dev/null 2>&1
+$COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d --no-recreate --remove-orphans > /dev/null
 echo "   ✅ Stack configuration up-to-date."
 
 echo ""

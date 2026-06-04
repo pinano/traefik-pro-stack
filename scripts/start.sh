@@ -951,7 +951,7 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
     CS_STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$CROWDSEC_ID" 2>/dev/null || echo "none")
 
     if [ "$CS_STATUS" == "healthy" ]; then
-        $COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d crowdsec > /dev/null 2>&1
+        $COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d crowdsec > /dev/null
         sleep 1 # Allow time for recreation if compose detected a change
 
         # Refresh ID — container may have been recreated due to config changes
@@ -970,7 +970,7 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
         done
     else
         echo -n "   ⏳ Starting security services (CrowdSec & Redis)..."
-        $COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d crowdsec redis > /dev/null 2>&1
+        $COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d crowdsec redis > /dev/null
         sleep 1 # Allow terminal to settle
 
         # Wait for CrowdSec to be healthy
@@ -1036,7 +1036,7 @@ else
         :
     else
         echo -n "   ⏳ Starting Redis..."
-        $COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d redis > /dev/null 2>&1
+        $COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d redis > /dev/null
         sleep 1
         echo " ready!"
     fi
