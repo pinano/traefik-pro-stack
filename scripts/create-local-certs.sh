@@ -18,10 +18,7 @@ mkdir -p "$CERT_DIR"
 HOSTS_FILE="/etc/hosts"
 if [ -f "/etc/hosts-host" ]; then
     HOSTS_FILE="/etc/hosts-host"
-    echo "   ℹ️ Container environment detected. Using $HOSTS_FILE for resolution."
 fi
-
-echo "   🔍 Scanning $HOSTS_FILE for 127.0.0.1 entries..."
 
 # Extract all hostnames pointing to 127.0.0.1
 # 1. grep lines starting with 127.0.0.1
@@ -35,8 +32,6 @@ if [ -z "$DOMAINS" ]; then
     echo "❌ No local domains found in $HOSTS_FILE (pointing to 127.0.0.1, excluding localhost)."
     exit 1
 fi
-
-echo "   ✅ Found domains: $DOMAINS"
 
 # Check if mkcert is installed
 if ! command -v mkcert &> /dev/null; then
@@ -55,12 +50,14 @@ echo "   🚀 Generating certificates with mkcert..."
 # mkcert usually asks for sudo only on -install.
 # Let's just let mkcert output as is, it's hard to indent interactive commands.
 # But we can indent the success message.
-mkcert -cert-file "$CERT_DIR/local-cert.pem" -key-file "$CERT_DIR/local-key.pem" $DOMAINS
+MKCERT_OUT=$(mkcert -cert-file "$CERT_DIR/local-cert.pem" -key-file "$CERT_DIR/local-key.pem" $DOMAINS 2>&1)
+MKCERT_STATUS=$?
+if [ -n "$MKCERT_OUT" ]; then
+    echo "$MKCERT_OUT" | sed 's/^/      /'
+fi
 
-if [ $? -eq 0 ]; then
-    echo "   ✨ Successfully generated local certificates:"
-    echo "      - Cert: $CERT_DIR/local-cert.pem"
-    echo "      - Key:  $CERT_DIR/local-key.pem"
+if [ $MKCERT_STATUS -eq 0 ]; then
+    echo "   ✨ Successfully generated local certificates."
 else
     echo "❌ Error: mkcert failed to generate certificates."
     exit 1

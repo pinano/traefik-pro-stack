@@ -26,10 +26,11 @@ AUTH="${DASHBOARD_ADMIN_USER:-admin}:${DASHBOARD_ADMIN_PASSWORD}"
 CONTACT_POINT_NAME="Telegram"
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────
-info()    { echo "  $*"; }
-success() { echo "  ✅ $*"; }
-warn()    { echo "  ⚠️  $*"; }
-skip()    { echo "  ℹ️  $*"; exit 0; }
+info()    { :; }  # Silent by default to keep startup logs clean
+success() { :; }
+warn()    { echo "      ⚠️  $*"; }
+skip()    { echo "      ✔ $*"; exit 0; }
+
 
 # Run a curl command INSIDE the Grafana container (avoids DNS/TLS/Traefik issues)
 grafana_api() {
@@ -45,9 +46,7 @@ if [[ -z "${WATCHDOG_TELEGRAM_RECIPIENT_ID:-}" || "${WATCHDOG_TELEGRAM_RECIPIENT
     skip "WATCHDOG_TELEGRAM_RECIPIENT_ID not configured — skipping Grafana alerting setup."
 fi
 
-echo ""
-echo "🔔 Grafana Alerting setup (Telegram)"
-echo "────────────────────────────────────"
+echo "   🔔 Grafana Alerting setup (Telegram)"
 
 # ─── Guard: skip if Docker is not available ──────────────────────────────────
 if ! command -v docker &>/dev/null; then
@@ -103,7 +102,7 @@ info "Checking existing contact points..."
 EXISTING=$(grafana_api "http://localhost:3000/api/v1/provisioning/contact-points")
 
 if echo "${EXISTING}" | grep -q "\"name\":\"${CONTACT_POINT_NAME}\""; then
-    success "Contact point '${CONTACT_POINT_NAME}' already exists — skipping creation."
+    info "Contact point '${CONTACT_POINT_NAME}' already exists — skipping creation."
     CONTACT_POINT_EXISTS=true
 else
     CONTACT_POINT_EXISTS=false
@@ -187,7 +186,7 @@ CURRENT_POLICY=$(grafana_api "http://localhost:3000/api/v1/provisioning/policies
 CURRENT_RECEIVER=$(python3 -c "import sys, json; data = json.loads(sys.stdin.read()); print(data.get('receiver', ''))" <<< "${CURRENT_POLICY}" 2>/dev/null || true)
 
 if [[ "${CURRENT_RECEIVER}" == "${CONTACT_POINT_NAME}" ]]; then
-    success "Notification policy already routes to '${CONTACT_POINT_NAME}' — skipping."
+    info "Notification policy already routes to '${CONTACT_POINT_NAME}' — skipping."
 else
     info "Setting notification policy → '${CONTACT_POINT_NAME}'..."
     RESPONSE=$(grafana_api -X PUT \
@@ -224,6 +223,4 @@ else
     fi
 fi
 
-echo ""
-echo "✅ Grafana Alerting ready. Run 'make grafana-test-alert' to verify."
-echo ""
+echo "      ✔ Grafana Alerting ready. Run 'make grafana-test-alert' to verify."

@@ -29,14 +29,13 @@
 set -e
 
 echo ""
-echo "========================================================"
+echo "────────────────────────────────────────────────────────────────────────"
 echo "🔄 APPLYING CONFIGURATION CHANGES..."
-echo "========================================================"
+echo "────────────────────────────────────────────────────────────────────────"
 echo ""
 
 # ─── Step 1: Regenerate Config ──────────────────────────────────
-echo " --------------------------------------------------------"
-echo " [1/3] 🎨 Regenerating configuration..."
+echo "─── [1/3] 🎨 Regenerating configuration ────────────────────────────────"
 
 # Safety checks (same as start.sh)
 if [ -d "docker-compose-anubis-generated.yaml" ]; then
@@ -70,8 +69,7 @@ fi
 $PYTHON_CMD scripts/generate-config.py | sed 's/^/   /'
 
 # ─── Step 2: Fix Permissions ────────────────────────────────────
-echo " --------------------------------------------------------"
-echo " [2/3] 🔧 Fixing permissions..."
+echo "─── [2/3] 🔧 Fixing permissions ────────────────────────────────────────"
 
 # Robust permission fix: Directories 755, Files 644
 find ./config/traefik -type d -exec chmod 755 {} \;
@@ -103,14 +101,12 @@ if [ -n "$TARGET_UID" ] && [ -n "$TARGET_GID" ]; then
     if [ -f "./config/anubis/botPolicy-generated.yaml" ]; then
         chown "$TARGET_UID:$TARGET_GID" ./config/anubis/botPolicy-generated.yaml 2>/dev/null || true
     fi
-    echo "   ✅ Ownership fixed to $TARGET_UID:$TARGET_GID"
 else
     echo "   ⚠️ Could not determine target ownership. Files left as-is."
 fi
 
 # ─── Step 3: Apply Changes ──────────────────────────────────────
-echo " --------------------------------------------------------"
-echo " [3/3] 🚀 Applying changes to the stack..."
+echo "─── [3/3] 🚀 Applying changes to the stack ─────────────────────────────"
 
 # --- Apache Detection ---
 # Probe port 8080 on the host — the only source of truth.
@@ -141,8 +137,7 @@ if [[ "${CROWDSEC_ENABLE:-true}" == "true" ]]; then
 fi
 
 # Audit config for drift (helpful for debugging in modal log)
-echo "   🔍 Validating compose configuration..."
-$COMPOSE_CMD $COMPOSE_FILES config --quiet 2>&1 || echo "   ⚠️ Warning: Config validation produced warnings."
+$COMPOSE_CMD $COMPOSE_FILES config --quiet || echo "   ⚠️ Warning: Config validation produced warnings."
 
 # Apply changes with --no-recreate:
 #   - Creates NEW containers (new Anubis instances from updated compose)
@@ -152,11 +147,11 @@ $COMPOSE_CMD $COMPOSE_FILES config --quiet 2>&1 || echo "   ⚠️ Warning: Conf
 # Routing changes are picked up by Traefik's file watcher automatically.
 # ACME certs for new domains are requested by Traefik when it sees a new
 # router with certResolver=le in the dynamic config.
-echo "   🚀 Running docker compose up -d --no-recreate..."
-$COMPOSE_CMD $COMPOSE_FILES up -d --no-recreate --remove-orphans 2>&1 | sed 's/^/   /'
+$COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d --no-recreate --remove-orphans > /dev/null 2>&1
+echo "   ✅ Stack configuration up-to-date."
 
 echo ""
-echo "========================================================"
+echo "────────────────────────────────────────────────────────────────────────"
 echo "✅ CONFIGURATION APPLIED SUCCESSFULLY"
-echo "========================================================"
+echo "────────────────────────────────────────────────────────────────────────"
 echo ""

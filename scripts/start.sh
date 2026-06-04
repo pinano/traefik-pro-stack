@@ -19,10 +19,9 @@ if ! docker info >/dev/null 2>&1; then
 fi
 
 echo ""
-echo "========================================================"
+echo "────────────────────────────────────────────────────────────────────────"
 echo "🚀 DEPLOYMENT STARTING..."
-echo "========================================================"
-echo ""
+echo "────────────────────────────────────────────────────────────────────────"
 
 # =============================================================================
 # TERMINAL RESTORATION
@@ -65,8 +64,8 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 
 # 1. Environment Preparation
-echo " --------------------------------------------------------"
-echo " [1/6] 📋 Preparing environment..."
+echo ""
+echo "── [1/6] 📋 Preparing environment ──────────────────────────────────────"
 TEMP_ENV=$(mktemp)
 ADDED_VARS=0
 cp "$ENV_FILE" "${ENV_FILE}.bak"
@@ -184,8 +183,8 @@ validate_env() {
 validate_env | sed 's/^/   /'
 
 
-echo " --------------------------------------------------------"
-echo " [2/6] 🔐 Synchronizing credentials & paths..."
+echo ""
+echo "── [2/6] 🔐 Synchronizing credentials & paths ──────────────────────────"
 
 # Helper to perform common hashing (portability between Linux/macOS)
 # Usage: echo -n "string" | generate_hash  OR  cat file | generate_hash
@@ -312,7 +311,6 @@ if [ -z "$ENV_VAL" ] || [ "$ENV_VAL" == "REPLACE_ME" ] || [ "$ENV_VAL" == "null"
     echo "   ✅ Project path initialized in .env: $PATH_TO_WRITE"
 else
     export DASHBOARD_APP_PATH_HOST="$ENV_VAL"
-    echo "   ✅ Using existing project path from .env: $DASHBOARD_APP_PATH_HOST"
 fi
 
 # Normalize CROWDSEC_ENABLE to lowercase
@@ -363,10 +361,6 @@ EOF
         fi
     done
     export CROWDSEC_COLLECTIONS
-
-    echo "   🛡️ AppSec (WAF) is ENABLED. Collections: appsec-virtual-patching, appsec-generic-rules."
-else
-    echo "   ℹ️ AppSec (WAF) is DISABLED. Skipping AppSec acquis block."
 fi
 
 # Idempotent write: only update acquis.yaml if content changed
@@ -375,7 +369,6 @@ if [ -f "$ACQUIS_OUT" ] && cmp -s "$TMP_ACQUIS" "$ACQUIS_OUT"; then
 else
     cat "$TMP_ACQUIS" > "$ACQUIS_OUT"
     rm "$TMP_ACQUIS"
-    echo "   ✅ acquis.yaml generated."
 fi
 
 # =============================================================================
@@ -432,9 +425,6 @@ decisions:
    duration: 4h
 on_success: break
 EOF
-    echo "   🛡️ CAPTCHA remediation profile is ENABLED (active entries found in registry)."
-else
-    echo "   ℹ️ CAPTCHA registry is empty. CAPTCHA remediation is DISABLED."
 fi
 
 # Append the fallback/default aggressive bans
@@ -477,7 +467,6 @@ if [ -f "$PROFILES_OUT" ] && cmp -s "$TMP_PROFILES" "$PROFILES_OUT"; then
 else
     cat "$TMP_PROFILES" > "$PROFILES_OUT"
     rm "$TMP_PROFILES"
-    echo "   ✅ profiles.yaml generated."
 fi
 
 # =============================================================================
@@ -490,15 +479,12 @@ if [[ "${CROWDSEC_RATE_LIMIT_BAN_ENABLE:-true}" == "true" ]]; then
     if [ -f "$SCENARIO_SRC" ]; then
         # Copy dynamically to ensure update-on-boot works
         cp "$SCENARIO_SRC" "$SCENARIO_DST"
-        echo "   🛡️ CrowdSec Rate-Limit Ban Scenario is ENABLED."
     fi
 else
     if [ -f "$SCENARIO_DST" ]; then
         rm -f "$SCENARIO_DST"
     fi
-    echo "   ℹ️ CrowdSec Rate-Limit Ban Scenario is DISABLED."
 fi
-
 
 # Build Compose command with or without CrowdSec profile
 # Enforce project name to avoid conflicts when running from within a container
@@ -510,14 +496,27 @@ fi
 COMPOSE_CMD="$COMPOSE_BASE"
 if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
     COMPOSE_CMD="$COMPOSE_CMD --profile crowdsec"
-    echo "   🛡️ CrowdSec firewall is ENABLED."
+fi
+
+# Print consolidated security shields status
+if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
+    SHIELDS="Firewall"
+    if [[ "$CROWDSEC_APPSEC_ENABLE" == "true" ]]; then
+        SHIELDS="$SHIELDS, WAF (AppSec)"
+    fi
+    if [ "$HAS_ACTIVE_CAPTCHAS" = "true" ]; then
+        SHIELDS="$SHIELDS, CAPTCHA"
+    fi
+    if [[ "${CROWDSEC_RATE_LIMIT_BAN_ENABLE:-true}" == "true" ]]; then
+        SHIELDS="$SHIELDS, Rate-Limit"
+    fi
+    echo "   🛡️ Security Shields: ${SHIELDS} enabled."
 else
     echo "   ⚠️ CrowdSec firewall is DISABLED."
 fi
 
-
-echo " --------------------------------------------------------"
-echo " [3/6] 🎨 Preparing application assets..."
+echo ""
+echo "── [3/6] 🎨 Preparing application assets ───────────────────────────────"
 
 # =============================================================================
 # Persistent data directories (bind mounts — created once, never overwritten)
@@ -556,24 +555,16 @@ chown -R 1000:1000 ./data/filebrowser 2>/dev/null || chmod -R 777 ./data/filebro
 
 if [ $DATA_CREATED -gt 0 ]; then
     echo "   ✅ Created $DATA_CREATED persistent data director(ies) under ./data/."
-else
-    echo "   ✅ Persistent data directories present."
 fi
 
 ANUBIS_ASSETS_DIR="./config/anubis/assets"
 ANUBIS_ASSETS_IMG_DIR="$ANUBIS_ASSETS_DIR/static/img"
-
-CUSTOM_COUNT=0
-DEFAULT_COUNT=0
 
 # CSS asset
 if [ ! -f "$ANUBIS_ASSETS_DIR/custom.css" ]; then
     if [ -f "$ANUBIS_ASSETS_DIR/custom.css.dist" ]; then
         cp "$ANUBIS_ASSETS_DIR/custom.css.dist" "$ANUBIS_ASSETS_DIR/custom.css"
     fi
-    DEFAULT_COUNT=$((DEFAULT_COUNT + 1))
-else
-    CUSTOM_COUNT=$((CUSTOM_COUNT + 1))
 fi
 
 # Image assets
@@ -582,19 +573,8 @@ for img in happy.webp pensive.webp reject.webp; do
         if [ -f "$ANUBIS_ASSETS_IMG_DIR/$img.dist" ]; then
             cp "$ANUBIS_ASSETS_IMG_DIR/$img.dist" "$ANUBIS_ASSETS_IMG_DIR/$img"
         fi
-        DEFAULT_COUNT=$((DEFAULT_COUNT + 1))
-    else
-        CUSTOM_COUNT=$((CUSTOM_COUNT + 1))
     fi
 done
-
-if [ $DEFAULT_COUNT -eq 0 ]; then
-    echo "   ✅ Anubis assets ready ($CUSTOM_COUNT custom)."
-elif [ $CUSTOM_COUNT -eq 0 ]; then
-    echo "   ✅ Anubis assets ready ($DEFAULT_COUNT default)."
-else
-    echo "   ✅ Anubis assets ready ($CUSTOM_COUNT custom, $DEFAULT_COUNT default)."
-fi
 
 if [ ! -f ./config/traefik/acme.json ]; then
     touch ./config/traefik/acme.json
@@ -643,7 +623,6 @@ export TRAEFIK_CERT_RESOLVER
 update_env_var "TRAEFIK_CERT_RESOLVER" "$TRAEFIK_CERT_RESOLVER"
 
 # Generate traefik-generated.yaml from template (idempotent write)
-echo "   ⚙️ Generating Traefik static config..."
 if [ -f "./config/traefik/traefik.yaml.template" ]; then
     TMP_TRAEFIK=$(mktemp)
     sed -e "s#TRAEFIK_ACME_EMAIL_PLACEHOLDER#${TRAEFIK_ACME_EMAIL}#g" \
@@ -667,7 +646,6 @@ else
 fi
 
 # Generate valkey-generated.conf from template (idempotent write)
-echo "   ⚙️ Generating Valkey static config..."
 if [ -f "./config/valkey/valkey.conf" ]; then
     TMP_VALKEY=$(mktemp)
     sed "s#REDIS_PASSWORD_PLACEHOLDER#${REDIS_PASSWORD}#g" \
@@ -685,8 +663,6 @@ else
     exit 1
 fi
 
-
-
 # Generate dynamic configuration with Python script
 {
     mkdir -p ./config/traefik/dynamic-config
@@ -694,7 +670,7 @@ fi
 } || {
     echo "❌ Error: Could not clean up generated files due to permissions."
     echo "   This usually happens if Docker created the directories as root."
-    echo "   Please run: sudo chown -R $(id -u):$(id -g) ."
+    echo "   Please run: sudo chown -R \$(id -u):\$(id -g) ."
     exit 1
 }
 
@@ -702,8 +678,6 @@ fi
 if [ -d "docker-compose-anubis-generated.yaml" ]; then
     echo "⚠️ Cleaning up directory collision: docker-compose-anubis-generated.yaml"
     rm -rf docker-compose-anubis-generated.yaml || echo "   ⚠️  Warning: Could not remove directory 'docker-compose-anubis-generated.yaml'. If it's a mount point, this is expected."
-else
-    echo "   ✅ docker-compose-anubis-generated.yaml directory check passed."
 fi
 
 # Safety check: if domains.csv is a directory (Docker artifact), remove it
@@ -735,7 +709,6 @@ if ! $PYTHON_CMD -c "import tldextract; import yaml" >/dev/null 2>&1; then
 fi
 
 $PYTHON_CMD scripts/generate-config.py | sed 's/^/   /'
-
 
 # Fix permissions if running internally (files created as root)
 if [[ "$DASHBOARD_INTERNAL" == "true" ]]; then
@@ -772,13 +745,10 @@ if [[ "$DASHBOARD_INTERNAL" == "true" ]]; then
          if [ -f "./config/crowdsec/captcha_keys.csv" ]; then
              chown "$TARGET_UID:$TARGET_GID" ./config/crowdsec/captcha_keys.csv
          fi
-         echo "      ✅ Ownership fixed to $TARGET_UID:$TARGET_GID"
     else
          echo "      ⚠️  Could not determine target ownership. Left as root but readable."
     fi
 fi
-
-
 
 # =============================================================================
 # PHASE 3: Local SSL Trust (mkcert)
@@ -786,34 +756,30 @@ fi
 # If local certificates are found AND we are in local mode, configure Traefik to use them.
 
 if [ "$TRAEFIK_ACME_ENV_TYPE" == "local" ]; then
-    echo "   🔐 Local Mode detected. Automating certificate generation..."
-    # If running internally (inside container), skip generation to preserve host trust.
-    # If certs are missing, FAIL and tell the user to run them on the host.
-    if [[ "$DASHBOARD_INTERNAL" == "true" ]]; then
-        CERTS_DIR="./config/traefik/certs-local-dev" # Define CERTS_DIR here for internal check
-        if [ -f "$CERTS_DIR/local-cert.pem" ]; then
-            echo "   ℹ️ Certificates already exist. Skipping internal generation to preserve host trust."
-        else
-            echo "   ❌ ERROR: Local certificates not found in $CERTS_DIR."
-            echo "   👉 Please run 'make certs-create-local' on your host first."
-            exit 1
-        fi
-    else
-        if [ -f "./scripts/create-local-certs.sh" ]; then
-            [ -w "./scripts/create-local-certs.sh" ] && chmod +x ./scripts/create-local-certs.sh
-            ./scripts/create-local-certs.sh
-        else
-            echo "   ⚠️ Warning: ./scripts/create-local-certs.sh not found. Skipping auto-generation."
-        fi
-    fi
-
-    echo "   🔐 Checking for local trusted certificates (Local Mode)..."
     CERTS_DIR="./config/traefik/certs-local-dev"
     TRAEFIK_CERTS_CONF="./config/traefik/dynamic-config/local-certs.yaml"
 
+    # Check if certs exist, if not generate or error out
+    if [ ! -f "$CERTS_DIR/local-cert.pem" ] || [ ! -f "$CERTS_DIR/local-key.pem" ]; then
+        if [[ "$DASHBOARD_INTERNAL" == "true" ]]; then
+            echo "   ❌ ERROR: Local certificates not found in $CERTS_DIR."
+            echo "   👉 Please run 'make certs-create-local' on your host first."
+            exit 1
+        else
+            if [ -f "./scripts/create-local-certs.sh" ]; then
+                [ -w "./scripts/create-local-certs.sh" ] && chmod +x ./scripts/create-local-certs.sh
+                ./scripts/create-local-certs.sh
+            else
+                echo "   ⚠️ Warning: ./scripts/create-local-certs.sh not found. Skipping auto-generation."
+            fi
+        fi
+    fi
+
+    # Configure Traefik to use them (if they exist)
     if [ -f "$CERTS_DIR/local-cert.pem" ] && [ -f "$CERTS_DIR/local-key.pem" ]; then
-        echo "   📋 Local certificates found. Configuring Traefik to use them..."
-        cat > "$TRAEFIK_CERTS_CONF" << EOF
+        # Generate local-certs.yaml if missing
+        if [ ! -f "$TRAEFIK_CERTS_CONF" ]; then
+            cat > "$TRAEFIK_CERTS_CONF" << EOF
 # AUTOMATICALLY GENERATED - Local SSL Trust
 tls:
   certificates:
@@ -825,7 +791,8 @@ tls:
         certFile: /certs/local-cert.pem
         keyFile: /certs/local-key.pem
 EOF
-        echo "   ✅ Generated local-certs.yaml."
+            echo "   ✅ Generated local-certs.yaml."
+        fi
     else
         echo "   ℹ️ No custom local certificates found."
         if [ -f "$TRAEFIK_CERTS_CONF" ]; then
@@ -836,8 +803,8 @@ EOF
 fi
 
 
-echo " --------------------------------------------------------"
-echo " [4/6] 🌐 Preparing network & security layer..."
+echo ""
+echo "── [4/6] 🌐 Preparing network & security layer ─────────────────────────"
 WHITELIST_FILE="./config/crowdsec/parsers/ip-whitelist.yaml"
 
 if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
@@ -975,8 +942,8 @@ if [ "$APACHE_HOST_AVAILABLE" == "true" ]; then
 fi
 
 
-echo " --------------------------------------------------------"
-echo " [5/6] 👮 Booting security layer..."
+echo ""
+echo "── [5/6] 👮 Booting security layer ─────────────────────────────────────"
 
 if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
     # Smart check: Is it already running and healthy?
@@ -984,8 +951,7 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
     CS_STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$CROWDSEC_ID" 2>/dev/null || echo "none")
 
     if [ "$CS_STATUS" == "healthy" ]; then
-        echo "   🛡️ CrowdSec is already operational. Applying any config changes..."
-        $COMPOSE_CMD $COMPOSE_FILES up -d crowdsec
+        $COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d crowdsec > /dev/null 2>&1
         sleep 1 # Allow time for recreation if compose detected a change
 
         # Refresh ID — container may have been recreated due to config changes
@@ -995,22 +961,19 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
         timeout=60
         while [ -z "$CROWDSEC_ID" ] || [ "$(docker inspect --format='{{.State.Health.Status}}' $CROWDSEC_ID 2>/dev/null)" != "healthy" ]; do
             sleep 2
-            echo -n "."
             ((timeout-=2))
             if [ $timeout -le 0 ]; then
-                echo ""
                 echo "   ❌ Timeout waiting for CrowdSec to become healthy after config update."
                 exit 1
             fi
             CROWDSEC_ID=$(docker ps -aq --filter label=com.docker.compose.project=$PROJECT_NAME --filter label=com.docker.compose.service=crowdsec | head -n 1)
         done
     else
-        echo "   🛡 Booting CrowdSec + Redis..."
-        $COMPOSE_CMD $COMPOSE_FILES up -d crowdsec redis
+        echo -n "   ⏳ Starting security services (CrowdSec & Redis)..."
+        $COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d crowdsec redis > /dev/null 2>&1
         sleep 1 # Allow terminal to settle
 
         # Wait for CrowdSec to be healthy
-        echo -n "   ⏳ Waiting for CrowdSec API"
         timeout=60
         # Refresh ID in case it was just created
         CROWDSEC_ID=$(docker ps -aq --filter label=com.docker.compose.project=$PROJECT_NAME --filter label=com.docker.compose.service=crowdsec | head -n 1)
@@ -1027,7 +990,6 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
             CROWDSEC_ID=$(docker ps -aq --filter label=com.docker.compose.project=$PROJECT_NAME --filter label=com.docker.compose.service=crowdsec | head -n 1)
         done
         echo " ready!"
-        echo "   ✅ CrowdSec operational."
     fi
 
     # =============================================================================
@@ -1040,9 +1002,7 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
     ADD_OUTPUT=$(docker exec "$CROWDSEC_ID" cscli bouncers add traefik-bouncer --key "${CROWDSEC_LAPI_KEY}" 2>&1)
     ADD_EXIT=$?
 
-    if [ $ADD_EXIT -eq 0 ]; then
-        echo "   🔑 Bouncer key registered."
-    else
+    if [ $ADD_EXIT -ne 0 ]; then
         echo "❌ Error registering bouncer key: $ADD_OUTPUT"
         exit 1
     fi
@@ -1053,16 +1013,11 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
     # Register the Web UI machine to allow it to communicate with LAPI.
     # We use -f /dev/null to avoid overwriting the local credentials of the crowdsec container itself.
     
-    echo "   🛡️ Hardening CrowdSec LAPI (trusted_ips)..."
-    # Use |= ... | unique instead of += to avoid duplicating entries on each start.
-    # += always appends, so running 'make start' N times would grow the array N times.
-    docker exec "$CROWDSEC_ID" sh -c "yq -i '.api.server.trusted_ips |= (. + [\"172.16.0.0/12\", \"192.168.0.0/16\"] | unique)' /etc/crowdsec/config.yaml"
-    docker exec "$CROWDSEC_ID" kill -HUP 1
+    docker exec "$CROWDSEC_ID" sh -c "yq -i '.api.server.trusted_ips |= (. + [\"172.16.0.0/12\", \"192.168.0.0/16\"] | unique)' /etc/crowdsec/config.yaml" > /dev/null 2>&1 || true
+    docker exec "$CROWDSEC_ID" kill -HUP 1 > /dev/null 2>&1 || true
 
-    echo "   🖥️ Registering CrowdSec Web UI machine..."
     docker exec "$CROWDSEC_ID" cscli machines delete "${CROWDSEC_WEB_UI_USER:-crowdsec-web-ui}" > /dev/null 2>&1 || true
     docker exec "$CROWDSEC_ID" cscli machines add "${CROWDSEC_WEB_UI_USER:-crowdsec-web-ui}" --password "${CROWDSEC_WEB_UI_PASSWORD}" -f /dev/null > /dev/null 2>&1 || true
-    echo "   ✅ Web UI machine registered."
 
     # =============================================================================
     # PHASE 5: CrowdSec Console Enrollment (Optional)
@@ -1071,23 +1026,21 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
     # for access to community blocklists and centralized management.
 
     if [ -n "$CROWDSEC_ENROLLMENT_KEY" ] && [ "$CROWDSEC_ENROLLMENT_KEY" != "REPLACE_ME" ]; then
-        echo "   🌐 Enrolling CrowdSec to Console..."
-        if docker exec "$CROWDSEC_ID" cscli console enroll "$CROWDSEC_ENROLLMENT_KEY" --name "$(hostname)" 2>/dev/null; then
-            echo "   ✅ Successfully enrolled in CrowdSec Console."
-        else
-            echo "   ⚠️ Console enrollment failed or already enrolled. Continuing..."
-        fi
+        docker exec "$CROWDSEC_ID" cscli console enroll "$CROWDSEC_ENROLLMENT_KEY" --name "$(hostname)" >/dev/null 2>&1 || true
     fi
+
+    echo "   ✅ CrowdSec & Redis operational."
 else
     REDIS_ID=$(docker ps -aq --filter label=com.docker.compose.project=$PROJECT_NAME --filter label=com.docker.compose.service=redis | head -n 1)
     if [ -n "$REDIS_ID" ] && [ "$(docker inspect --format='{{.State.Running}}' $REDIS_ID 2>/dev/null)" == "true" ]; then
-        echo "   🛡️ Redis is already operational. Skipping boot."
+        :
     else
-        echo "   🛡️ Booting Redis (CrowdSec is disabled)..."
-        $COMPOSE_CMD $COMPOSE_FILES up -d redis
+        echo -n "   ⏳ Starting Redis..."
+        $COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d redis > /dev/null 2>&1
         sleep 1
-        echo "   ✅ Redis operational."
+        echo " ready!"
     fi
+    echo "   ✅ Redis operational."
 fi
 
 # =============================================================================
@@ -1097,7 +1050,8 @@ fi
 # --remove-orphans cleans up any old containers not in current config.
 
 
-echo " --------------------------------------------------------"
+echo ""
+echo "── [6/6] 🚀 Deploying remaining services ───────────────────────────────"
 # If running inside dashboard, we perform a 'Config Audit' first to detect shifts.
 if [[ "$DASHBOARD_INTERNAL" == "true" ]]; then
     echo "   🔍 Auditing docker-compose configuration for drift..."
@@ -1106,8 +1060,10 @@ if [[ "$DASHBOARD_INTERNAL" == "true" ]]; then
 fi
 
 # Deploy everything.
-$COMPOSE_CMD $COMPOSE_FILES up -d --remove-orphans
+echo "   ⏳ Deploying stack containers..."
+$COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d --remove-orphans
 sleep 1
+echo "   ✅ Services started successfully."
 
 echo "   🔍 Verifying Core DNS records..."
 CORE_SUBS=("dashboard")
@@ -1160,30 +1116,26 @@ else
 fi
 
 # =============================================================================
+# Grafana Alerting Setup
+# =============================================================================
+if [ -f "./scripts/setup-grafana-alerting.sh" ]; then
+    bash ./scripts/setup-grafana-alerting.sh
+fi
+
+# =============================================================================
 # DONE
 # =============================================================================
+
 
 # ⏲️ Calculate Duration
 END_TIME=$(date +%s)
 DURATION=$((END_TIME - START_TIME))
 
 echo ""
-echo "========================================================"
+echo "────────────────────────────────────────────────────────────────────────"
 echo "✅ DEPLOYMENT COMPLETE! (Total time: ${DURATION}s)"
-echo "========================================================"
-echo ""
-echo "🌐 Core Services:"
-    echo -e "   ➜ Dashboard Home:  https://${DASHBOARD_SUBDOMAIN:-dashboard}.${DOMAIN}/"
-    echo -e "   ➜ Domain Manager:  https://${DASHBOARD_SUBDOMAIN:-dashboard}.${DOMAIN}/domains"
-    echo -e "   ➜ CAPTCHA Keys:    https://${DASHBOARD_SUBDOMAIN:-dashboard}.${DOMAIN}/captchas"
-    echo -e "   ➜ Certificates:    https://${DASHBOARD_SUBDOMAIN:-dashboard}.${DOMAIN}/certs"
-    echo -e "   ➜ Traefik:         https://${DASHBOARD_SUBDOMAIN:-dashboard}.${DOMAIN}/traefik/"
-    echo -e "   ➜ Dozzle (Logs):   https://${DASHBOARD_SUBDOMAIN:-dashboard}.${DOMAIN}/dozzle/"
-    echo -e "   ➜ Grafana:         https://${DASHBOARD_SUBDOMAIN:-dashboard}.${DOMAIN}/grafana/"
-    if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
-        echo -e "   ➜ CrowdSec UI:     https://${DASHBOARD_SUBDOMAIN:-dashboard}.${DOMAIN}/crowdsec/"
-    else
-        echo -e "   ➜ CrowdSec UI:     [DISABLED] (CROWDSEC_ENABLE=false)"
-    fi
-    echo -e "========================================================"
+echo "────────────────────────────────────────────────────────────────────────"
+echo "🌐 SSO ADMIN DASHBOARD:"
+echo "   ➜ https://${DASHBOARD_SUBDOMAIN:-dashboard}.${DOMAIN}/"
+echo "────────────────────────────────────────────────────────────────────────"
 echo ""
