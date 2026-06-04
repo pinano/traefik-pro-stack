@@ -1,3 +1,7 @@
+## v2026.06.04.2 (2026-06-04)
+
+- refactor: remove stderr redirection from compose commands in startup and restart scripts to improve visibility of service errors (6d93772)
+
 ## v2026.06.04.1 (2026-06-04)
 
 - refactor: silent terminal output by removing verbose logging across all deployment and configuration scripts (7a67914)
