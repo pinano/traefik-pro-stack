@@ -1,3 +1,7 @@
+## v2026.06.04.1 (2026-06-04)
+
+- refactor: silent terminal output by removing verbose logging across all deployment and configuration scripts (7a67914)
+
 ## v2026.06.04 (2026-06-04)
 
 - feat: implement startup delays across watchdog scripts and add environment-aware certificate bypass and container resolution logic. (1ee8c57)
