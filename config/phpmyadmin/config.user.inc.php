@@ -72,21 +72,22 @@ if (is_dir($projectsDir)) {
                     $dbPort = $env['DB_PORT'] ?? $env['MYSQL_PORT'] ?? $env['DATABASE_PORT'] ?? $env['DB_HOST_PORT'] ?? $env['DATABASE_MYSQL_PORT'] ?? $env['DB_PORT_HOST'] ?? null;
                 }
                 
-                // We need a valid port to connect via the host bridge interface
-                if (!$dbPort) {
+                if ($dbPort === null) {
                     error_log("phpMyAdmin autodiscovery: No database port resolved for project '$projectName'");
                     continue;
                 }
-                
-                // Only register server if it's currently online/reachable
+
+                // Check if the database is online/reachable on host.docker.internal
                 if (!isDatabaseOnline('host.docker.internal', $dbPort)) {
                     error_log("phpMyAdmin autodiscovery: Project '$projectName' database port $dbPort is OFFLINE or unreachable");
                     continue;
                 }
+
+                $resolvedHost = 'host.docker.internal';
+                $resolvedPort = $dbPort;
+                error_log("phpMyAdmin autodiscovery: Project '$projectName' database resolved to host.docker.internal:$dbPort - registering server");
                 
-                error_log("phpMyAdmin autodiscovery: Project '$projectName' database port $dbPort is ONLINE - registering server");
-                
-                // 2. Discover credentials
+                // Discover credentials
                 // Check for Root User credentials
                 $rootPass = $env['DB_ROOT_PASS'] ?? $env['DB_ROOT_PASSWORD'] ?? $env['MYSQL_ROOT_PASSWORD'] ?? $env['MYSQL_ROOT_PASS'] ?? null;
                 
@@ -98,8 +99,8 @@ if (is_dir($projectsDir)) {
                 // Register server configuration: prioritize regular user, fall back to root, or use cookie auth prompt
                 if ($dbUser !== null) {
                     $i++;
-                    $cfg['Servers'][$i]['host'] = 'host.docker.internal';
-                    $cfg['Servers'][$i]['port'] = $dbPort;
+                    $cfg['Servers'][$i]['host'] = $resolvedHost;
+                    $cfg['Servers'][$i]['port'] = $resolvedPort;
                     $cfg['Servers'][$i]['user'] = $dbUser;
                     if ($dbPass !== null) {
                         $cfg['Servers'][$i]['password'] = $dbPass;
@@ -112,8 +113,8 @@ if (is_dir($projectsDir)) {
                     $cfg['Servers'][$i]['AllowNoPassword'] = true;
                 } elseif ($rootPass !== null) {
                     $i++;
-                    $cfg['Servers'][$i]['host'] = 'host.docker.internal';
-                    $cfg['Servers'][$i]['port'] = $dbPort;
+                    $cfg['Servers'][$i]['host'] = $resolvedHost;
+                    $cfg['Servers'][$i]['port'] = $resolvedPort;
                     $cfg['Servers'][$i]['user'] = 'root';
                     $cfg['Servers'][$i]['password'] = $rootPass;
                     $cfg['Servers'][$i]['auth_type'] = 'config';
@@ -122,8 +123,8 @@ if (is_dir($projectsDir)) {
                     $cfg['Servers'][$i]['AllowNoPassword'] = true;
                 } else {
                     $i++;
-                    $cfg['Servers'][$i]['host'] = 'host.docker.internal';
-                    $cfg['Servers'][$i]['port'] = $dbPort;
+                    $cfg['Servers'][$i]['host'] = $resolvedHost;
+                    $cfg['Servers'][$i]['port'] = $resolvedPort;
                     $cfg['Servers'][$i]['user'] = 'root';
                     $cfg['Servers'][$i]['auth_type'] = 'cookie';
                     $cfg['Servers'][$i]['verbose'] = $projectName . ' (cookie)';
