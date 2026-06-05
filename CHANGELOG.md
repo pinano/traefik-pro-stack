@@ -1,3 +1,7 @@
+## v2026.06.05 (2026-06-05)
+
+- refactor: rename BACKREST_PROJECTS_DIR to PROJECTS_DIR, update dynamic path initialization, and optimize phpMyAdmin server configuration logic (8f450f5)
+
 ## v2026.06.04.2 (2026-06-04)
 
 - refactor: remove stderr redirection from compose commands in startup and restart scripts to improve visibility of service errors (6d93772)
