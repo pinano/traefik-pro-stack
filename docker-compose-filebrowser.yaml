@@ -25,7 +25,7 @@ services:
         /bin/filebrowser users update "${DASHBOARD_ADMIN_USER:-admin}" --perm.admin=false -d /database/filebrowser.db || true
         exec /bin/filebrowser -d /database/filebrowser.db
     volumes:
-      - ${BACKREST_PROJECTS_DIR:-/opt/docker}:/srv
+      - ${PROJECTS_DIR:-/opt/docker}:/srv
       - ./data/filebrowser:/database
     security_opt:
       - no-new-privileges=true

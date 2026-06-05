@@ -13,7 +13,7 @@ services:
       - TZ=${TZ}
     volumes:
       - ./config/phpmyadmin/config.user.inc.php:/etc/phpmyadmin/config.user.inc.php:ro
-      - ${BACKREST_PROJECTS_DIR:-/opt/docker}:/userdata/projects:ro
+      - ${PROJECTS_DIR:-/opt/docker}:/userdata/projects:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     security_opt:

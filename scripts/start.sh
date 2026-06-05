@@ -313,6 +313,12 @@ else
     export DASHBOARD_APP_PATH_HOST="$ENV_VAL"
 fi
 
+# Calculate PROJECTS_DIR dynamically as the parent directory of DASHBOARD_APP_PATH_HOST
+DETECTED_PROJECTS_DIR=$(dirname "$DASHBOARD_APP_PATH_HOST")
+update_env_var "PROJECTS_DIR" "$DETECTED_PROJECTS_DIR"
+export PROJECTS_DIR="$DETECTED_PROJECTS_DIR"
+
+
 # Normalize CROWDSEC_ENABLE to lowercase
 CROWDSEC_ENABLE=$(echo "${CROWDSEC_ENABLE:-true}" | tr '[:upper:]' '[:lower:]')
 
