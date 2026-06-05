@@ -1,3 +1,8 @@
+## v2026.06.05.2 (2026-06-05)
+
+- refactor: remove disabled state templates from dashboard and expose toggle environment variables (bf6bf98)
+- chore: update container image versions and clean up whitespace in configuration files (85e915d)
+
 ## v2026.06.05.1 (2026-06-05)
 
 - refactor: improve phpMyAdmin database discovery reliability and update environment configuration defaults (d216b63)
