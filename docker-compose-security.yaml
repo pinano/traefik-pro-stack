@@ -69,7 +69,7 @@ services:
   #  REDIS EXPORTER (Metrics for Prometheus)
   # ===========================
   redis-exporter:
-    image: oliver006/redis_exporter:v1.84.0
+    image: oliver006/redis_exporter:v1.85.0
     restart: unless-stopped
     environment:
       - REDIS_ADDR=redis:6379
