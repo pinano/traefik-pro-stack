@@ -66,9 +66,11 @@ fi
 # 1. Environment Preparation
 echo ""
 echo "── [1/6] 📋 Preparing environment ──────────────────────────────────────"
+# Safely create backup with 600 permissions
+rm -f "${ENV_FILE}.bak"
+(umask 077 && cp "$ENV_FILE" "${ENV_FILE}.bak")
 TEMP_ENV=$(mktemp)
 ADDED_VARS=0
-cp "$ENV_FILE" "${ENV_FILE}.bak"
 
 # Process all lines from .env.dist to maintain its structure
 while IFS= read -r line || [ -n "$line" ]; do
@@ -82,9 +84,9 @@ while IFS= read -r line || [ -n "$line" ]; do
     VAR_NAME=$(echo "$line" | cut -d'=' -f1)
     
     # Check if variable exists in current .env
-    if grep -q "^${VAR_NAME}=" "$ENV_FILE"; then
+    if awk -F= -v var="$VAR_NAME" '$1 == var { exit 0 } END { exit 1 }' "$ENV_FILE"; then
         # Use existing value from .env (take the first occurrence)
-        grep "^${VAR_NAME}=" "$ENV_FILE" | head -n 1 >> "$TEMP_ENV"
+        awk -F= -v var="$VAR_NAME" '$1 == var { print; exit }' "$ENV_FILE" >> "$TEMP_ENV"
     else
         # Use default value from .env.dist
         echo "$line" >> "$TEMP_ENV"
@@ -98,7 +100,7 @@ EXTRA_VARS=0
 while IFS= read -r line || [ -n "$line" ]; do
     if [[ "$line" =~ ^# ]] || [[ -z "$line" ]]; then continue; fi
     VAR_NAME=$(echo "$line" | cut -d'=' -f1)
-    if ! grep -q "^${VAR_NAME}=" "$DIST_FILE"; then
+    if ! awk -F= -v var="$VAR_NAME" '$1 == var { exit 0 } END { exit 1 }' "$DIST_FILE"; then
         if [ $EXTRA_VARS -eq 0 ]; then
             echo "" >> "$TEMP_ENV"
             echo "# --- Custom variables (not in .env.dist) ---" >> "$TEMP_ENV"
@@ -232,9 +234,6 @@ if [ -z "$DASHBOARD_SECRET_KEY" ] || [ "$DASHBOARD_SECRET_KEY" == "REPLACE_ME" ]
     NEW_DM_KEY=$(openssl rand -hex 32)
     update_env_var "DASHBOARD_SECRET_KEY" "$NEW_DM_KEY"
     export DASHBOARD_SECRET_KEY="$NEW_DM_KEY"
-    set -a
-    source .env
-    set +a
 fi
 
 # CrowdSec Web UI Password (auto-generate on first run)
@@ -243,9 +242,6 @@ if [ -z "$CROWDSEC_WEB_UI_PASSWORD" ] || [ "$CROWDSEC_WEB_UI_PASSWORD" == "REPLA
     NEW_CS_UI_PASS=$(openssl rand -hex 32)
     update_env_var "CROWDSEC_WEB_UI_PASSWORD" "$NEW_CS_UI_PASS"
     export CROWDSEC_WEB_UI_PASSWORD="$NEW_CS_UI_PASS"
-    set -a
-    source .env
-    set +a
 fi
 
 # Redis Password (auto-generate on first run)
@@ -254,9 +250,6 @@ if [ -z "$REDIS_PASSWORD" ] || [ "$REDIS_PASSWORD" == "REPLACE_ME" ]; then
     NEW_REDIS_PASS=$(openssl rand -base64 20 | tr -dc 'a-zA-Z0-9' | head -c 20)
     update_env_var "REDIS_PASSWORD" "$NEW_REDIS_PASS"
     export REDIS_PASSWORD="$NEW_REDIS_PASS"
-    set -a
-    source .env
-    set +a
 fi
 
 
@@ -267,9 +260,6 @@ if [ -z "$ANUBIS_REDIS_PRIVATE_KEY" ] || [ "$ANUBIS_REDIS_PRIVATE_KEY" == "REPLA
     NEW_ANUBIS_KEY=$(openssl rand -hex 32)
     update_env_var "ANUBIS_REDIS_PRIVATE_KEY" "$NEW_ANUBIS_KEY"
     export ANUBIS_REDIS_PRIVATE_KEY="$NEW_ANUBIS_KEY"
-    set -a
-    source .env
-    set +a
 fi
 
 # CrowdSec Local API Key (auto-generate on first run)
@@ -278,10 +268,12 @@ if [ -z "$CROWDSEC_LAPI_KEY" ] || [ "$CROWDSEC_LAPI_KEY" == "REPLACE_ME" ]; then
     NEW_CS_LAPI_KEY=$(openssl rand -hex 32)
     update_env_var "CROWDSEC_LAPI_KEY" "$NEW_CS_LAPI_KEY"
     export CROWDSEC_LAPI_KEY="$NEW_CS_LAPI_KEY"
-    set -a
-    source .env
-    set +a
 fi
+
+# Source .env once to load all newly generated variables
+set -a
+source .env
+set +a
 
 # =============================================================================
 # AUTO-CONFIGURATION: Absolute Path Mirroring
@@ -1005,7 +997,7 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
     # Delete first (silently) in case it already exists, then add fresh.
 
     docker exec "$CROWDSEC_ID" cscli bouncers delete traefik-bouncer > /dev/null 2>&1 || true
-    ADD_OUTPUT=$(docker exec "$CROWDSEC_ID" cscli bouncers add traefik-bouncer --key "${CROWDSEC_LAPI_KEY}" 2>&1)
+    ADD_OUTPUT=$(docker exec -e CROWDSEC_LAPI_KEY="${CROWDSEC_LAPI_KEY}" "$CROWDSEC_ID" sh -c 'cscli bouncers add traefik-bouncer --key "$CROWDSEC_LAPI_KEY"' 2>&1)
     ADD_EXIT=$?
 
     if [ $ADD_EXIT -ne 0 ]; then
@@ -1023,7 +1015,7 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
     docker exec "$CROWDSEC_ID" kill -HUP 1 > /dev/null 2>&1 || true
 
     docker exec "$CROWDSEC_ID" cscli machines delete "${CROWDSEC_WEB_UI_USER:-crowdsec-web-ui}" > /dev/null 2>&1 || true
-    docker exec "$CROWDSEC_ID" cscli machines add "${CROWDSEC_WEB_UI_USER:-crowdsec-web-ui}" --password "${CROWDSEC_WEB_UI_PASSWORD}" -f /dev/null > /dev/null 2>&1 || true
+    docker exec -e CROWDSEC_WEB_UI_PASSWORD="${CROWDSEC_WEB_UI_PASSWORD}" "$CROWDSEC_ID" sh -c 'cscli machines add "${CROWDSEC_WEB_UI_USER:-crowdsec-web-ui}" --password "$CROWDSEC_WEB_UI_PASSWORD" -f /dev/null' > /dev/null 2>&1 || true
 
     # =============================================================================
     # PHASE 5: CrowdSec Console Enrollment (Optional)
@@ -1080,7 +1072,8 @@ resolve_host() {
     local host="$1"
     
     # 0. Check /etc/hosts first (Reliable for local dev, respects $HOSTS_FILE)
-    if grep -qE "[[:space:]]${host}([[:space:]]|$)" "$HOSTS_FILE"; then
+    local escaped_host="${host//./\\.}"
+    if grep -qE "[[:space:]]${escaped_host}([[:space:]]|$)" "$HOSTS_FILE"; then
         return 0
     fi
 
@@ -1094,7 +1087,7 @@ resolve_host() {
         return $?
     elif command -v ping >/dev/null 2>&1; then
         # Ping as fallback for resolution (timeout 1s)
-        ping -c 1 -t 1 "$host" >/dev/null 2>&1 || ping -c 1 -W 1 "$host" >/dev/null 2>&1
+        ping -c 1 -W 1 "$host" >/dev/null 2>&1 || ping -c 1 -t 1 "$host" >/dev/null 2>&1
         return $?
     elif command -v host >/dev/null 2>&1; then
         # DNS only (will ignore /etc/hosts)

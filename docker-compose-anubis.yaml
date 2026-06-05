@@ -29,6 +29,8 @@ services:
       - ED25519_PRIVATE_KEY_HEX=${ANUBIS_REDIS_PRIVATE_KEY:-}
       # Now cookie prefix is set based on the domain name
       #- COOKIE_PREFIX=${ANUBIS_COOKIE_PREFIX:-anubis}
+    security_opt:
+      - no-new-privileges=true
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ./config/anubis/botPolicy-generated.yaml:/botPolicy.yaml:ro
@@ -61,6 +63,8 @@ services:
           memory: '64M'
     networks:
       - traefik
+    security_opt:
+      - no-new-privileges=true
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"

@@ -64,6 +64,14 @@ services:
       resources:
         limits:
           memory: 256M
+    security_opt:
+      - no-new-privileges=true
+    healthcheck:
+      test: [ "CMD", "valkey-cli", "-a", "${REDIS_PASSWORD}", "--no-auth-warning", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
 
   # ===========================
   #  REDIS EXPORTER (Metrics for Prometheus)
