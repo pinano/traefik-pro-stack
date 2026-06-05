@@ -39,6 +39,8 @@ services:
       - /etc/localtime:/etc/localtime:ro
     networks:
       - traefik
+    security_opt:
+      - no-new-privileges=true
     deploy:
       resources:
         limits:
@@ -71,6 +73,14 @@ services:
       - TZ=${TZ}
     networks:
       - traefik
+    security_opt:
+      - no-new-privileges=true
+    healthcheck:
+      test: ["CMD", "/usr/bin/loki", "-health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     # Resource limits so it doesn't consume all RAM during compaction
     deploy:
       resources:
@@ -104,7 +114,7 @@ services:
       - /sys:/host/sys:ro
       - /:/host/root:ro
     # Alloy needs the 'run' argument and also to point at the config file
-    command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
+    command: run --server.http.listen-addr=127.0.0.1:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
     networks:
       - traefik
     deploy:
@@ -131,7 +141,6 @@ services:
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
       - '--web.enable-remote-write-receiver'
-      - '--web.enable-lifecycle'
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -139,6 +148,14 @@ services:
       - ./data/prometheus:/prometheus
     networks:
       - traefik
+    security_opt:
+      - no-new-privileges=true
+    healthcheck:
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1" ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     deploy:
       resources:
         limits:

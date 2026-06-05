@@ -428,7 +428,7 @@ traefik-health: ## Check Traefik health status
 .PHONY: certs-watch
 certs-watch: ## Monitor ACME logs (Works at default INFO level)
 	@echo "Monitoring ACME/Certificate logs... (Ctrl+C to stop)"
-	@$(DOCKER_COMPOSE) logs -f traefik | \
+	@-$(DOCKER_COMPOSE) logs -f traefik | \
 		grep --line-buffered -iE 'obtain|validat|challenge|acme|lego|fail|err' | \
 		grep --line-buffered -vE 'Adding certificate|Looking for|No ACME.*required|RequestHost|global-compress'
 
@@ -480,6 +480,11 @@ endif
 # CrowdSec Targets (only if enabled)
 ifneq ($(CROWDSEC_ENABLE),false)
     include scripts/make/crowdsec.mk
+else
+# Dummy targets to print error when CrowdSec is disabled
+crowdsec-%:
+	@echo "⚠️ Error: Las tareas de CrowdSec están deshabilitadas porque CROWDSEC_ENABLE=false en tu .env"
+	@exit 1
 endif
 
 # Grafana Alerting setup targets
