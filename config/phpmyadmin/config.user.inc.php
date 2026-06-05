@@ -95,38 +95,38 @@ if (is_dir($projectsDir)) {
                 $dbPass = $env['DB_PASSWORD'] ?? $env['MYSQL_PASSWORD'] ?? $env['DATABASE_PASSWORD'] ?? $env['DB_PASS'] ?? null;
                 $dbName = $env['DB_DATABASE'] ?? $env['MYSQL_DATABASE'] ?? $env['DATABASE_NAME'] ?? '';
 
-                // Register Root server configuration if root password exists
-                if ($rootPass !== null) {
+                // Register server configuration: prioritize regular user, fall back to root, or use cookie auth prompt
+                if ($dbUser !== null) {
+                    $i++;
+                    $cfg['Servers'][$i]['host'] = 'host.docker.internal';
+                    $cfg['Servers'][$i]['port'] = $dbPort;
+                    $cfg['Servers'][$i]['user'] = $dbUser;
+                    if ($dbPass !== null) {
+                        $cfg['Servers'][$i]['password'] = $dbPass;
+                        $cfg['Servers'][$i]['auth_type'] = 'config';
+                    } else {
+                        $cfg['Servers'][$i]['auth_type'] = 'cookie';
+                    }
+                    $cfg['Servers'][$i]['verbose'] = $projectName . ($dbName ? " ($dbName)" : ' (user)');
+                    $cfg['Servers'][$i]['compress'] = false;
+                    $cfg['Servers'][$i]['AllowNoPassword'] = true;
+                } elseif ($rootPass !== null) {
                     $i++;
                     $cfg['Servers'][$i]['host'] = 'host.docker.internal';
                     $cfg['Servers'][$i]['port'] = $dbPort;
                     $cfg['Servers'][$i]['user'] = 'root';
                     $cfg['Servers'][$i]['password'] = $rootPass;
-                    $cfg['Servers'][$i]['auth_type'] = 'config'; // Auto-login!
+                    $cfg['Servers'][$i]['auth_type'] = 'config';
                     $cfg['Servers'][$i]['verbose'] = $projectName . ' (root)';
                     $cfg['Servers'][$i]['compress'] = false;
                     $cfg['Servers'][$i]['AllowNoPassword'] = true;
-                }
-                
-                // Register regular User server configuration
-                if (($dbUser !== null && $dbPass !== null) || $rootPass === null) {
-                    $userToRegister = $dbUser ?? 'root';
-                    $passToRegister = $dbPass ?? '';
-                    
+                } else {
                     $i++;
                     $cfg['Servers'][$i]['host'] = 'host.docker.internal';
                     $cfg['Servers'][$i]['port'] = $dbPort;
-                    $cfg['Servers'][$i]['user'] = $userToRegister;
-                    $cfg['Servers'][$i]['password'] = $passToRegister;
-                    
-                    // If we have password, log in automatically, else prompt (cookie)
-                    if ($dbPass !== null) {
-                        $cfg['Servers'][$i]['auth_type'] = 'config';
-                    } else {
-                        $cfg['Servers'][$i]['auth_type'] = 'cookie';
-                    }
-                    
-                    $cfg['Servers'][$i]['verbose'] = $projectName . ($dbName ? " ($dbName)" : ' (user)');
+                    $cfg['Servers'][$i]['user'] = 'root';
+                    $cfg['Servers'][$i]['auth_type'] = 'cookie';
+                    $cfg['Servers'][$i]['verbose'] = $projectName . ' (cookie)';
                     $cfg['Servers'][$i]['compress'] = false;
                     $cfg['Servers'][$i]['AllowNoPassword'] = true;
                 }
