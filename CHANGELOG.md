@@ -1,3 +1,7 @@
+## v2026.06.05.1 (2026-06-05)
+
+- refactor: improve phpMyAdmin database discovery reliability and update environment configuration defaults (d216b63)
+
 ## v2026.06.05 (2026-06-05)
 
 - refactor: rename BACKREST_PROJECTS_DIR to PROJECTS_DIR, update dynamic path initialization, and optimize phpMyAdmin server configuration logic (8f450f5)
