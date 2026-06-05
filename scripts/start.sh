@@ -84,7 +84,7 @@ while IFS= read -r line || [ -n "$line" ]; do
     VAR_NAME=$(echo "$line" | cut -d'=' -f1)
     
     # Check if variable exists in current .env
-    if awk -F= -v var="$VAR_NAME" '$1 == var { exit 0 } END { exit 1 }' "$ENV_FILE"; then
+    if awk -F= -v var="$VAR_NAME" '$1 == var { found=1; exit } END { exit !found }' "$ENV_FILE"; then
         # Use existing value from .env (take the first occurrence)
         awk -F= -v var="$VAR_NAME" '$1 == var { print; exit }' "$ENV_FILE" >> "$TEMP_ENV"
     else
@@ -100,7 +100,7 @@ EXTRA_VARS=0
 while IFS= read -r line || [ -n "$line" ]; do
     if [[ "$line" =~ ^# ]] || [[ -z "$line" ]]; then continue; fi
     VAR_NAME=$(echo "$line" | cut -d'=' -f1)
-    if ! awk -F= -v var="$VAR_NAME" '$1 == var { exit 0 } END { exit 1 }' "$DIST_FILE"; then
+    if ! awk -F= -v var="$VAR_NAME" '$1 == var { found=1; exit } END { exit !found }' "$DIST_FILE"; then
         if [ $EXTRA_VARS -eq 0 ]; then
             echo "" >> "$TEMP_ENV"
             echo "# --- Custom variables (not in .env.dist) ---" >> "$TEMP_ENV"
