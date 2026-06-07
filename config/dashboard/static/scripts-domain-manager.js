@@ -528,13 +528,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         tr.innerHTML = `
-            <td class="check-status-cell" style="text-align: center;">${statusHtml}</td>
+            <td class="check-status-cell" data-label="Valid" style="text-align: center;">${statusHtml}</td>
             <td data-label="Domain"><input type="text" readonly class="data-input" data-key="domain" value="${escapeHtml(data.domain || '')}" placeholder="dashboard.example.com"></td>
             <td data-label="Anubis Subdomain"><input type="text" class="data-input" data-key="anubis_subdomain" value="${escapeHtml(data.anubis_subdomain || '')}" placeholder="anubis"></td>
             <td data-label="Rate"><input type="text" class="data-input" data-key="rate" value="${escapeHtml(data.rate || '')}" placeholder="${defaultRateAvg}"></td>
             <td data-label="Burst"><input type="text" class="data-input" data-key="burst" value="${escapeHtml(data.burst || '')}" placeholder="${defaultRateBurst}"></td>
             <td data-label="Concurrency"><input type="text" class="data-input" data-key="concurrency" value="${escapeHtml(data.concurrency || '')}" placeholder="${defaultConcurrency}"></td>
-            <td style="text-align: center; vertical-align: middle;">
+            <td data-label="Role" style="text-align: center; vertical-align: middle;">
                 <span class="badge badge-system">
                     <i data-lucide="lock" style="width: 0.8rem; height: 0.8rem; margin-right: 0.25rem;"></i> Dashboard Domain
                 </span>
@@ -672,7 +672,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         tr.innerHTML = `
-            <td class="check-status-cell" style="text-align: center;">${statusHtml}</td>
+            <td class="check-status-cell" data-label="Valid" style="text-align: center;">${statusHtml}</td>
             <td class="root-domain-cell" data-label="Root Domain">${escapeHtml(root) || '-'}</td>
             <td data-label="Domain"><input type="text" class="data-input" data-key="domain" value="${escapeHtml(data.domain || '')}" placeholder="example.com"></td>
             <td data-label="Redirection"><input type="text" class="data-input" data-key="redirection" value="${escapeHtml(data.redirection || '')}" placeholder="www.example.com"></td>
