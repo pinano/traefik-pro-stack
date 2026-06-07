@@ -113,8 +113,7 @@
                     </thead>
                     <tbody id="certs-body">
                         {% for cert in certificates %}
-                        <tr class="{{ 'superseded-row' if cert.superseded else '' }}"
-                            style="{{ 'opacity: 0.7; background-color: #ededed;' if cert.superseded else '' }}">
+                        <tr class="{{ 'superseded-row' if cert.superseded else '' }}">
                             <td data-label="Status" style="text-align: center;">
                                 {% if cert.status == 'valid' %}
                                 <i data-lucide="check-circle"

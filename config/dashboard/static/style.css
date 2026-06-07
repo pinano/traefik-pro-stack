@@ -1335,6 +1335,23 @@ input:focus {
         background-color: var(--danger-color);
         color: white;
     }
+
+    #deleted-domains-table td:last-child > div {
+        width: 100%;
+        display: flex !important;
+        gap: 0.5rem !important;
+    }
+
+    #deleted-domains-table td:last-child button {
+        flex: 1 !important;
+        width: auto !important;
+        padding: 0.6rem !important;
+        font-size: 0.85rem !important;
+        height: auto !important;
+        justify-content: center;
+        align-items: center;
+        display: inline-flex;
+    }
 }
 
 /* Deploy Notification */
@@ -1984,18 +2001,20 @@ select.data-input:focus {
     align-items: center;
 }
 
-.system-table-container {
-    border: 1px solid var(--border-color);
-    box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.04), 0 2px 4px -1px rgba(99, 102, 241, 0.02);
-}
+@media (min-width: 769px) {
+    .system-table-container {
+        border: 1px solid var(--border-color);
+        box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.04), 0 2px 4px -1px rgba(99, 102, 241, 0.02);
+    }
 
-/* Ensure the inputs inside the system table look premium and locked-in */
-#system-domain-table {
-    table-layout: fixed;
-}
+    /* Ensure the inputs inside the system table look premium and locked-in */
+    #system-domain-table {
+        table-layout: fixed;
+    }
 
-#system-domain-table td {
-    padding: 0.35rem 0.5rem;
+    #system-domain-table td {
+        padding: 0.35rem 0.5rem;
+    }
 }
 
 #system-domain-table .data-input {
@@ -2020,4 +2039,13 @@ select.data-input:focus {
     background-color: rgba(129, 140, 248, 0.12);
     color: #a5b4fc;
     border-color: rgba(129, 140, 248, 0.25);
+}
+
+.superseded-row {
+    opacity: 0.7;
+    background-color: #ededed !important;
+}
+
+[data-theme="dark"] .superseded-row {
+    background-color: rgba(15, 23, 42, 0.45) !important;
 }
