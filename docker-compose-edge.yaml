@@ -40,6 +40,12 @@ services:
       - "traefik.http.routers.watchdog-api.service=api@internal"
     security_opt:
       - no-new-privileges=true
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     deploy:
       resources:
         reservations:
