@@ -1,3 +1,10 @@
+## v2026.06.08 (2026-06-08)
+
+- feat: implement Anubis healthcheck and update watchdog Telegram alerts to use HTML formatting. (83456b4)
+- refactor: consolidate superseded row styling into CSS and add responsive metadata labels to table cells (51f114d)
+- fix: improve .env variable existence check using awk state tracking (597c8bb)
+- refactor: harden container security with no-new-privileges, improve environment variable management, and add healthchecks (22da1a6)
+
 ## v2026.06.05.2 (2026-06-05)
 
 - refactor: remove disabled state templates from dashboard and expose toggle environment variables (bf6bf98)
