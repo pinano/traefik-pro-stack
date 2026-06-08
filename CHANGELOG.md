@@ -1,3 +1,7 @@
+## v2026.06.08.1 (2026-06-08)
+
+- chore: implement and update service healthcheck configurations across docker-compose files (b1274a7)
+
 ## v2026.06.08 (2026-06-08)
 
 - feat: implement Anubis healthcheck and update watchdog Telegram alerts to use HTML formatting. (83456b4)
