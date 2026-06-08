@@ -43,6 +43,14 @@ if [ -f "/etc/hosts-host" ]; then
     HOSTS_FILE="/etc/hosts-host"
 fi
 
+# Verify if DASHBOARD_INTERNAL is set but we are not in a container (L7)
+if [[ "$DASHBOARD_INTERNAL" == "true" ]]; then
+    if [ ! -f /.dockerenv ] && ! grep -q 'docker\|lxc' /proc/1/cgroup 2>/dev/null; then
+        echo "   ⚠️ WARNING: DASHBOARD_INTERNAL=true was set in host environment. Ignoring container logic."
+        export DASHBOARD_INTERNAL="false"
+    fi
+fi
+
 trap cleanup EXIT INT TERM
 
 # Ensures .env exists and is up to date with .env.dist structure.
@@ -181,8 +189,16 @@ validate_env() {
     echo "✅ Environment configuration valid."
 }
 
-# Run validation immediately
-validate_env | sed 's/^/   /'
+# Run validation immediately in the parent shell to properly handle failures (exit codes).
+# Use a temporary file to keep the indented output without running in a subshell pipeline.
+VAL_OUT=$(mktemp)
+validate_env > "$VAL_OUT" 2>&1
+VAL_STATUS=$?
+sed 's/^/   /' "$VAL_OUT"
+rm -f "$VAL_OUT"
+if [ $VAL_STATUS -ne 0 ]; then
+    exit 1
+fi
 
 
 echo ""
@@ -244,8 +260,10 @@ if [ -z "$CROWDSEC_WEB_UI_PASSWORD" ] || [ "$CROWDSEC_WEB_UI_PASSWORD" == "REPLA
     export CROWDSEC_WEB_UI_PASSWORD="$NEW_CS_UI_PASS"
 fi
 
-# Redis Password (auto-generate on first run)
-if [ -z "$REDIS_PASSWORD" ] || [ "$REDIS_PASSWORD" == "REPLACE_ME" ]; then
+# Redis Password (auto-generate on first run or if too short)
+# Alphanumeric-only to avoid URL-encoding issues in redis:// connection strings.
+# Minimum 20 characters enforced (119 bits of entropy from the base64 source).
+if [ -z "$REDIS_PASSWORD" ] || [ "$REDIS_PASSWORD" == "REPLACE_ME" ] || [ ${#REDIS_PASSWORD} -lt 20 ]; then
     echo "   🔄 Generating secure random Redis password..."
     NEW_REDIS_PASS=$(openssl rand -base64 20 | tr -dc 'a-zA-Z0-9' | head -c 20)
     update_env_var "REDIS_PASSWORD" "$NEW_REDIS_PASS"
@@ -262,8 +280,9 @@ if [ -z "$ANUBIS_REDIS_PRIVATE_KEY" ] || [ "$ANUBIS_REDIS_PRIVATE_KEY" == "REPLA
     export ANUBIS_REDIS_PRIVATE_KEY="$NEW_ANUBIS_KEY"
 fi
 
-# CrowdSec Local API Key (auto-generate on first run)
-if [ -z "$CROWDSEC_LAPI_KEY" ] || [ "$CROWDSEC_LAPI_KEY" == "REPLACE_ME" ]; then
+# CrowdSec Local API Key (auto-generate on first run or if too short)
+# Minimum 32 characters enforced — shorter keys don't meet entropy requirements.
+if [ -z "$CROWDSEC_LAPI_KEY" ] || [ "$CROWDSEC_LAPI_KEY" == "REPLACE_ME" ] || [ ${#CROWDSEC_LAPI_KEY} -lt 32 ]; then
     echo "   🔄 Generating secure CrowdSec Local API key..."
     NEW_CS_LAPI_KEY=$(openssl rand -hex 32)
     update_env_var "CROWDSEC_LAPI_KEY" "$NEW_CS_LAPI_KEY"
@@ -580,6 +599,10 @@ if [ ! -f ./config/traefik/acme.json ]; then
     echo "   ✅ Created acme.json with secure permissions."
 fi
 
+if [ -f ./config/crowdsec/captcha_keys.csv ]; then
+    chmod 600 ./config/crowdsec/captcha_keys.csv 2>/dev/null || true
+fi
+
 # echo "🔒 Configuring ACME environment..."
 TRAEFIK_CERT_RESOLVER="le" # Default to 'le'
 
@@ -721,7 +744,7 @@ if [[ "$DASHBOARD_INTERNAL" == "true" ]]; then
     find ./config/traefik -type f -name "*.json" -exec chmod 600 {} \; # acme.json needs 600
     chmod 644 ./domains.csv
     if [ -f "./config/crowdsec/captcha_keys.csv" ]; then
-        chmod 640 ./config/crowdsec/captcha_keys.csv  # 640: owner rw, group r — not world-writable
+        chmod 600 ./config/crowdsec/captcha_keys.csv  # 600: owner rw only
     fi
     
     # Ensure acme.json is strictly 600 (override the find above if needed, though find catches json)
@@ -994,11 +1017,22 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
     # PHASE 5: Register Bouncer API Key
     # =============================================================================
     # Re-register the Traefik Bouncer key on each start to ensure consistency.
-    # Delete first (silently) in case it already exists, then add fresh.
+    #
+    # Strategy to avoid the delete→add race condition:
+    #   1. Try to ADD first — succeeds immediately on a fresh CrowdSec database.
+    #   2. If the bouncer already exists (exit ≠ 0), THEN delete and re-add.
+    #      The window where no bouncer exists is reduced to a single docker exec
+    #      round-trip (~100ms) rather than two sequential calls.
 
-    docker exec "$CROWDSEC_ID" cscli bouncers delete traefik-bouncer > /dev/null 2>&1 || true
-    ADD_OUTPUT=$(docker exec -e CROWDSEC_LAPI_KEY="${CROWDSEC_LAPI_KEY}" "$CROWDSEC_ID" sh -c 'cscli bouncers add traefik-bouncer --key "$CROWDSEC_LAPI_KEY"' 2>&1)
-    ADD_EXIT=$?
+    ADD_EXIT=0
+    ADD_OUTPUT=$(echo "${CROWDSEC_LAPI_KEY}" | docker exec -i "$CROWDSEC_ID" sh -c 'read -r KEY && cscli bouncers add traefik-bouncer --key "$KEY"' 2>&1) || ADD_EXIT=$?
+
+    if [ $ADD_EXIT -ne 0 ]; then
+        # Bouncer already registered — delete it and immediately re-add with the current key.
+        docker exec "$CROWDSEC_ID" cscli bouncers delete traefik-bouncer > /dev/null 2>&1 || true
+        ADD_EXIT=0
+        ADD_OUTPUT=$(echo "${CROWDSEC_LAPI_KEY}" | docker exec -i "$CROWDSEC_ID" sh -c 'read -r KEY && cscli bouncers add traefik-bouncer --key "$KEY"' 2>&1) || ADD_EXIT=$?
+    fi
 
     if [ $ADD_EXIT -ne 0 ]; then
         echo "❌ Error registering bouncer key: $ADD_OUTPUT"

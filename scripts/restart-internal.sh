@@ -68,6 +68,88 @@ fi
 
 $PYTHON_CMD scripts/generate-config.py | sed 's/^/   /'
 
+# ─── Step 1b: Regenerate CrowdSec profiles.yaml ─────────────────
+# profiles.yaml depends on captcha_keys.csv (managed from the Captchas UI).
+# If the CAPTCHA config changed, regenerate the file and reload CrowdSec
+# (SIGHUP triggers a profiles reload in CrowdSec v1.x without container restart).
+
+PROFILES_BASE="./config/crowdsec/profiles-base.yaml"
+PROFILES_OUT="./config/crowdsec/profiles.yaml"
+CAPTCHA_KEYS_CSV="./config/crowdsec/captcha_keys.csv"
+
+if [ -f "$PROFILES_BASE" ]; then
+    TMP_PROFILES=$(mktemp)
+    cp "$PROFILES_BASE" "$TMP_PROFILES"
+
+    # Inject CAPTCHA profile if captcha_keys.csv has active entries
+    if [ -f "$CAPTCHA_KEYS_CSV" ] && grep -v -E '^(#|$|[[:space:]]*$)' "$CAPTCHA_KEYS_CSV" | grep -q ','; then
+        cat >> "$TMP_PROFILES" << 'CAPTCHA_EOF'
+
+---
+
+# -----------------------------------------------------------------------------
+# Profile 2: CAPTCHA Remediation for HTTP Scenarios (4 hours)
+# -----------------------------------------------------------------------------
+name: captcha_remediation
+filters:
+ - Alert.Remediation == true && Alert.GetScope() == "Ip" && (Alert.GetScenario() contains "http" || Alert.GetScenario() contains "traefik-flood-429") && !(Alert.GetScenario() contains "appsec")
+decisions:
+ - type: captcha
+   duration: 4h
+on_success: break
+CAPTCHA_EOF
+    fi
+
+    cat >> "$TMP_PROFILES" << 'FALLBACK_EOF'
+
+---
+
+# -----------------------------------------------------------------------------
+# Profile 3: Standard Aggressive Ban (24 hours)
+# -----------------------------------------------------------------------------
+name: aggressive_ban
+filters:
+ - Alert.Remediation == true && Alert.GetScope() == "Ip"
+decisions:
+ - type: ban
+   duration: 24h
+on_success: break
+
+---
+
+# -----------------------------------------------------------------------------
+# Profile 4: Range-based Attacks (48 hours)
+# -----------------------------------------------------------------------------
+name: range_ban
+filters:
+ - Alert.Remediation == true && Alert.GetScope() == "Range"
+decisions:
+ - type: ban
+   duration: 48h
+on_success: break
+FALLBACK_EOF
+
+    if [ -f "$PROFILES_OUT" ] && cmp -s "$TMP_PROFILES" "$PROFILES_OUT"; then
+        rm "$TMP_PROFILES"
+        echo "   ✔ profiles.yaml unchanged — no CrowdSec reload needed."
+    else
+        cat "$TMP_PROFILES" > "$PROFILES_OUT"
+        rm "$TMP_PROFILES"
+        echo "   🔄 profiles.yaml updated."
+
+        # Reload CrowdSec if it's running (SIGHUP reloads profiles without restart)
+        if [ "${CROWDSEC_ENABLE:-true}" = "true" ]; then
+            CS_ID=$(docker ps -q --filter "label=com.docker.compose.project=${PROJECT_NAME:-stack}" --filter "label=com.docker.compose.service=crowdsec" 2>/dev/null | head -n 1)
+            if [ -n "$CS_ID" ]; then
+                docker exec "$CS_ID" kill -HUP 1 > /dev/null 2>&1 && \
+                    echo "   ✔ CrowdSec reloaded (SIGHUP) to apply new profiles." || \
+                    echo "   ⚠️  Could not send SIGHUP to CrowdSec. Run 'make restart crowdsec' to apply CAPTCHA profile changes."
+            fi
+        fi
+    fi
+fi
+
+
 # ─── Step 2: Fix Permissions ────────────────────────────────────
 echo "─── [2/3] 🔧 Fixing permissions ────────────────────────────────────────"
 
@@ -87,6 +169,11 @@ if [ -f "./config/anubis/botPolicy-generated.yaml" ]; then
     chmod 644 ./config/anubis/botPolicy-generated.yaml
 fi
 
+# Ensure captcha_keys.csv has secure permissions
+if [ -f "./config/crowdsec/captcha_keys.csv" ]; then
+    chmod 600 ./config/crowdsec/captcha_keys.csv
+fi
+
 # Match ownership to parent directory (host user)
 # Linux stat uses -c, macOS uses -f; try Linux first.
 TARGET_UID=$(stat -c '%u' ./config/traefik 2>/dev/null) || TARGET_UID=$(stat -f '%u' ./config/traefik 2>/dev/null) || TARGET_UID=""
@@ -100,6 +187,9 @@ if [ -n "$TARGET_UID" ] && [ -n "$TARGET_GID" ]; then
     fi
     if [ -f "./config/anubis/botPolicy-generated.yaml" ]; then
         chown "$TARGET_UID:$TARGET_GID" ./config/anubis/botPolicy-generated.yaml 2>/dev/null || true
+    fi
+    if [ -f "./config/crowdsec/captcha_keys.csv" ]; then
+        chown "$TARGET_UID:$TARGET_GID" ./config/crowdsec/captcha_keys.csv 2>/dev/null || true
     fi
 else
     echo "   ⚠️ Could not determine target ownership. Files left as-is."

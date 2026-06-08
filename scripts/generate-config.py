@@ -1,5 +1,6 @@
 import sys
 import os
+import copy
 
 # Check for virtual environment redirection if dependencies are missing
 try:
@@ -740,7 +741,7 @@ def generate_configs():
         # Default middleware (No CAPTCHA keys, outright ban/block fallback)
         traefik_dynamic_conf['http']['middlewares']['crowdsec-check'] = {
             'plugin': {
-                'crowdsec': base_crowdsec_config.copy()
+                'crowdsec': copy.deepcopy(base_crowdsec_config)
             }
         }
 
@@ -749,7 +750,7 @@ def generate_configs():
             safe_root = sanitize_name(root_dom)
             mw_name = f"crowdsec-check-{safe_root}"
             
-            domain_config = base_crowdsec_config.copy()
+            domain_config = copy.deepcopy(base_crowdsec_config)
             domain_config.update({
                 'captchaProvider': captcha_info['provider'],
                 'captchaSiteKey': captcha_info['site_key'],

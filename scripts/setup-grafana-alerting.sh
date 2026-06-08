@@ -121,23 +121,25 @@ read -r -d '' TELEGRAM_TEMPLATE << 'GOTEMPLATE' || true
 {{ end }}
 GOTEMPLATE
 
-# Build the JSON payload safely with python3 (jq may not be installed on the host).
-# python3 is universally available on macOS/Linux and json.dumps() handles all
-# escaping (newlines, quotes, Unicode) correctly.
-PAYLOAD=$(python3 - <<PYEOF
-import json, sys
-
-template = """${TELEGRAM_TEMPLATE}"""
+# Build the JSON payload safely with python3, passing all values as environment
+# variables (never embedded in code). Using <<'PYEOF' (quoted delimiter) prevents
+# bash from expanding ${{ }} in the Go template or any token in the bot token.
+PAYLOAD=$(TELEGRAM_BOT_TOKEN="${WATCHDOG_TELEGRAM_BOT_TOKEN}" \
+          TELEGRAM_CHAT_ID="${WATCHDOG_TELEGRAM_RECIPIENT_ID}" \
+          TELEGRAM_TEMPLATE="${TELEGRAM_TEMPLATE}" \
+          TELEGRAM_CONTACT_NAME="${CONTACT_POINT_NAME}" \
+          python3 - <<'PYEOF'
+import json, os
 
 payload = {
-    "name":    "${CONTACT_POINT_NAME}",
+    "name":    os.environ["TELEGRAM_CONTACT_NAME"],
     "type":    "telegram",
     "settings": {
-        "chatid":                   "${WATCHDOG_TELEGRAM_RECIPIENT_ID}",
-        "bottoken":                 "${WATCHDOG_TELEGRAM_BOT_TOKEN}",
+        "chatid":                   os.environ["TELEGRAM_CHAT_ID"],
+        "bottoken":                 os.environ["TELEGRAM_BOT_TOKEN"],
         "parse_mode":               "HTML",
         "disable_web_page_preview": True,
-        "message":                  template,
+        "message":                  os.environ["TELEGRAM_TEMPLATE"],
     },
     "disableResolveMessage": False,
 }

@@ -58,7 +58,8 @@ if [ "$CROWDSEC_ENABLE" != "false" ]; then
 else
     echo -e "🟡 \033[1mcrowdsec\033[0m: Disabled in .env"
 fi
-check_container "redis" "sh -c 'CLI=\$(command -v valkey-cli || command -v redis-cli || echo redis-cli); \$CLI -a \"${REDIS_PASSWORD:-}\" PING'"
+# Since the image is Valkey-based, valkey-cli is guaranteed to be available.
+check_container "redis" "valkey-cli -a ${REDIS_PASSWORD} ping"
 
 echo ""
 echo "--- Observability ---"

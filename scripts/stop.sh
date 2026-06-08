@@ -73,7 +73,10 @@ source scripts/compose-files.sh
 echo "🛑 Stopping and cleaning the entire stack..."
 
 # Enforce project name to avoid missing containers
-COMPOSE_CMD="docker compose -p $PROJECT_NAME --profile crowdsec"
+COMPOSE_CMD="docker compose -p $PROJECT_NAME"
+if [ "${CROWDSEC_ENABLE:-true}" = "true" ]; then
+    COMPOSE_CMD="$COMPOSE_CMD --profile crowdsec"
+fi
 
 # 1. Graceful stop (allow containers to finish tasks)
 # We use || true to ensure 'down' runs even if 'stop' encounters issues

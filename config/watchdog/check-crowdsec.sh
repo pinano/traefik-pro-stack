@@ -45,8 +45,8 @@ else
         MSG="$1"
         curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_RECIPIENT_ID}" \
-            -d text="🛡️ *WATCHDOG - CrowdSec Alert*%0A🌐 *${SERVER_DOMAIN}*%0A%0A${MSG}" \
-            -d parse_mode="Markdown" > /dev/null
+            -d text="🛡️ <b>WATCHDOG - CrowdSec Alert</b>%0A🌐 <b>${SERVER_DOMAIN}</b>%0A%0A${MSG}" \
+            -d parse_mode="HTML" > /dev/null
     }
 fi
 
@@ -89,7 +89,7 @@ done
 
 if [ -z "$REAL_CONTAINER_ID" ] || [ -z "$CONTAINER_STATUS" ]; then
     printf '%b\n' "${RED}❌ CrowdSec container not found or Docker API error after $MAX_RETRIES attempts!${NC}"
-    send_telegram "CrowdSec container not found or Docker API error!%0A👉 *Action Required:* Check if the container exists and is properly configured. If necessary, you can try restarting it (e.g., \`make restart crowdsec\`)."
+    send_telegram "CrowdSec container not found or Docker API error!%0A👉 <b>Action Required:</b> Check if the container exists and is properly configured. If necessary, you can try restarting it (e.g., <code>make restart crowdsec</code>)."
     exit 1
 fi
 
@@ -98,7 +98,7 @@ CROWDSEC_CONTAINER="$REAL_CONTAINER_ID"
 
 if [ "$CONTAINER_STATUS" != "running" ]; then
     printf '%b\n' "${RED}❌ CrowdSec container is not running (status: $CONTAINER_STATUS)${NC}"
-    send_telegram "CrowdSec container is *not running*!%0ACurrent status: \`${CONTAINER_STATUS}\`%0A👉 *Action Required:* Restart the CrowdSec container (e.g., \`make restart crowdsec\`)."
+    send_telegram "CrowdSec container is <b>not running</b>!%0ACurrent status: <code>${CONTAINER_STATUS}</code>%0A👉 <b>Action Required:</b> Restart the CrowdSec container (e.g., <code>make restart crowdsec</code>)."
     exit 1
 fi
 
@@ -111,10 +111,10 @@ LAPI_EXIT_CODE=$?
 if [ $LAPI_EXIT_CODE -ne 0 ]; then
     printf '%b\n' "${RED}❌ CrowdSec LAPI is not healthy!${NC}"
     echo "$LAPI_STATUS"
-    # Strip Markdown special characters from LAPI output before embedding in the alert
-    # to prevent broken formatting or unexpected rendering in Telegram.
-    LAPI_SAFE=$(echo "$LAPI_STATUS" | head -5 | sed 's/[*_`\[\]]/\\&/g')
-    send_telegram "CrowdSec LAPI is *not healthy*!%0A%0AError output:%0A\`\`\`%0A${LAPI_SAFE}%0A\`\`\`%0A👉 *Action Required:* Check CrowdSec logs, and if necessary, restart the container (e.g., \`make restart crowdsec\`)."
+    # Strip HTML special characters from LAPI output before embedding in the alert
+    # to prevent broken HTML formatting in Telegram.
+    LAPI_SAFE=$(echo "$LAPI_STATUS" | head -5 | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
+    send_telegram "CrowdSec LAPI is <b>not healthy</b>!%0A%0AError output:%0A<pre>${LAPI_SAFE}</pre>%0A👉 <b>Action Required:</b> Check CrowdSec logs, and if necessary, restart the container (e.g., <code>make restart crowdsec</code>)."
     exit 1
 fi
 
@@ -126,7 +126,7 @@ BOUNCER_COUNT=$(echo "$BOUNCERS" | jq 'length' 2>/dev/null || echo "0")
 
 if [ "$BOUNCER_COUNT" = "0" ] || [ -z "$BOUNCER_COUNT" ]; then
     printf '%b\n' "${YELLOW}⚠️ No bouncers registered with CrowdSec${NC}"
-    send_telegram "No bouncers are registered with CrowdSec!%0A%0A👉 *Action Required:* Register the Traefik bouncer to enable protection. If they should be registered, try restarting the container (e.g., \`make restart crowdsec\`)."
+    send_telegram "No bouncers are registered with CrowdSec!%0A%0A👉 <b>Action Required:</b> Register the Traefik bouncer to enable protection. If they should be registered, try restarting the container (e.g., <code>make restart crowdsec</code>)."
 else
     printf '%b\n' "${GREEN}✅ $BOUNCER_COUNT bouncer(s) registered${NC}"
 
@@ -224,7 +224,7 @@ else
                     MSG_TIME="never"
                 fi
 
-                STALE_ALERTS="${STALE_ALERTS}• *$name*: last pull was ${MSG_TIME}%0A"
+                STALE_ALERTS="${STALE_ALERTS}• <b>$name</b>: last pull was ${MSG_TIME}%0A"
                 printf '%b\n' "${YELLOW}⚠️ Bouncer '$name' is STALE (last pull: ${MSG_TIME})${NC}"
             done < "$group_file"
         else
@@ -233,7 +233,7 @@ else
     done
 
     if [ -n "$STALE_ALERTS" ]; then
-        send_telegram "Some bouncers appear to be stale:%0A%0A${STALE_ALERTS}%0A👉 *Action Required:* Access the host to check CrowdSec log/status. If the issue persists, try restarting it (e.g., \`make restart crowdsec\`)."
+        send_telegram "Some bouncers appear to be stale:%0A%0A${STALE_ALERTS}%0A👉 <b>Action Required:</b> Access the host to check CrowdSec log/status. If the issue persists, try restarting it (e.g., <code>make restart crowdsec</code>)."
     fi
 
     rm -rf "$GROUP_DIR"
