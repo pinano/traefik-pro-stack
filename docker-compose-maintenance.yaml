@@ -5,6 +5,7 @@ services:
     restart: always
     volumes:
       - ./config/maintenance/index.html:/usr/share/nginx/html/index.html:ro
+      - ./config/maintenance/default.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - traefik
     labels:

@@ -34,12 +34,16 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ./config/anubis/botPolicy-generated.yaml:/botPolicy.yaml:ro
-    # NOTE: Anubis uses a chainguard static base image with no shell/wget.
-    # To enable healthcheck, confirm the probe endpoint from:
-    # https://github.com/TecharoHQ/anubis/releases
-    # Then use: test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/<endpoint>"]
+    # Anubis exposes /healthz — confirmed in v1.x releases.
+    # The chainguard static image has no shell: use CMD array (Docker calls the
+    # binary directly). If this version's binary doesn't support a healthcheck
+    # subcommand, fall back to: disable: true and file a tracking issue.
     healthcheck:
-      disable: true
+      test: ["CMD", "/usr/local/bin/anubis", "healthcheck", "--url", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     logging:
       driver: "json-file"
       options:

@@ -41,15 +41,15 @@ else
         MSG="$1"
         curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_RECIPIENT_ID}" \
-            -d text="🖥️ *WATCHDOG - System Alert*%0A🌐 *${SERVER_DOMAIN}*%0A%0A${MSG}" \
-            -d parse_mode="Markdown" > /dev/null
+            -d text="🖥️ <b>WATCHDOG - System Alert</b>%0A🌐 <b>${SERVER_DOMAIN}</b>%0A%0A${MSG}" \
+            -d parse_mode="HTML" > /dev/null
     }
 fi
 
 # Verify docker socket is available
 if [ ! -S /var/run/docker.sock ]; then
     printf '%b\n' "${RED}❌ Error: Docker socket not available.${NC}"
-    send_telegram "Docker socket is not available inside the watchdog container!%0A👉 *Action Required:* Verify that \`/var/run/docker.sock\` is correctly mounted in the watchdog service volume configuration."
+    send_telegram "Docker socket is not available inside the watchdog container!%0A👉 <b>Action Required:</b> Verify that <code>/var/run/docker.sock</code> is correctly mounted in the watchdog service volume configuration."
     exit 1
 fi
 
@@ -94,13 +94,13 @@ else
         if [ "$c_service" != "ctop" ]; then
             if [ "$c_status" != "running" ]; then
                 printf '%b\n' "${RED}❌ Container $c_name ($c_service) is NOT running! Status: $c_status${NC}"
-                ALERTS="${ALERTS}• *Container Down*: \`${c_name}\` (service \`${c_service}\`) is *${c_status}*!%0A"
+                ALERTS="${ALERTS}• <b>Container Down</b>: <code>${c_name}</code> (service <code>${c_service}</code>) is <b>${c_status}</b>!%0A"
                 ERRORS=$((ERRORS + 1))
             else
                 # 1b. Check Health Status
                 if [ "$c_health" = "unhealthy" ]; then
                     printf '%b\n' "${RED}❌ Container $c_name ($c_service) is UNHEALTHY!${NC}"
-                    ALERTS="${ALERTS}• *Container Unhealthy*: \`${c_name}\` is *unhealthy*!%0A"
+                    ALERTS="${ALERTS}• <b>Container Unhealthy</b>: <code>${c_name}</code> is <b>unhealthy</b>!%0A"
                     ERRORS=$((ERRORS + 1))
                 else
                     printf '%b\n' "${GREEN}✅ Container $c_name is running ($c_status / health: $c_health)${NC}"
@@ -119,14 +119,14 @@ else
                 if [ "$c_restarts" -gt "$cached_restarts" ]; then
                     diff=$((c_restarts - cached_restarts))
                     printf '%b\n' "${YELLOW}⚠️ Container $c_name restarted $diff times since last check! Total restarts: $c_restarts${NC}"
-                    ALERTS="${ALERTS}• *Container Restarted*: \`${c_name}\` restarted *${diff}* times! (Total: ${c_restarts})%0A"
+                    ALERTS="${ALERTS}• <b>Container Restarted</b>: <code>${c_name}</code> restarted <b>${diff}</b> times! (Total: ${c_restarts})%0A"
                     ERRORS=$((ERRORS + 1))
                 fi
             else
                 # New container not previously seen with restarts
                 if [ "$c_restarts" -gt 0 ]; then
                     printf '%b\n' "${YELLOW}⚠️ Container $c_name has restarted $c_restarts times (newly tracked)${NC}"
-                    ALERTS="${ALERTS}• *Container Restarted*: \`${c_name}\` has *${c_restarts}* restarts!%0A"
+                    ALERTS="${ALERTS}• <b>Container Restarted</b>: <code>${c_name}</code> has <b>${c_restarts}</b> restarts!%0A"
                     ERRORS=$((ERRORS + 1))
                 fi
             fi
@@ -153,7 +153,7 @@ else
     PING_RES=$(docker exec -e REDISCLI_AUTH="$REDIS_PASSWORD" -e VALKEYCLI_AUTH="$REDIS_PASSWORD" "$REDIS_CONTAINER" sh -c 'CLI=$(command -v valkey-cli || command -v redis-cli || echo redis-cli); $CLI ping' 2>/dev/null | tr -d '\r')
     if [ "$PING_RES" != "PONG" ]; then
         printf '%b\n' "${RED}❌ Redis is not responding to PING! Response: $PING_RES${NC}"
-        ALERTS="${ALERTS}• *Redis Unresponsive*: Redis container is running but PING returned \`${PING_RES:-empty}\`!%0A"
+        ALERTS="${ALERTS}• <b>Redis Unresponsive</b>: Redis container is running but PING returned <code>${PING_RES:-empty}</code>!%0A"
         ERRORS=$((ERRORS + 1))
     else
         printf '%b\n' "${GREEN}✅ Redis PING OK${NC}"
@@ -171,7 +171,7 @@ else
                 
                 if [ $mem_pct -gt 90 ]; then
                     printf '%b\n' "${RED}❌ Redis memory usage is critical: $used_human / $max_human ($mem_pct%)${NC}"
-                    ALERTS="${ALERTS}• *Redis OOM Warning*: Redis memory at *${mem_pct}%* (${used_human} / ${max_human})!%0A"
+                    ALERTS="${ALERTS}• <b>Redis OOM Warning</b>: Redis memory at <b>${mem_pct}%</b> (${used_human} / ${max_human})!%0A"
                     ERRORS=$((ERRORS + 1))
                 else
                     printf '%b\n' "${GREEN}✅ Redis memory: $used_human / $max_human ($mem_pct%)${NC}"
@@ -197,7 +197,7 @@ PROJECT_DISK_PCT=$(df -h /domains.csv | tail -n 1 | awk '{print $5}' | tr -d '% 
 
 if [ -n "$DISK_PCT" ] && [ "$DISK_PCT" -gt "$DISK_WARNING_THRESHOLD" ]; then
     printf '%b\n' "${RED}❌ Disk space is running low on root (/): ${DISK_PCT}%${NC}"
-    ALERTS="${ALERTS}• *Disk Space Critical*: Root partition (/) is at *${DISK_PCT}%* usage!%0A"
+    ALERTS="${ALERTS}• <b>Disk Space Critical</b>: Root partition (/) is at <b>${DISK_PCT}%</b> usage!%0A"
     ERRORS=$((ERRORS + 1))
 else
     printf '%b\n' "${GREEN}✅ Disk space (root /): ${DISK_PCT}%${NC}"
@@ -205,7 +205,7 @@ fi
 
 if [ -n "$PROJECT_DISK_PCT" ] && [ "$PROJECT_DISK_PCT" -gt "$DISK_WARNING_THRESHOLD" ] && [ "$PROJECT_DISK_PCT" != "$DISK_PCT" ]; then
     printf '%b\n' "${RED}❌ Disk space is running low on project partition: ${PROJECT_DISK_PCT}%${NC}"
-    ALERTS="${ALERTS}• *Disk Space Critical*: Project directory partition is at *${PROJECT_DISK_PCT}%* usage!%0A"
+    ALERTS="${ALERTS}• <b>Disk Space Critical</b>: Project directory partition is at <b>${PROJECT_DISK_PCT}%</b> usage!%0A"
     ERRORS=$((ERRORS + 1))
 elif [ "$PROJECT_DISK_PCT" != "$DISK_PCT" ]; then
     printf '%b\n' "${GREEN}✅ Disk space (project): ${PROJECT_DISK_PCT}%${NC}"
@@ -219,7 +219,7 @@ if [ -n "$TOTAL_MEM" ] && [ -n "$AVAILABLE_MEM" ] && [ "$TOTAL_MEM" -gt 0 ]; the
     USED_PCT=$(( (TOTAL_MEM - AVAILABLE_MEM) * 100 / TOTAL_MEM ))
     if [ "$USED_PCT" -gt "$HOST_MEM_WARNING_THRESHOLD" ]; then
         printf '%b\n' "${RED}❌ Host memory is critical: ${USED_PCT}% usage (${AVAILABLE_MEM}MB available of ${TOTAL_MEM}MB)${NC}"
-        ALERTS="${ALERTS}• *Host Memory Critical*: Using *${USED_PCT}%* of total ${TOTAL_MEM}MB memory! (available: ${AVAILABLE_MEM}MB)%0A"
+        ALERTS="${ALERTS}• <b>Host Memory Critical</b>: Using <b>${USED_PCT}%</b> of total ${TOTAL_MEM}MB memory! (available: ${AVAILABLE_MEM}MB)%0A"
         ERRORS=$((ERRORS + 1))
     else
         printf '%b\n' "${GREEN}✅ Host memory: ${USED_PCT}% usage (${AVAILABLE_MEM}MB available of ${TOTAL_MEM}MB)${NC}"
@@ -247,7 +247,7 @@ if [ -n "$CONTAINER_IDS" ]; then
             val=$(echo "$perc" | cut -d. -f1 | tr -d '% ')
             if [ -n "$val" ] && [ "$val" -gt "$CONTAINER_MEM_WARNING_THRESHOLD" ]; then
                 printf '%b\n' "${RED}❌ Container $name is close to memory limit: $perc${NC}"
-                ALERTS="${ALERTS}• *Container Memory Limit*: \`${name}\` is using *${perc}* of its memory limit!%0A"
+                ALERTS="${ALERTS}• <b>Container Memory Limit</b>: <code>${name}</code> is using <b>${perc}</b> of its memory limit!%0A"
                 ERRORS=$((ERRORS + 1))
             fi
         done < "$STATS_FILE"
@@ -261,7 +261,7 @@ fi
 # ==========================================
 if [ $ERRORS -gt 0 ]; then
     printf '%b\n' "${RED}⚠️ Stack health check completed with $ERRORS warning/error conditions. Alert sending...${NC}"
-    send_telegram "System checks detected the following issue(s):%0A%0A${ALERTS}👉 *Action Required:* Access the host to inspect docker compose services and system resources."
+    send_telegram "System checks detected the following issue(s):%0A%0A${ALERTS}👉 <b>Action Required:</b> Access the host to inspect docker compose services and system resources."
 else
     printf '%b\n' "${GREEN}✅ Stack health check completed successfully. All parameters within bounds.${NC}"
 fi

@@ -38,19 +38,19 @@ if [ -f ".maintenance_mode" ]; then
 fi
 
 # Add Backrest (Restic Web UI) if enabled
-BACKREST_ENABLE="${BACKREST_ENABLE:-true}"
+BACKREST_ENABLE="${BACKREST_ENABLE:-false}"
 if [ "$BACKREST_ENABLE" = "true" ]; then
     COMPOSE_FILES="$COMPOSE_FILES -f docker-compose-backrest.yaml"
 fi
 
 # Add phpMyAdmin if enabled
-PHPMYADMIN_ENABLE="${PHPMYADMIN_ENABLE:-true}"
+PHPMYADMIN_ENABLE="${PHPMYADMIN_ENABLE:-false}"
 if [ "$PHPMYADMIN_ENABLE" = "true" ]; then
     COMPOSE_FILES="$COMPOSE_FILES -f docker-compose-phpmyadmin.yaml"
 fi
 
 # Add Filebrowser if enabled
-FILEBROWSER_ENABLE="${FILEBROWSER_ENABLE:-true}"
+FILEBROWSER_ENABLE="${FILEBROWSER_ENABLE:-false}"
 if [ "$FILEBROWSER_ENABLE" = "true" ]; then
     COMPOSE_FILES="$COMPOSE_FILES -f docker-compose-filebrowser.yaml"
 fi

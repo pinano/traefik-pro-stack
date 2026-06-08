@@ -29,6 +29,7 @@ app.secret_key = os.environ.get('FLASK_SECRET_KEY') or os.environ.get('DASHBOARD
 
 # --- Hardened Session Settings ---
 app.config.update(
+    SESSION_COOKIE_NAME='dashboard_session',
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SECURE=True,  # In production via Traefik HTTPS
     SESSION_COOKIE_SAMESITE='Lax',
@@ -97,6 +98,7 @@ limiter = Limiter(
     app=app,
     default_limits=["200 per day", "50 per hour"],
     storage_uri=_limiter_storage,
+    in_memory_fallback_enabled=True,
 )
 
 ADMIN_USER = os.environ.get('DASHBOARD_ADMIN_USER', 'admin')
@@ -686,7 +688,7 @@ def write_captcha_csv(data):
             os.fsync(f.fileno())
         os.replace(tmp_path, CAPTCHA_CSV_PATH)
         try:
-            os.chmod(CAPTCHA_CSV_PATH, 0o644)
+            os.chmod(CAPTCHA_CSV_PATH, 0o600)
         except OSError:
             pass
     except Exception:

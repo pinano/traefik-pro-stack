@@ -40,6 +40,10 @@ services:
       - ./docker-compose-apache-logs.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-apache-logs.yaml:ro
       - ./docker-compose-observability.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-observability.yaml:ro
       - ./docker-compose-dashboard.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-dashboard.yaml:ro
+      - ./docker-compose-backrest.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-backrest.yaml:ro
+      - ./docker-compose-phpmyadmin.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-phpmyadmin.yaml:ro
+      - ./docker-compose-filebrowser.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-filebrowser.yaml:ro
+      - ./docker-compose-maintenance.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-maintenance.yaml:ro
       - ./config:${DASHBOARD_APP_PATH_HOST}/config
       - /var/run/docker.sock:/var/run/docker.sock
       - /etc/hosts:/etc/hosts-host:ro
@@ -92,7 +96,7 @@ services:
       resources:
         limits:
           cpus: 0.10
-          memory: 64M
+          memory: 128M
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"

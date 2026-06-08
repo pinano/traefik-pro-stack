@@ -37,8 +37,8 @@ else
         MSG="$1"
         curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_RECIPIENT_ID}" \
-            -d text="⚠️ *WATCHDOG - SSL Alert*%0A🌐 *${SERVER_DOMAIN}*%0A%0A${MSG}" \
-            -d parse_mode="Markdown" > /dev/null
+            -d text="⚠️ <b>WATCHDOG - SSL Alert</b>%0A🌐 <b>${SERVER_DOMAIN}</b>%0A%0A${MSG}" \
+            -d parse_mode="HTML" > /dev/null
     }
 fi
 
@@ -50,13 +50,13 @@ fi
 
 if [ ! -f "$ACME_FILE" ]; then
     echo "❌ Error: $ACME_FILE not found."
-    send_telegram "ACME certificate file \`$ACME_FILE\` not found!%0A👉 *Action Required:* Verify that Traefik is running and the acme.json volume is correctly mapped."
+    send_telegram "ACME certificate file <code>$ACME_FILE</code> not found!%0A👉 <b>Action Required:</b> Verify that Traefik is running and the acme.json volume is correctly mapped."
     exit 1
 fi
 
 if ! jq empty "$ACME_FILE" 2>/dev/null; then
     echo "❌ Error: $ACME_FILE contains invalid JSON."
-    send_telegram "ACME certificate file \`$ACME_FILE\` contains invalid JSON!%0A👉 *Action Required:* Inspect the acme.json file to locate and repair corrupted data."
+    send_telegram "ACME certificate file <code>$ACME_FILE</code> contains invalid JSON!%0A👉 <b>Action Required:</b> Inspect the acme.json file to locate and repair corrupted data."
     exit 1
 fi
 
@@ -220,7 +220,7 @@ while IFS= read -r CERT_B64; do
         printf '%b\n' "${RED}[DANGER] Cert covering [$DISPLAY_DOMAINS] expires in $DAYS_LEFT days ($END_DATE_STR)${NC}"
 
         # Send Telegram alert
-        MESSAGE="The certificate covering *${DISPLAY_DOMAINS}* expires in *${DAYS_LEFT} days* (threshold: ${WATCHDOG_CERT_DAYS_WARNING} days).%0AAutomatic renewal has failed or is delayed.%0A👉 *Action Required:* Review Traefik renewal process immediately."
+        MESSAGE="The certificate covering <b>${DISPLAY_DOMAINS}</b> expires in <b>${DAYS_LEFT} days</b> (threshold: ${WATCHDOG_CERT_DAYS_WARNING} days).%0AAutomatic renewal has failed or is delayed.%0A👉 <b>Action Required:</b> Review Traefik renewal process immediately."
         send_telegram "$MESSAGE"
         ERRORS=$((ERRORS + 1))
     else
@@ -244,14 +244,14 @@ for ED in $EXPECTED_DOMAINS; do
         fi
     done
     if [ "$FOUND" = "false" ]; then
-        MISSING_DOMAINS="${MISSING_DOMAINS}• *${ED}*%0A"
+        MISSING_DOMAINS="${MISSING_DOMAINS}• <b>${ED}</b>%0A"
         MISSING_COUNT=$((MISSING_COUNT + 1))
         printf '%b\n' "${RED}[MISSING] Expected domain $ED has no certificate in acme.json!${NC}"
     fi
 done
 
 if [ $MISSING_COUNT -gt 0 ]; then
-    MESSAGE="Found *${MISSING_COUNT}* expected domain(s) with *no SSL certificates* in acme.json:%0A%0A${MISSING_DOMAINS}%0ATraefik may have failed to resolve or obtain certificates for them.%0A👉 *Action Required:* Check Traefik logs to debug certificate generation."
+    MESSAGE="Found <b>${MISSING_COUNT}</b> expected domain(s) with <b>no SSL certificates</b> in acme.json:%0A%0A${MISSING_DOMAINS}%0ATraefik may have failed to resolve or obtain certificates for them.%0A👉 <b>Action Required:</b> Check Traefik logs to debug certificate generation."
     send_telegram "$MESSAGE"
     ERRORS=$((ERRORS + MISSING_COUNT))
 fi
