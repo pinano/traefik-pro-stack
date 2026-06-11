@@ -364,4 +364,11 @@ make help             # Full command list
 
 ---
 
+## Future Architecture Considerations
+
+- **Mixed ACME Challenges**: Currently, all domains default to Let's Encrypt `tlsChallenge`. In the future, we may need to implement `httpChallenge` and `dnsChallenge` alongside `tlsChallenge` to handle domains with different configurations.
+  - *Note*: This will require adding a new column to `domains.csv` to specify the challenge type per domain, which in turn will require updating the Domain Manager in the Flask Dashboard UI to parse and manage this new field.
+
+---
+
 Happy coding. Keep this stack bulletproof.
