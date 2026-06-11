@@ -1,3 +1,9 @@
+## v2026.06.11.1 (2026-06-11)
+
+- docs: add future architecture considerations for mixed ACME challenge support to AGENTS.md (b5295d5)
+- chore: increase logging limits for anubis-base to 50m and 3 rotated files (70fff5e)
+- chore: harden stack resilience with redis memory headroom and log rotation limits (1f9e526)
+
 ## v2026.06.11 (2026-06-11)
 
 - chore: update container images and implement automatic traefik-bouncer re-registration in watchdog script (5d44e32)
