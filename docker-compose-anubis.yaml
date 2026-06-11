@@ -45,8 +45,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "5m"
-        max-file: "1"
+        max-size: "50m"
+        max-file: "3"
 
   # ===========================
   #  ANUBIS-ASSETS (Static files server for Anubis challenge pages)
