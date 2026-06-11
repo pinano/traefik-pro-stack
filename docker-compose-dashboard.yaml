@@ -103,6 +103,11 @@ services:
         limits:
           cpus: 0.10
           memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
