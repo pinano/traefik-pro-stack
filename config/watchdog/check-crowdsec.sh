@@ -124,6 +124,36 @@ printf '%b\n' "${GREEN}✅ CrowdSec LAPI is healthy${NC}"
 BOUNCERS=$(docker exec "$CROWDSEC_CONTAINER" cscli bouncers list -o json 2>/dev/null)
 BOUNCER_COUNT=$(echo "$BOUNCERS" | jq 'length' 2>/dev/null || echo "0")
 
+if [ -n "$CROWDSEC_LAPI_KEY" ]; then
+    # Test API key validity
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -H "X-Api-Key: $CROWDSEC_LAPI_KEY" http://crowdsec:8080/v1/decisions/stream?startup=true)
+    
+    # Check if traefik-bouncer is registered
+    HAS_TRAEFIK_BOUNCER=$(echo "$BOUNCERS" | jq -r '.[] | select(.name == "traefik-bouncer") | .name' 2>/dev/null)
+    
+    if [ "$HTTP_CODE" = "403" ] || [ -z "$HAS_TRAEFIK_BOUNCER" ]; then
+        printf '%b\n' "${YELLOW}🔧 Self-healing: traefik-bouncer is missing or unauthorized (LAPI returned HTTP $HTTP_CODE). Re-registering...${NC}"
+        
+        # Delete the bouncer if it exists to avoid duplicate/mismatched registration
+        docker exec "$CROWDSEC_CONTAINER" cscli bouncers delete traefik-bouncer >/dev/null 2>&1 || true
+        
+        # Register the bouncer securely
+        ADD_OUTPUT=$(echo "${CROWDSEC_LAPI_KEY}" | docker exec -i "$CROWDSEC_CONTAINER" sh -c 'read -r KEY && cscli bouncers add traefik-bouncer --key "$KEY"' 2>&1)
+        ADD_EXIT=$?
+        
+        if [ $ADD_EXIT -eq 0 ]; then
+            printf '%b\n' "${GREEN}✅ Self-healing succeeded: traefik-bouncer registered successfully.${NC}"
+            # Refresh bouncer list and count
+            BOUNCERS=$(docker exec "$CROWDSEC_CONTAINER" cscli bouncers list -o json 2>/dev/null)
+            BOUNCER_COUNT=$(echo "$BOUNCERS" | jq 'length' 2>/dev/null || echo "0")
+            send_telegram "Self-healing triggered: traefik-bouncer was missing or unauthorized (LAPI returned 403) and has been successfully re-registered."
+        else
+            printf '%b\n' "${RED}❌ Self-healing failed: $ADD_OUTPUT${NC}"
+            send_telegram "Self-healing failed: traefik-bouncer is missing or unauthorized, and re-registration failed. Error: $ADD_OUTPUT"
+        fi
+    fi
+fi
+
 if [ "$BOUNCER_COUNT" = "0" ] || [ -z "$BOUNCER_COUNT" ]; then
     printf '%b\n' "${YELLOW}⚠️ No bouncers registered with CrowdSec${NC}"
     send_telegram "No bouncers are registered with CrowdSec!%0A%0A👉 <b>Action Required:</b> Register the Traefik bouncer to enable protection. If they should be registered, try restarting the container (e.g., <code>make restart crowdsec</code>)."
@@ -172,6 +202,17 @@ else
                     [ $AGE -le $STALE_THRESHOLD ] && IS_STALE=0
                 fi
             fi
+        fi
+
+        # NEVER auto-prune the main static bouncer
+        if [ "$full_name" = "traefik-bouncer" ]; then
+            # Record status for the group (always active, or staleness handled separately)
+            if [ $IS_STALE -eq 0 ]; then
+                touch "$GROUP_DIR/${base_name}.active"
+            else
+                echo "$full_name" >> "$GROUP_DIR/${base_name}.stale_list"
+            fi
+            continue
         fi
 
         # Auto-prune very old bouncers — do this BEFORE recording group status.
