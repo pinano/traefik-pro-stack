@@ -24,6 +24,11 @@ services:
 
       # Route to Nginx port 80
       - "traefik.http.services.maintenance.loadbalancer.server.port=80"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 networks:
   traefik:
