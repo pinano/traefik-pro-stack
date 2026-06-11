@@ -1,3 +1,8 @@
+## v2026.06.11 (2026-06-11)
+
+- chore: update container images and implement automatic traefik-bouncer re-registration in watchdog script (5d44e32)
+- docs: clarify CSP wildcard limitations for TRAEFIK_FRAME_ANCESTORS in .env.dist (a6433fe)
+
 ## v2026.06.08.1 (2026-06-08)
 
 - chore: implement and update service healthcheck configurations across docker-compose files (b1274a7)
