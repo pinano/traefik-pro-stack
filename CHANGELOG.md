@@ -1,3 +1,7 @@
+## v2026.06.16 (2026-06-16)
+
+- chore: increase Prometheus memory limit and enable out-of-order time window support (08efa0f)
+
 ## v2026.06.11.1 (2026-06-11)
 
 - docs: add future architecture considerations for mixed ACME challenge support to AGENTS.md (b5295d5)
