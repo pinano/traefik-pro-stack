@@ -144,6 +144,7 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=${PROMETHEUS_RETENTION_DAYS:-15}d'
       - '--storage.tsdb.wal-compression'
+      - '--storage.tsdb.out-of-order.time-window=30m'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
       - '--web.enable-remote-write-receiver'
