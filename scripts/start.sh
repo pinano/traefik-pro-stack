@@ -9,6 +9,9 @@
 
 set -e  # Exit on any error
 
+# Suppress LibreSSL warnings on macOS (urllib3 v2 compatibility)
+export PYTHONWARNINGS="ignore:urllib3 v2 only supports"
+
 # ⏲️ Start Timer
 START_TIME=$(date +%s)
 
