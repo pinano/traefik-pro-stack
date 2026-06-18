@@ -89,8 +89,9 @@ prompt_val() {
     local current_val
     current_val=$(grep "^${var_name}=" "$ENV_FILE" | cut -d'=' -f2-)
     
-    # Remove single quotes if present for display
-    local display_val="${current_val//\'/}"
+    # Remove single and double quotes if present for display
+    local display_val
+    display_val=$(echo "$current_val" | tr -d "'\"")
 
     echo ""
     echo "👉 $desc"
