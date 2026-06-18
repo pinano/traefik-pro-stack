@@ -85,7 +85,7 @@ services:
   #  DOZZLE (Container log viewer)
   # ===========================
   dozzle:
-    image: amir20/dozzle:v10.6.5
+    image: amir20/dozzle:v10.6.6
     restart: always
     networks:
       - traefik

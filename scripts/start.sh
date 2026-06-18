@@ -297,6 +297,12 @@ set -a
 source .env
 set +a
 
+# Clean any leading/trailing quotes from CROWDSEC_COLLECTIONS to prevent duplicate quoting from Make/OS
+if [ -n "$CROWDSEC_COLLECTIONS" ]; then
+    CROWDSEC_COLLECTIONS=$(echo "$CROWDSEC_COLLECTIONS" | tr -d '"' | tr -d "'" | xargs)
+    export CROWDSEC_COLLECTIONS
+fi
+
 # =============================================================================
 # AUTO-CONFIGURATION: Absolute Path Mirroring
 # =============================================================================
