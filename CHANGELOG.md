@@ -1,3 +1,9 @@
+## v2026.06.18 (2026-06-18)
+
+- chore: update service images and implement quote sanitization for CROWDSEC_COLLECTIONS environment variable (f13f6f8)
+- chore: suppress urllib3 warnings, improve venv repair logic, and rotate valkey password (75065a6)
+- chore: migrate Prometheus out-of-order time window configuration from CLI arguments to YAML file (8c78ec5)
+
 ## v2026.06.16 (2026-06-16)
 
 - chore: increase Prometheus memory limit and enable out-of-order time window support (08efa0f)

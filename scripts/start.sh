@@ -9,6 +9,9 @@
 
 set -e  # Exit on any error
 
+# Suppress LibreSSL warnings on macOS (urllib3 v2 compatibility)
+export PYTHONWARNINGS="ignore:urllib3 v2 only supports"
+
 # ⏲️ Start Timer
 START_TIME=$(date +%s)
 
@@ -293,6 +296,12 @@ fi
 set -a
 source .env
 set +a
+
+# Clean any leading/trailing quotes from CROWDSEC_COLLECTIONS to prevent duplicate quoting from Make/OS
+if [ -n "$CROWDSEC_COLLECTIONS" ]; then
+    CROWDSEC_COLLECTIONS=$(echo "$CROWDSEC_COLLECTIONS" | tr -d '"' | tr -d "'" | xargs)
+    export CROWDSEC_COLLECTIONS
+fi
 
 # =============================================================================
 # AUTO-CONFIGURATION: Absolute Path Mirroring
