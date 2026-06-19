@@ -1,3 +1,8 @@
+## v2026.06.19 (2026-06-19)
+
+- Merge branch 'main' of github.com:pinano/traefik-crowdsec-anubis-grafana (d652196)
+- fix: improve Telegram message formatting by using URL encoding and per-field HTML escaping in jq (c6268c1)
+
 ## v2026.06.18 (2026-06-18)
 
 - chore: update service images and implement quote sanitization for CROWDSEC_COLLECTIONS environment variable (f13f6f8)
