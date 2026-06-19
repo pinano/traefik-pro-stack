@@ -5,6 +5,9 @@
 
 set -e
 
+# Suppress LibreSSL warnings on macOS (urllib3 v2 compatibility)
+export PYTHONWARNINGS="ignore:urllib3 v2 only supports"
+
 # =============================================================================
 # TERMINAL RESTORATION
 # =============================================================================
@@ -39,13 +42,13 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-# Create virtual environment if it doesn't exist
-if [ ! -d ".venv" ]; then
-    echo "📦 Creating virtual environment (.venv)..."
+# Create virtual environment if it doesn't exist or is invalid (e.g. path or OS changes)
+if [ ! -d ".venv" ] || ! ./.venv/bin/python3 -c "import sys" &>/dev/null; then
+    echo "📦 Creating/Repairing virtual environment (.venv)..."
+    rm -rf .venv
     python3 -m venv .venv
 fi
 
-# Install requirements
 # Install requirements
 if [ -f "scripts/requirements.txt" ]; then
     echo "⬇️  Installing/Updating Python dependencies..."
@@ -86,8 +89,9 @@ prompt_val() {
     local current_val
     current_val=$(grep "^${var_name}=" "$ENV_FILE" | cut -d'=' -f2-)
     
-    # Remove single quotes if present for display
-    local display_val="${current_val//\'/}"
+    # Remove single and double quotes if present for display
+    local display_val
+    display_val=$(echo "$current_val" | tr -d "'\"")
 
     echo ""
     echo "👉 $desc"

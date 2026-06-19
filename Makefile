@@ -30,6 +30,9 @@ endif
 
 ifndef SKIP_MAKEFILE
 
+# Suppress LibreSSL warnings on macOS (urllib3 v2 compatibility)
+export PYTHONWARNINGS := ignore:urllib3 v2 only supports
+
 # Define Python interpreter (prioritizes virtual environment)
 ifneq (,$(wildcard .venv/bin/python3))
     PYTHON := .venv/bin/python3

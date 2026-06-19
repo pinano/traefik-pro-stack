@@ -1,6 +1,6 @@
 services:
   maintenance:
-    image: nginx:1.31.1-alpine3.23-slim
+    image: nginx:1.31.2-alpine3.23-slim
     container_name: ${PROJECT_NAME:-traefik-stack}-maintenance
     restart: always
     volumes:

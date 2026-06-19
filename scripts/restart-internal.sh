@@ -28,6 +28,9 @@
 
 set -e
 
+# Suppress LibreSSL warnings on macOS (urllib3 v2 compatibility)
+export PYTHONWARNINGS="ignore:urllib3 v2 only supports"
+
 echo ""
 echo "────────────────────────────────────────────────────────────────────────"
 echo "🔄 APPLYING CONFIGURATION CHANGES..."
