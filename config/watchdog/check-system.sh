@@ -39,10 +39,14 @@ if [ -z "$TELEGRAM_BOT_TOKEN" ] || [ -z "$TELEGRAM_RECIPIENT_ID" ]; then
 else
     send_telegram() {
         MSG="$1"
+        TEXT=$(printf '%s' "🖥️ <b>WATCHDOG - System Alert</b>
+🌐 <b>${SERVER_DOMAIN}</b>
+
+${MSG}" | awk '{gsub(/%0A/, "\n"); print}')
         curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_RECIPIENT_ID}" \
-            -d text="🖥️ <b>WATCHDOG - System Alert</b>%0A🌐 <b>${SERVER_DOMAIN}</b>%0A%0A${MSG}" \
-            -d parse_mode="HTML" > /dev/null
+            -d parse_mode="HTML" \
+            --data-urlencode "text=${TEXT}" > /dev/null
     }
 fi
 
