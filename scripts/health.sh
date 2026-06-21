@@ -33,8 +33,8 @@ check_container() {
 check_perms() {
     local file=$1
     if [ -f "$file" ]; then
-        # Handle mac/linux stat differences if necessary, but assume linux
-        perms=$(stat -c %a "$file")
+        # Handle mac/linux stat differences to support running on macOS host
+        perms=$(stat -c '%a' "$file" 2>/dev/null || stat -f '%A' "$file" 2>/dev/null)
         if [ "$perms" == "600" ]; then
             echo -e "🟢 \033[1mSecurity ($file)\033[0m: Correct permissions ($perms)"
         else
