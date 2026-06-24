@@ -67,26 +67,37 @@ CONTAINER_STATUS=""
 REAL_CONTAINER_ID=""
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-    # Try finding by label first (scoped to project for isolation)
+    # 1. Try finding by project + service labels (standard compose)
     if [ -n "$PROJECT_NAME" ]; then
-        REAL_CONTAINER_ID=$(docker ps -aq --filter "label=com.docker.compose.project=$PROJECT_NAME" --filter "label=com.docker.compose.service=crowdsec" | head -n 1)
-    else
-        REAL_CONTAINER_ID=$(docker ps -aq --filter "label=com.docker.compose.service=crowdsec" | head -n 1)
+        REAL_CONTAINER_ID=$(docker ps -aq --filter "label=com.docker.compose.project=$PROJECT_NAME" --filter "label=com.docker.compose.service=crowdsec" 2>/dev/null | head -n 1)
     fi
 
-    # If not found by label, fallback to name for custom non-compose setups
+    # 2. Try finding by service label alone (handles project name mismatches)
     if [ -z "$REAL_CONTAINER_ID" ]; then
-        REAL_CONTAINER_ID=$(docker ps -aqf "name=$CROWDSEC_CONTAINER" | head -n 1)
+        REAL_CONTAINER_ID=$(docker ps -aq --filter "label=com.docker.compose.service=crowdsec" 2>/dev/null | head -n 1)
     fi
 
+    # 3. Try finding by exact name match (handles custom non-compose setups)
+    if [ -z "$REAL_CONTAINER_ID" ]; then
+        REAL_CONTAINER_ID=$(docker ps -aq --filter "name=^/${CROWDSEC_CONTAINER}$" 2>/dev/null | head -n 1)
+    fi
+
+    # 4. Fallback to name substring match, excluding crowdsec-web-ui to avoid false matching
+    if [ -z "$REAL_CONTAINER_ID" ]; then
+        REAL_CONTAINER_ID=$(docker ps -a --filter "name=$CROWDSEC_CONTAINER" --format "{{.ID}}|{{.Names}}" 2>/dev/null | grep -v "web-ui" | head -n 1 | cut -d'|' -f1)
+    fi
+
+    # Only break the loop if we found the ID AND successfully queried its status
     if [ -n "$REAL_CONTAINER_ID" ]; then
         CONTAINER_STATUS=$(docker inspect -f '{{.State.Status}}' "$REAL_CONTAINER_ID" 2>/dev/null)
-        break
+        if [ -n "$CONTAINER_STATUS" ]; then
+            break
+        fi
     fi
 
     RETRY_COUNT=$((RETRY_COUNT + 1))
     if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
-        printf '%b\n' "${YELLOW}⚠️ Warning: CrowdSec container not found (Attempt $RETRY_COUNT/$MAX_RETRIES). Retrying in 5s...${NC}"
+        printf '%b\n' "${YELLOW}⚠️ Warning: CrowdSec container not found or Docker API error (Attempt $RETRY_COUNT/$MAX_RETRIES). Retrying in 5s...${NC}"
         sleep 5
     fi
 done

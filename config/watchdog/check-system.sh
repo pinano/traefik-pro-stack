@@ -57,6 +57,35 @@ if [ ! -S /var/run/docker.sock ]; then
     exit 1
 fi
 
+# Helper function to run docker commands with retries in case of transient API/daemon issues
+docker_retry() {
+    MAX_RETRIES=5
+    RETRY_COUNT=0
+    CMD_OUTPUT=""
+    EXIT_CODE=0
+    
+    while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+        # Run command, capture stdout and stderr together
+        CMD_OUTPUT=$( "$@" 2>&1 )
+        EXIT_CODE=$?
+        
+        # If exit code is 0 and output doesn't contain daemon connection errors, it's successful
+        if [ $EXIT_CODE -eq 0 ] && ! echo "$CMD_OUTPUT" | grep -qi "Cannot connect to the Docker daemon"; then
+            echo "$CMD_OUTPUT"
+            return 0
+        fi
+        
+        RETRY_COUNT=$((RETRY_COUNT + 1))
+        if [ $RETRY_COUNT -lt $MAX_RETRIES ]; then
+            sleep 3
+        fi
+    done
+    
+    # If we reached here, the command failed permanently
+    echo "$CMD_OUTPUT"
+    return $EXIT_CODE
+}
+
 ERRORS=0
 ALERTS=""
 
@@ -65,8 +94,17 @@ ALERTS=""
 # ==========================================
 echo "📋 Checking container statuses and healthchecks..."
 
-# Get all containers belonging to this compose project
-CONTAINER_IDS=$(docker ps -a -q --filter "label=com.docker.compose.project=${PROJECT_NAME}")
+# Get all containers belonging to this compose project with retries
+DOCKER_OUT=$(docker_retry docker ps -a -q --filter "label=com.docker.compose.project=${PROJECT_NAME}")
+DOCKER_EXIT=$?
+
+if [ $DOCKER_EXIT -ne 0 ]; then
+    printf '%b\n' "${RED}❌ Error: Docker API connection failed permanently after retries.${NC}"
+    send_telegram "Docker API connection failed permanently!%0A%0AError output:%0A<pre>$(echo "$DOCKER_OUT" | head -n 5 | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')</pre>%0A👉 <b>Action Required:</b> Access the host to inspect if the Docker service is running or if there is a permission issue."
+    exit 1
+fi
+
+CONTAINER_IDS="$DOCKER_OUT"
 
 if [ -z "$CONTAINER_IDS" ]; then
     printf '%b\n' "${YELLOW}⚠️ No containers found for project '${PROJECT_NAME}'.${NC}"
@@ -77,7 +115,7 @@ else
     
     for cid in $CONTAINER_IDS; do
         # Inspect container details using jq to handle missing fields (like healthcheck) safely
-        C_INFO=$(docker inspect "$cid" | jq -r '.[0] | [ .Name, .Config.Labels["com.docker.compose.service"], .State.Status, (.State.Health.Status // "none"), .RestartCount ] | join("|")' 2>/dev/null)
+        C_INFO=$(docker_retry docker inspect "$cid" 2>/dev/null | jq -r '.[0] | [ .Name, .Config.Labels["com.docker.compose.service"], .State.Status, (.State.Health.Status // "none"), .RestartCount ] | join("|")' 2>/dev/null)
         if [ -z "$C_INFO" ] || [ "$C_INFO" = "|||none|" ]; then
             continue
         fi
@@ -148,13 +186,13 @@ fi
 # ==========================================
 echo "📋 Checking Redis/Valkey cache health..."
 
-REDIS_CONTAINER=$(docker ps -q --filter "label=com.docker.compose.project=${PROJECT_NAME}" --filter "label=com.docker.compose.service=redis" | head -n 1)
+REDIS_CONTAINER=$(docker_retry docker ps -q --filter "label=com.docker.compose.project=${PROJECT_NAME}" --filter "label=com.docker.compose.service=redis" 2>/dev/null | head -n 1)
 
 if [ -z "$REDIS_CONTAINER" ]; then
     printf '%b\n' "${YELLOW}⚠️ Redis/Valkey container not found.${NC}"
 else
     # Ping Redis
-    PING_RES=$(docker exec -e REDISCLI_AUTH="$REDIS_PASSWORD" -e VALKEYCLI_AUTH="$REDIS_PASSWORD" "$REDIS_CONTAINER" sh -c 'CLI=$(command -v valkey-cli || command -v redis-cli || echo redis-cli); $CLI ping' 2>/dev/null | tr -d '\r')
+    PING_RES=$(docker_retry docker exec -e REDISCLI_AUTH="$REDIS_PASSWORD" -e VALKEYCLI_AUTH="$REDIS_PASSWORD" "$REDIS_CONTAINER" sh -c 'CLI=$(command -v valkey-cli || command -v redis-cli || echo redis-cli); $CLI ping' 2>/dev/null | tr -d '\r')
     if [ "$PING_RES" != "PONG" ]; then
         printf '%b\n' "${RED}❌ Redis is not responding to PING! Response: $PING_RES${NC}"
         ALERTS="${ALERTS}• <b>Redis Unresponsive</b>: Redis container is running but PING returned <code>${PING_RES:-empty}</code>!%0A"
@@ -163,7 +201,7 @@ else
         printf '%b\n' "${GREEN}✅ Redis PING OK${NC}"
         
         # Check memory
-        REDIS_MEM_INFO=$(docker exec -e REDISCLI_AUTH="$REDIS_PASSWORD" -e VALKEYCLI_AUTH="$REDIS_PASSWORD" "$REDIS_CONTAINER" sh -c 'CLI=$(command -v valkey-cli || command -v redis-cli || echo redis-cli); $CLI info memory' 2>/dev/null)
+        REDIS_MEM_INFO=$(docker_retry docker exec -e REDISCLI_AUTH="$REDIS_PASSWORD" -e VALKEYCLI_AUTH="$REDIS_PASSWORD" "$REDIS_CONTAINER" sh -c 'CLI=$(command -v valkey-cli || command -v redis-cli || echo redis-cli); $CLI info memory' 2>/dev/null)
         if [ $? -eq 0 ]; then
             used_mem=$(echo "$REDIS_MEM_INFO" | grep "^used_memory:" | cut -d: -f2 | tr -d '\r')
             max_mem=$(echo "$REDIS_MEM_INFO" | grep "^maxmemory:" | cut -d: -f2 | tr -d '\r')
@@ -243,7 +281,7 @@ if [ -n "$CONTAINER_IDS" ]; then
     # Write stats to a temp file to avoid subshell scope issues.
     # Piping into 'while' would run it in a subshell, preventing ERRORS/ALERTS
     # from propagating back to the parent process.
-    docker stats --no-stream --format "{{.Name}}|{{.MemPerc}}" $CONTAINER_IDS > "$STATS_FILE" 2>/dev/null
+    docker_retry docker stats --no-stream --format "{{.Name}}|{{.MemPerc}}" $CONTAINER_IDS > "$STATS_FILE" 2>/dev/null
 
     if [ -s "$STATS_FILE" ]; then
         while IFS='|' read -r name perc; do
