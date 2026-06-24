@@ -4,7 +4,7 @@ services:
   #  GRAFANA (The visualizer)
   # ===========================
   grafana:
-    image: grafana/grafana:13.0.2
+    image: grafana/grafana:13.1
     restart: unless-stopped
     environment:
       - GF_SERVER_ROOT_URL=https://${DASHBOARD_SUBDOMAIN}.${DOMAIN}/grafana
