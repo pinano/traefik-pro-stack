@@ -1,3 +1,8 @@
+## v2026.06.24 (2026-06-24)
+
+- fix: add docker command retries to system check scripts and update container images for filebrowser, grafana, and crowdsec-web-ui (4a3f082)
+- fix: update permission check to support both Linux and macOS stat syntax (f0deb31)
+
 ## v2026.06.19 (2026-06-19)
 
 - Merge branch 'main' of github.com:pinano/traefik-crowdsec-anubis-grafana (d652196)
