@@ -1,3 +1,7 @@
+## v2026.07.02.1 (2026-07-02)
+
+- feat: add health checks and environment configuration for CrowdSec AppSec WAF (bf7af8a)
+
 ## v2026.07.02 (2026-07-02)
 
 - Version bumps (3ce43ee)
