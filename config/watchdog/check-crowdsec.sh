@@ -135,6 +135,17 @@ fi
 
 printf '%b\n' "${GREEN}✅ CrowdSec LAPI is healthy${NC}"
 
+# Check AppSec status (if enabled)
+if [ "${CROWDSEC_APPSEC_ENABLE:-true}" != "false" ]; then
+    APPSEC_STATUS=$(docker exec "$CROWDSEC_CONTAINER" sh -c 'wget -qO- http://localhost:7422/ 2>&1' || echo "failed")
+    if ! echo "$APPSEC_STATUS" | grep -q "401 Unauthorized"; then
+        printf '%b\n' "${RED}❌ CrowdSec AppSec WAF is not healthy / not listening on port 7422!${NC}"
+        send_telegram "CrowdSec AppSec WAF is <b>not healthy</b>!%0A👉 <b>Action Required:</b> Check CrowdSec logs. Verify if the AppSec block is in <code>acquis.yaml</code> and rules are loaded."
+        exit 1
+    fi
+    printf '%b\n' "${GREEN}✅ CrowdSec AppSec WAF is healthy${NC}"
+fi
+
 # Check registered bouncers
 BOUNCERS=$(docker exec "$CROWDSEC_CONTAINER" cscli bouncers list -o json 2>/dev/null)
 BOUNCER_COUNT=$(echo "$BOUNCERS" | jq 'length' 2>/dev/null || echo "0")
