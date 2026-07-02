@@ -55,6 +55,13 @@ echo "--- Infrastructure ---"
 check_container "traefik" "traefik healthcheck"
 if [ "$CROWDSEC_ENABLE" != "false" ]; then
     check_container "crowdsec" "cscli lapi status"
+    if [ "${CROWDSEC_APPSEC_ENABLE:-true}" != "false" ]; then
+        if $DOCKER_COMPOSE exec -T crowdsec sh -c 'wget -qO- http://localhost:7422/ 2>&1 | grep -q "401 Unauthorized"' >/dev/null 2>&1; then
+            echo -e "🟢 \033[1mcrowdsec-appsec\033[0m: WAF Listening & Responding"
+        else
+            echo -e "🔴 \033[1mcrowdsec-appsec\033[0m: WAF is down / not listening on port 7422"
+        fi
+    fi
 else
     echo -e "🟡 \033[1mcrowdsec\033[0m: Disabled in .env"
 fi
