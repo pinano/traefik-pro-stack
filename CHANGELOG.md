@@ -1,3 +1,7 @@
+## v2026.07.02 (2026-07-02)
+
+- Version bumps (3ce43ee)
+
 ## v2026.06.24 (2026-06-24)
 
 - fix: add docker command retries to system check scripts and update container images for filebrowser, grafana, and crowdsec-web-ui (4a3f082)
