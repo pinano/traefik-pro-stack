@@ -103,7 +103,7 @@ services:
   #  ALLOY (Log & metrics collector)
   # ===========================
   alloy:
-    image: grafana/alloy:v1.17.0
+    image: grafana/alloy:v1.17.1
     restart: unless-stopped
     user: "root" # Alloy needs root to read logs from other containers in /var/lib/docker
     environment:
@@ -137,7 +137,7 @@ services:
   #  PROMETHEUS (Metrics storage)
   # ===========================
   prometheus:
-    image: prom/prometheus:v3.12.0
+    image: prom/prometheus:v3.13.0
     restart: unless-stopped
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
