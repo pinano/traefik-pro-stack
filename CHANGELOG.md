@@ -1,3 +1,7 @@
+## v2026.07.08.1 (2026-07-08)
+
+- feat: add rate limiting and concurrency environment variables to dashboard service (d7cb35b)
+
 ## v2026.07.08 (2026-07-08)
 
 - feat: implement automated CrowdSec Redis cache reconciliation and update container images (1172061)
