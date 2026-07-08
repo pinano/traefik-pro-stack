@@ -4,7 +4,7 @@ services:
   #  FILEBROWSER
   # ===========================
   filebrowser:
-    image: filebrowser/filebrowser:v2.63.17
+    image: filebrowser/filebrowser:v2.63.18
     restart: unless-stopped
     networks:
       - traefik

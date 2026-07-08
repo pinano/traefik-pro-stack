@@ -54,6 +54,40 @@ ${MSG}" | awk '{gsub(/%0A/, "\n"); print}')
     }
 fi
 
+# Helper: Convert IPv4 to long integer
+ip2long() {
+    IFS='.' read -r ip1 ip2 ip3 ip4 <<EOF
+$1
+EOF
+    echo "$(( (ip1 << 24) + (ip2 << 16) + (ip3 << 8) + ip4 ))"
+}
+
+# Helper: Check if IPv4 is in CIDR range
+in_cidr() {
+    _ip=$1
+    _cidr=$2
+    
+    _net=$(echo "$_cidr" | cut -d/ -f1)
+    _mask=$(echo "$_cidr" | cut -s -d/ -f2)
+    
+    if [ -z "$_mask" ]; then
+        [ "$_ip" = "$_net" ] && return 0 || return 1
+    fi
+    
+    # Ensure both are valid IPv4 (simple check)
+    if ! echo "$_ip" | grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}$' || ! echo "$_net" | grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
+        return 1
+    fi
+    
+    _ip_long=$(ip2long "$_ip")
+    _net_long=$(ip2long "$_net")
+    
+    _mask_long=$(( 0xFFFFFFFF << (32 - _mask) ))
+    
+    [ $(( _ip_long & _mask_long )) -eq $(( _net_long & _mask_long )) ] && return 0 || return 1
+}
+
+
 # Verify docker socket is available
 if [ ! -S /var/run/docker.sock ]; then
     printf '%b\n' "${RED}❌ Error: Docker socket not available.${NC}"
@@ -324,6 +358,55 @@ if [ "$ALERTS_24H" = "null" ] || [ -z "$ALERTS_24H" ]; then
 fi
 
 printf '%b\n' "${GREEN}📊 Alerts in last 24h: $ALERTS_24H${NC}"
+
+# -------------------------------------------------------------------------
+# Active CrowdSec Redis Cache Reconciliation (Strategy B)
+# -------------------------------------------------------------------------
+if [ "$CROWDSEC_ENABLE" != "false" ] && [ -n "$REDIS_PASSWORD" ]; then
+    echo "🧹 Reconciler: Running cache check against Redis..."
+    
+    # 1. Locate Redis container
+    REDIS_CONTAINER=""
+    if [ -n "$PROJECT_NAME" ]; then
+        REDIS_CONTAINER=$(docker ps -aq --filter "label=com.docker.compose.project=$PROJECT_NAME" --filter "label=com.docker.compose.service=redis" 2>/dev/null | head -n 1)
+    fi
+    if [ -z "$REDIS_CONTAINER" ]; then
+        REDIS_CONTAINER=$(docker ps -aq --filter "label=com.docker.compose.service=redis" 2>/dev/null | head -n 1)
+    fi
+    
+    if [ -n "$REDIS_CONTAINER" ] && [ "$(docker inspect -f '{{.State.Status}}' "$REDIS_CONTAINER" 2>/dev/null)" = "running" ]; then
+        # 2. Get active bans from CrowdSec LAPI
+        ACTIVE_BANS=$(echo "$DECISIONS" | jq -r '.[].decisions[].value' 2>/dev/null | sort -u)
+        
+        # 3. Get all keys in DB 0
+        REDIS_KEYS=$(docker exec "$REDIS_CONTAINER" valkey-cli -a "$REDIS_PASSWORD" --no-auth-warning -n 0 KEYS "*" 2>/dev/null | tr -d '\r')
+        
+        for key in $REDIS_KEYS; do
+            # Strip _captcha suffix to get base IP
+            base_ip=$(echo "$key" | sed 's/_captcha$//')
+            
+            # Verify if it's an IP key (IPv4 or IPv6 or Range)
+            if echo "$base_ip" | grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}(\/[0-9]{1,2})?$|^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}(\/[0-9]{1,3})?$'; then
+                is_active=0
+                for active_ban in $ACTIVE_BANS; do
+                    # Check exact match or CIDR range match (for IPv4 ranges)
+                    if [ "$base_ip" = "$active_ban" ] || in_cidr "$base_ip" "$active_ban"; then
+                        is_active=1
+                        break
+                    fi
+                done
+                
+                if [ $is_active -eq 0 ]; then
+                    echo "🧹 Reconciler: Removing orphaned cache key '$key' from Redis DB 0"
+                    docker exec "$REDIS_CONTAINER" valkey-cli -a "$REDIS_PASSWORD" --no-auth-warning -n 0 DEL "$key" >/dev/null 2>&1 || true
+                fi
+            fi
+        done
+        echo "✅ Reconciler: Cache reconciliation completed."
+    else
+        echo "⚠️ Reconciler: Redis container not found or not running."
+    fi
+fi
 
 echo ""
 echo "✅ CrowdSec health check completed successfully."

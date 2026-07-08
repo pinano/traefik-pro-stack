@@ -31,8 +31,10 @@ crowdsec-unban: ## Unban an IP address (usage: make crowdsec-unban 1.2.3.4)
 		exit 1; \
 	fi; \
 	for ip in $(SERVICE_ARGS); do \
-		echo "Removing ban for IP: $$ip..."; \
+		echo "Removing ban for IP: $$ip from CrowdSec LAPI..."; \
 		$(call check_service,crowdsec,cscli decisions delete --ip $$ip); \
+		echo "Removing ban for IP: $$ip from Redis Cache..."; \
+		$(call check_service,redis,valkey-cli -a "$${REDIS_PASSWORD}" --no-auth-warning -n 0 DEL "$$ip" "$${ip}_captcha") >/dev/null 2>&1 || true; \
 	done
 
 ##@help crowdsec-ban
