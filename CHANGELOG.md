@@ -1,3 +1,7 @@
+## v2026.07.08 (2026-07-08)
+
+- feat: implement automated CrowdSec Redis cache reconciliation and update container images (1172061)
+
 ## v2026.07.02.1 (2026-07-02)
 
 - feat: add health checks and environment configuration for CrowdSec AppSec WAF (bf7af8a)
