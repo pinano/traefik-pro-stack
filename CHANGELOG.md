@@ -1,3 +1,8 @@
+## v2026.07.12 (2026-07-12)
+
+- refactor: implement get_env_safe helper for centralized environment variable retrieval and cleaning (4f930c4)
+- fix: strip quotes from TRAEFIK_FRAME_ANCESTORS environment variable and update .env.dist default (831114e)
+
 ## v2026.07.08.1 (2026-07-08)
 
 - feat: add rate limiting and concurrency environment variables to dashboard service (d7cb35b)
