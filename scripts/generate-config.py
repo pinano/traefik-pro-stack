@@ -111,7 +111,7 @@ BAD_USER_AGENTS_STR = os.getenv('TRAEFIK_BAD_USER_AGENTS', '').strip()
 GOOD_USER_AGENTS_STR = os.getenv('TRAEFIK_GOOD_USER_AGENTS', '').strip()
 
 # Frame Ancestors (for iframes)
-FRAME_ANCESTORS = os.getenv('TRAEFIK_FRAME_ANCESTORS', '').strip()
+FRAME_ANCESTORS = os.getenv('TRAEFIK_FRAME_ANCESTORS', '').strip().strip('\'"')
 
 # Apache Host IP and Port (docker0 bridge on Linux = 172.17.0.1:8080)
 APACHE_HOST_IP   = os.getenv('APACHE_HOST_IP',   '172.17.0.1').strip()
