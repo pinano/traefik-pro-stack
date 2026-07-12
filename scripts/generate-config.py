@@ -60,20 +60,27 @@ OUTPUT_TRAEFIK = 'config/traefik/dynamic-config/routers-generated.yaml'
 CAPTCHA_KEYS_FILE = 'config/crowdsec/captcha_keys.csv'
 
 # =============================================================================
+# =============================================================================
 # ENVIRONMENT VARIABLES
 # =============================================================================
 
-CROWDSEC_LAPI_KEY = os.getenv('CROWDSEC_LAPI_KEY')
-REDIS_PASSWORD = os.getenv('REDIS_PASSWORD')
-CROWDSEC_ENABLE = os.getenv('CROWDSEC_ENABLE', 'true').lower() == 'true'
-CROWDSEC_APPSEC_ENABLE = os.getenv('CROWDSEC_APPSEC_ENABLE', 'true').lower() == 'true'
-CROWDSEC_CAPTCHA_GRACE_PERIOD = int(os.getenv('CROWDSEC_CAPTCHA_GRACE_PERIOD', 3600))
-BACKREST_ENABLE = os.getenv('BACKREST_ENABLE', 'true').lower() == 'true'
-PHPMYADMIN_ENABLE = os.getenv('PHPMYADMIN_ENABLE', 'true').lower() == 'true'
-FILEBROWSER_ENABLE = os.getenv('FILEBROWSER_ENABLE', 'true').lower() == 'true'
-TRAEFIK_ENV_TYPE = os.getenv('TRAEFIK_ACME_ENV_TYPE', 'staging')
+def get_env_safe(key, default=None):
+    val = os.getenv(key)
+    if val is None:
+        return default
+    return val.strip().strip('\'"')
+
+CROWDSEC_LAPI_KEY = get_env_safe('CROWDSEC_LAPI_KEY')
+REDIS_PASSWORD = get_env_safe('REDIS_PASSWORD')
+CROWDSEC_ENABLE = get_env_safe('CROWDSEC_ENABLE', 'true').lower() == 'true'
+CROWDSEC_APPSEC_ENABLE = get_env_safe('CROWDSEC_APPSEC_ENABLE', 'true').lower() == 'true'
+CROWDSEC_CAPTCHA_GRACE_PERIOD = int(get_env_safe('CROWDSEC_CAPTCHA_GRACE_PERIOD', 3600))
+BACKREST_ENABLE = get_env_safe('BACKREST_ENABLE', 'true').lower() == 'true'
+PHPMYADMIN_ENABLE = get_env_safe('PHPMYADMIN_ENABLE', 'true').lower() == 'true'
+FILEBROWSER_ENABLE = get_env_safe('FILEBROWSER_ENABLE', 'true').lower() == 'true'
+TRAEFIK_ENV_TYPE = get_env_safe('TRAEFIK_ACME_ENV_TYPE', 'staging')
 IS_LOCAL_DEV = (TRAEFIK_ENV_TYPE == 'local')
-TRAEFIK_CERT_RESOLVER = os.getenv('TRAEFIK_CERT_RESOLVER', 'le')
+TRAEFIK_CERT_RESOLVER = get_env_safe('TRAEFIK_CERT_RESOLVER', 'le')
 
 # =============================================================================
 # CAPTCHA REGISTRY LOAD
@@ -102,24 +109,24 @@ if os.path.exists(CAPTCHA_KEYS_FILE):
         print(f"    ⚠️ Warning: Error loading {CAPTCHA_KEYS_FILE}: {e}")
 
 # Blocked Paths (Comma-separated list of regex patterns)
-BLOCKED_PATHS_STR = os.getenv('TRAEFIK_BLOCKED_PATHS', '').strip()
+BLOCKED_PATHS_STR = get_env_safe('TRAEFIK_BLOCKED_PATHS', '')
 
 # Bad User Agents (Comma-separated list of regex patterns)
-BAD_USER_AGENTS_STR = os.getenv('TRAEFIK_BAD_USER_AGENTS', '').strip()
+BAD_USER_AGENTS_STR = get_env_safe('TRAEFIK_BAD_USER_AGENTS', '')
 
 # Good User Agents (Comma-separated list of regex patterns)
-GOOD_USER_AGENTS_STR = os.getenv('TRAEFIK_GOOD_USER_AGENTS', '').strip()
+GOOD_USER_AGENTS_STR = get_env_safe('TRAEFIK_GOOD_USER_AGENTS', '')
 
 # Frame Ancestors (for iframes)
-FRAME_ANCESTORS = os.getenv('TRAEFIK_FRAME_ANCESTORS', '').strip().strip('\'"')
+FRAME_ANCESTORS = get_env_safe('TRAEFIK_FRAME_ANCESTORS', '')
 
 # Apache Host IP and Port (docker0 bridge on Linux = 172.17.0.1:8080)
-APACHE_HOST_IP   = os.getenv('APACHE_HOST_IP',   '172.17.0.1').strip()
-APACHE_HOST_PORT = os.getenv('APACHE_HOST_PORT',  '8080').strip()
+APACHE_HOST_IP   = get_env_safe('APACHE_HOST_IP',   '172.17.0.1')
+APACHE_HOST_PORT = get_env_safe('APACHE_HOST_PORT',  '8080')
 APACHE_SVC_NAME  = f'apache-host-{APACHE_HOST_PORT}'  # Traefik service name, derived from port
 
 # CrowdSec Whitelist IPs (CIDR list)
-CROWDSEC_WHITELIST_IPS_STR = os.getenv('CROWDSEC_WHITELIST_IPS', '').strip()
+CROWDSEC_WHITELIST_IPS_STR = get_env_safe('CROWDSEC_WHITELIST_IPS', '')
 DEFAULT_TRUSTED_IPS = ['127.0.0.1/32', '172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16']
 TRUSTED_IPS = list(DEFAULT_TRUSTED_IPS)
 
@@ -134,7 +141,7 @@ if CROWDSEC_WHITELIST_IPS_STR:
             TRUSTED_IPS.append(entry)
 
 
-# Robust stripping of surrounding quotes
+# Robust stripping of surrounding quotes (kept for extra safety)
 if (BLOCKED_PATHS_STR.startswith('"') and BLOCKED_PATHS_STR.endswith('"')) or \
    (BLOCKED_PATHS_STR.startswith("'") and BLOCKED_PATHS_STR.endswith("'")):
     BLOCKED_PATHS_STR = BLOCKED_PATHS_STR[1:-1]
@@ -153,17 +160,17 @@ BAD_USER_AGENTS = [p.strip().strip('"').strip("'") for p in BAD_USER_AGENTS_STR.
 GOOD_USER_AGENTS = [p.strip().strip('"').strip("'") for p in GOOD_USER_AGENTS_STR.split(',') if p.strip()]
 
 # TLS Chunking Limit (Let's Encrypt max is 100)
-TRAEFIK_TLS_BATCH_SIZE = int(os.getenv('TRAEFIK_TLS_BATCH_SIZE', 30))
+TRAEFIK_TLS_BATCH_SIZE = int(get_env_safe('TRAEFIK_TLS_BATCH_SIZE', 30))
 
 # CrowdSec & Traefik Settings (with defaults)
 try:
-    CS_UPDATE_INTERVAL = int(os.getenv('CROWDSEC_UPDATE_INTERVAL', 60))
-    T_ACTIVE = int(os.getenv('TRAEFIK_TIMEOUT_ACTIVE', 60))
-    T_IDLE = int(os.getenv('TRAEFIK_TIMEOUT_IDLE', 90))
-    G_RATE_AVG = int(os.getenv('TRAEFIK_GLOBAL_RATE_AVG', 60))
-    G_RATE_BURST = int(os.getenv('TRAEFIK_GLOBAL_RATE_BURST', 120))
-    G_CONCURRENCY = int(os.getenv('TRAEFIK_GLOBAL_CONCURRENCY', 25))
-    HSTS_SECONDS = int(os.getenv('TRAEFIK_HSTS_MAX_AGE', 31536000))
+    CS_UPDATE_INTERVAL = int(get_env_safe('CROWDSEC_UPDATE_INTERVAL', 60))
+    T_ACTIVE = int(get_env_safe('TRAEFIK_TIMEOUT_ACTIVE', 60))
+    T_IDLE = int(get_env_safe('TRAEFIK_TIMEOUT_IDLE', 90))
+    G_RATE_AVG = int(get_env_safe('TRAEFIK_GLOBAL_RATE_AVG', 60))
+    G_RATE_BURST = int(get_env_safe('TRAEFIK_GLOBAL_RATE_BURST', 120))
+    G_CONCURRENCY = int(get_env_safe('TRAEFIK_GLOBAL_CONCURRENCY', 25))
+    HSTS_SECONDS = int(get_env_safe('TRAEFIK_HSTS_MAX_AGE', 31536000))
 except ValueError:
     # Fallback defaults if parsing fails
     CS_UPDATE_INTERVAL = 60
@@ -529,11 +536,11 @@ def generate_configs():
     # -------------------------------------------------------------------------
     # Synthetic Dashboard Entry
     # -------------------------------------------------------------------------
-    DASHBOARD_SUBDOMAIN = os.getenv('DASHBOARD_SUBDOMAIN', 'dashboard')
-    DOMAIN = os.getenv('DOMAIN', 'mydomain.com')
+    DASHBOARD_SUBDOMAIN = get_env_safe('DASHBOARD_SUBDOMAIN', 'dashboard')
+    DOMAIN = get_env_safe('DOMAIN', 'mydomain.com')
     dashboard_domain = f"{DASHBOARD_SUBDOMAIN}.{DOMAIN}"
     
-    dashboard_anubis_sub = os.getenv('DASHBOARD_ANUBIS_SUBDOMAIN', '').strip().lower()
+    dashboard_anubis_sub = get_env_safe('DASHBOARD_ANUBIS_SUBDOMAIN', '').lower()
     
     # Look for any existing entry for the dashboard service to migrate it in-memory if needed
     dashboard_csv_entry = None
