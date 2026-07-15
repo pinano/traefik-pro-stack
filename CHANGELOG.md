@@ -1,3 +1,7 @@
+## v2026.07.15 (2026-07-15)
+
+- feat: update redis key parsing to support prefixed keys and reduce crowdsec check interval (6dbe657)
+
 ## v2026.07.12 (2026-07-12)
 
 - refactor: implement get_env_safe helper for centralized environment variable retrieval and cleaning (4f930c4)
