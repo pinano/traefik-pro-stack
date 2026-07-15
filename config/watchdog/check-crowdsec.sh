@@ -382,8 +382,8 @@ if [ "$CROWDSEC_ENABLE" != "false" ] && [ -n "$REDIS_PASSWORD" ]; then
         REDIS_KEYS=$(docker exec "$REDIS_CONTAINER" valkey-cli -a "$REDIS_PASSWORD" --no-auth-warning -n 0 KEYS "*" 2>/dev/null | tr -d '\r')
         
         for key in $REDIS_KEYS; do
-            # Strip _captcha suffix to get base IP
-            base_ip=$(echo "$key" | sed 's/_captcha$//')
+            # Strip prefix (e.g., crowdsec_cache:) if present, then strip _captcha suffix to get base IP
+            base_ip=$(echo "$key" | sed -E 's/^[^:]+://; s/_captcha$//')
             
             # Verify if it's an IP key (IPv4 or IPv6 or Range)
             if echo "$base_ip" | grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}(\/[0-9]{1,2})?$|^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}(\/[0-9]{1,3})?$'; then
