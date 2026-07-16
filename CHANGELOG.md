@@ -1,3 +1,7 @@
+## v2026.07.16 (2026-07-16)
+
+- Version bumps (350c7ce)
+
 ## v2026.07.15 (2026-07-15)
 
 - feat: update redis key parsing to support prefixed keys and reduce crowdsec check interval (6dbe657)
