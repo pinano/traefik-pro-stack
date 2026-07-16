@@ -4,7 +4,7 @@ services:
   #  BACKREST (Restic Web UI)
   # ===========================
   backrest:
-    image: garethgeorge/backrest:v1.13.0
+    image: garethgeorge/backrest:v1.14.1
     restart: unless-stopped
     networks:
       - traefik
