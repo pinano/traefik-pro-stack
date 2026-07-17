@@ -1,3 +1,7 @@
+## v2026.07.17 (2026-07-17)
+
+- chore: increase Traefik memory limit to 1G in docker-compose-security.yaml (04e939a)
+
 ## v2026.07.16 (2026-07-16)
 
 - Version bumps (350c7ce)
