@@ -1,3 +1,7 @@
+## v2026.07.18.1 (2026-07-18)
+
+- fix: optimize CrowdSec resource allocation by limiting memory to 512MB and setting Node memory constraints (b9eb72e)
+
 ## v2026.07.18 (2026-07-18)
 
 - chore: update crowdsec-web-ui image tag to 2026.7.15 (18f7344)
