@@ -321,7 +321,7 @@ This section details the layout of the project, including configuration files, t
 │   ├── crowdsec/
 │   │   ├── acquis-base.yaml              # Static log ingestion source definitions
 │   │   ├── acquis.yaml                   # Final compiled log ingestion settings
-│   │   ├── config.yaml                   # CrowdSec engine settings (reference; runtime copy is modified in-container by start.sh)
+│   │   ├── config.yaml.local             # Host-specific engine configuration overrides (WAL, db retention, trusted IPs)
 │   │   ├── profiles-base.yaml            # Remediations base profile template
 │   │   ├── profiles.yaml                 # Compiled remediation profiles and durations
 │   │   ├── captcha_keys.csv              # Registrar mapping domains to captcha keys
