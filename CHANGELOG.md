@@ -1,3 +1,8 @@
+## v2026.07.18 (2026-07-18)
+
+- chore: update crowdsec-web-ui image tag to 2026.7.15 (18f7344)
+- refactor: replace hardcoded CrowdSec config modification with local configuration overrides (c4fce98)
+
 ## v2026.07.17 (2026-07-17)
 
 - chore: increase Traefik memory limit to 1G in docker-compose-security.yaml (04e939a)
