@@ -19,3 +19,9 @@ api:
       # Docker internal networks - required for crowdsec-web-ui delete/admin API calls
       - 172.16.0.0/12
       - 192.168.0.0/16
+
+prometheus:
+  enabled: true
+  level: full
+  listen_addr: 0.0.0.0
+  listen_port: 6060
