@@ -29,6 +29,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     expose:
       - "7422" # AppSec WAF listener (internal, traefik network only)
+      - "6060" # Prometheus metrics (internal, traefik network only)
     networks:
       - traefik
     security_opt:
@@ -123,6 +124,7 @@ services:
       - TZ=${TZ}
       - NODE_OPTIONS=--max-old-space-size=256
       - CROWDSEC_LOOKBACK_PERIOD=${CROWDSEC_LOOKBACK_PERIOD:-24h}
+      - CROWDSEC_PROMETHEUS_URL=http://crowdsec:6060/metrics
     volumes:
       - ./config/crowdsec-web-ui:/app/data
       - /etc/localtime:/etc/localtime:ro
