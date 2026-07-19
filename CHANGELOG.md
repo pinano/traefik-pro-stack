@@ -1,3 +1,8 @@
+## v2026.07.19 (2026-07-19)
+
+- feat: enable and expose Prometheus metrics for CrowdSec in docker-compose (247fc01)
+- feat: add CROWDSEC_LOOKBACK_PERIOD configuration to crowdsec-web-ui and update container startup command (88b73a0)
+
 ## v2026.07.18.1 (2026-07-18)
 
 - fix: optimize CrowdSec resource allocation by limiting memory to 512MB and setting Node memory constraints (b9eb72e)
