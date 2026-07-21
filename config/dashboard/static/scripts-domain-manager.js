@@ -63,17 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let allServices = [];
     let currentSort = { column: '_root_domain', direction: 'asc' };
     let rowToDelete = null;
-    let pendingAction = null; // 'apply' or 'restart'
-
-    function getRootDomain(domain) {
-        if (!domain) return '';
-        const parts = domain.split('.');
-        if (parts.length < 2) return domain;
-        // Basic extraction: returns the last two parts (e.g., example.com)
-        // For complex cases (e.g., .co.uk) this might need a more robust TLD list, 
-        // but for this stack's typical usage, this is sufficient and clean.
-        return parts.slice(-2).join('.');
-    }
+    let pendingAction = null; 
 
     // State for root domain colors
     let rootColorMap = new Map();
@@ -147,52 +137,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return rootColorMap.get(rootDomain) || 'transparent';
     }
 
-    /** Escape user/server-supplied strings before injecting them via innerHTML. */
-    function escapeHtml(str) {
-        if (str == null) return '';
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    }
+    
 
-    function showToast(message, type = 'info', persistent = false, details = []) {
-        let content = '';
-
-        if (persistent) {
-            content += `
-                <div class="toast-header">
-                    <span>Notification</span>
-                    <button class="toast-close" title="Dismiss">&times;</button>
-                </div>`;
-        }
-
-        content += `<div class="toast-body">${escapeHtml(message)}`;
-
-        if (details.length > 0) {
-            content += `<ul class="error-list">`;
-            details.forEach(detail => {
-                content += `<li>${escapeHtml(detail)}</li>`;
-            });
-            content += `</ul>`;
-        }
-
-        content += `</div>`;
-
-        toast.innerHTML = content;
-        toast.className = `toast show alert-${type}`;
-
-        const closeBtn = toast.querySelector('.toast-close');
-        if (closeBtn) {
-            closeBtn.onclick = () => toast.classList.remove('show');
-        }
-
-        if (!persistent) {
-            setTimeout(() => toast.classList.remove('show'), 4000);
-        }
-    }
+    
 
     function debounce(func, wait) {
         let timeout;
@@ -209,18 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     searchInput.addEventListener('input', debouncedSearch);
 
-    function getCleanPayload(domainObj) {
-        return {
-            domain: (domainObj.domain || '').trim().toLowerCase(),
-            redirection: (domainObj.redirection || '').trim().toLowerCase(),
-            service_name: (domainObj.service_name || '').trim(),
-            anubis_subdomain: (domainObj.anubis_subdomain || '').trim().toLowerCase(),
-            rate: (domainObj.rate || '').trim(),
-            burst: (domainObj.burst || '').trim(),
-            concurrency: (domainObj.concurrency || '').trim(),
-            enabled: !!domainObj.enabled
-        };
-    }
+    
 
     function updateDomainField(id, key, value, tr) {
         const domainObj = allDomains.find(d => d._id === id);
@@ -1134,53 +1070,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    /**
-     * Generic SSE stream launcher — used for both Soft Restart and Hot Reload.
-     * @param {string} streamUrl  - The SSE endpoint URL (with CSRF token already appended)
-     * @param {string} modalTitle - Title displayed in the progress modal
-     * @param {string} successMsg - Message shown on process exit code 0
-     */
-    function initiateStream(streamUrl, modalTitle, successMsg) {
-        if (restartModalTitle) restartModalTitle.textContent = modalTitle;
-        restartModal.classList.add('show');
-        logContainer.textContent = 'Connecting...\n';
-        closeModalBtn.style.display = 'none';
 
-        // Hide notifications
-        deployNotification.classList.remove('show');
-        deployNotification.classList.remove('is-restart');
-        document.body.classList.remove('has-notification');
-        deployBtn.classList.remove('btn-deploy-needed');
-        deployBtn.classList.remove('is-restart');
-
-        // Disable deploy button
-        deployBtn.disabled = true;
-        deployBtn.title = "Deployment in progress...";
-        pendingAction = null;
-
-        const eventSource = new EventSource(streamUrl);
-
-        eventSource.onmessage = (event) => {
-            if (event.data.trim() === "[Process finished with code 0]") {
-                logContainer.textContent += `\n${successMsg}\n`;
-                closeModalBtn.style.display = 'block';
-                eventSource.close();
-            } else if (event.data.includes("[Process finished with code")) {
-                logContainer.textContent += `\n❌ ${event.data}\n`;
-                closeModalBtn.style.display = 'block';
-                eventSource.close();
-            } else {
-                logContainer.textContent += event.data + '\n';
-                logContainer.parentElement.scrollTop = logContainer.parentElement.scrollHeight;
-            }
-        };
-
-        eventSource.onerror = () => {
-            logContainer.textContent += '\n\n🔄 Connection closed. This is expected as Traefik reloads the new configuration.\n✅ The stack should be up in a few seconds.';
-            closeModalBtn.style.display = 'block';
-            eventSource.close();
-        };
-    }
 
     // Keep backward-compatible alias
     function initiateRestart() {

@@ -28,7 +28,7 @@
             <div class="alert alert-danger">{{ error }}</div>
             {% endif %}
 
-            <form method="POST" action="{{ url_for('login') }}">
+            <form method="POST" action="{{ url_for('auth.login') }}">
                 {% if next %}
                 <input type="hidden" name="next" value="{{ next }}">
                 {% endif %}
