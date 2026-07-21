@@ -282,7 +282,18 @@ services: ## List available services
 	@echo "Available services:"
 	@$(DOCKER_COMPOSE) ps --services
 
-##@ Observability & Debugging
+##@ Observability, Debugging & Testing
+
+##@help test
+## Runs all Infrastructure as Code (IaC) tests.
+## - Executes unit tests for Python generators.
+## - Executes integration tests against the live stack.
+.PHONY: test
+test: ## Run unit and integration tests
+	@echo "🧪 Running unit tests..."
+	@$(PYTHON) -m pytest tests/unit/
+	@echo "🌐 Running integration tests..."
+	@$(PYTHON) -m pytest tests/integration/
 
 ##@help health
 ## Executes a global health check of the infrastructure.
@@ -330,13 +341,6 @@ else
 	@echo ""
 	@make services
 endif
-
-##@help ctop
-## Launches an interactive top-like interface for monitoring Docker containers.
-## - Shows CPU, Memory, Network, and IO metrics in real-time.
-.PHONY: ctop
-ctop: ## Monitor containers using ctop
-	@docker run --rm -ti --name=ctop --volume /var/run/docker.sock:/var/run/docker.sock:ro quay.io/vektorlab/ctop:latest
 
 ##@ Maintenance
 

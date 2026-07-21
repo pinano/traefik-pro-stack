@@ -791,6 +791,13 @@ To route traffic to a web server (such as Apache or PHP-FPM) running directly on
 > [!NOTE]
 > If `chown` permissions commands fail on host systems without `sudo` access, the startup script automatically applies a fallback of `chmod 777` on the `./data/` directories to ensure the container services can write logs and databases.
 
+### 5. High resource usage or container monitoring
+
+*   **Cause**: You need to monitor CPU and Memory usage of the stack containers, but you don't want to rely solely on Grafana.
+*   **Solution**: We recommend installing **`ctop`** or **`btop`** directly on your host system (baremetal or LXC) rather than running them as Docker containers. Running them natively provides much better visibility and avoids masking host-level resource exhaustion.
+    * For Ubuntu/Debian: `sudo apt install btop`
+    * For ctop: `sudo wget https://github.com/bcicen/ctop/releases/download/0.7.7/ctop-0.7.7-linux-amd64 -O /usr/local/bin/ctop && sudo chmod +x /usr/local/bin/ctop`
+
 ---
 
 ## License
