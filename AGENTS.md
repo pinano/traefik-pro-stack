@@ -97,7 +97,11 @@ The core mission: protect multiple Docker-based web applications (and optionally
 │   ├── backrest/                         # Backrest state: config, data, cache, rclone (git-ignored)
 │   ├── crowdsec-web-ui/                  # Data directory for CrowdSec LAPI interface
 │   ├── dashboard/                        # Admin UI backend (Python/Flask)
-│   │   ├── app.py                        # Flask application
+│   │   ├── app.py                        # Application entrypoint
+│   │   ├── config.py                     # Environment and config variables
+│   │   ├── extensions.py                 # Flask extensions setup
+│   │   ├── blueprints/                   # Route modules (auth, api, views)
+│   │   ├── utils/                        # Core logic (CSV, OpenSSL, Docker)
 │   │   ├── Dockerfile
 │   │   ├── static/                       # Frontend assets
 │   │   └── templates/                    # HTML templates
