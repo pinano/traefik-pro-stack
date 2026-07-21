@@ -34,13 +34,7 @@ function updateNotificationPadding() {
     }
 }
 
-// Helper to get root domain
-function getRootDomain(domain) {
-    if (!domain) return '';
-    const parts = domain.split('.');
-    if (parts.length < 2) return domain;
-    return parts.slice(-2).join('.');
-}
+
 
 // Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
@@ -125,7 +119,8 @@ document.addEventListener('DOMContentLoaded', () => {
         confirmModal.classList.remove('show');
         initiateStream(
             `/dm-api/apply-config-stream?csrf_token=${csrfToken}`,
-            '✅ CAPTCHA configurations successfully applied in real-time!'
+            '✅ Hot Reload — Zero Downtime',
+            'CAPTCHA configurations successfully applied in real-time!'
         );
     });
 
@@ -203,53 +198,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-/** Escape user/server-supplied strings before injecting them via innerHTML. */
-function escapeHtml(str) {
-    if (str == null) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
 
-// Toast Helper
-function showToast(message, type = 'success', errors = []) {
-    toastEl.className = 'toast';
-    if (type === 'danger') toastEl.classList.add('alert-danger');
-    if (type === 'warning') toastEl.classList.add('alert-warning');
-    
-    let title = 'Notification';
-    if (type === 'danger') title = 'Validation Error';
-    else if (type === 'warning') title = 'Validation Warning';
-    
-    let html = `
-        <div class="toast-header">
-            <span>${title}</span>
-            <button onclick="hideToast()" class="toast-close" title="Dismiss">&times;</button>
-        </div>
-        <div class="toast-body">
-            <p>${escapeHtml(message)}</p>
-    `;
-    
-    if (errors.length > 0) {
-        html += '<ul class="error-list">';
-        errors.forEach(err => {
-            html += `<li>${escapeHtml(err)}</li>`;
-        });
-        html += '</ul>';
-    }
-    
-    html += '</div>';
-    toastEl.innerHTML = html;
-    toastEl.classList.add('show');
 
-    // Auto close after 5 seconds if not error or warning
-    if (type !== 'danger' && type !== 'warning') {
-        setTimeout(hideToast, 5000);
-    }
-}
+
 
 window.hideToast = function() {
     toastEl.classList.remove('show');
@@ -487,16 +438,7 @@ function validateData() {
     return errors;
 }
 
-// Build the payload for a single row to send to the API
-function getCleanPayload(row) {
-    return {
-        root_domain: (row.root_domain || '').trim().toLowerCase(),
-        provider:    (row.provider    || '').trim().toLowerCase(),
-        site_key:    (row.site_key    || '').trim(),
-        secret_key:  (row.secret_key  || '').trim(),
-        enabled:     row.enabled !== false  // default true
-    };
-}
+
 
 // Save back to CSV via POST
 async function saveChanges() {
@@ -610,53 +552,6 @@ async function saveChanges() {
 function deployChanges() {
     // Handled entirely through the confirmDeployBtn listener in DOMContentLoaded.
     // This stub is kept as a no-op so any legacy references don't break.
-}
-
-/**
- * Launch a streaming SSE session and display output in the progress modal.
- * Mirrors the initiateStream() pattern used in the Domain Manager.
- *
- * @param {string} streamUrl  - Full SSE endpoint URL (must include csrf_token query param)
- * @param {string} successMsg - Message appended when the process exits with code 0
- */
-function initiateStream(streamUrl, successMsg) {
-    const restartModalTitle = document.getElementById('restart-modal-title');
-    if (restartModalTitle) restartModalTitle.textContent = 'Hot Reload Config Progress';
-
-    closeModalBtn.style.display = 'none';
-    logContainer.textContent = 'Connecting...\n';
-    restartModal.classList.add('show');
-
-    // Hide the deploy banner while the stream is running
-    deployBanner.classList.remove('show');
-    deployBtn.disabled = true;
-    updateNotificationPadding();
-
-    const eventSource = new EventSource(streamUrl);
-
-    eventSource.onmessage = (event) => {
-        const line = event.data;
-
-        if (line.trim() === '[Process finished with code 0]') {
-            logContainer.textContent += `\n${successMsg}\n`;
-            closeModalBtn.style.display = 'block';
-            eventSource.close();
-        } else if (line.includes('[Process finished with code')) {
-            logContainer.textContent += `\n❌ ${line}\n`;
-            closeModalBtn.style.display = 'block';
-            deployBtn.disabled = false;
-            eventSource.close();
-        } else {
-            logContainer.textContent += line + '\n';
-        }
-        logContainer.scrollTop = logContainer.scrollHeight;
-    };
-
-    eventSource.onerror = () => {
-        logContainer.textContent += '\n\n🔄 Connection closed. This is expected as Traefik reloads the new configuration.\n✅ The stack should be up in a few seconds.';
-        closeModalBtn.style.display = 'block';
-        eventSource.close();
-    };
 }
 
 // Search and Sorting handlers

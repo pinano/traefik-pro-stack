@@ -42,7 +42,7 @@
                 <a href="#" id="theme-toggle" class="btn btn-secondary btn-icon-only" title="Toggle Theme">
                     <i id="theme-icon" data-lucide="moon"></i>
                 </a>
-                <form method="POST" action="{{ url_for('logout') }}" style="display:inline;">
+                <form method="POST" action="{{ url_for('auth.logout') }}" style="display:inline;">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-secondary" id="logout-btn">
                         <i data-lucide="log-out"></i> Logout
