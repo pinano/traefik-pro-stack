@@ -113,7 +113,7 @@ services:
   #  CROWDSEC WEB UI (Management interface for CrowdSec LAPI)
   # ===========================
   crowdsec-web-ui:
-    image: ghcr.io/theduffman85/crowdsec-web-ui:2026.7.15
+    image: ghcr.io/theduffman85/crowdsec-web-ui:2026.7.16
     restart: unless-stopped
     command: ["node", "dist/server/index.js"]
     environment:

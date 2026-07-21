@@ -6,6 +6,13 @@ services:
   traefik:
     image: traefik:v3.7.8
     restart: always
+    depends_on:
+      crowdsec:
+        condition: service_healthy
+        required: false
+      redis:
+        condition: service_healthy
+        required: false
     ports:
       - "${TRAEFIK_LISTEN_IP:-0.0.0.0}:80:80"
       - "${TRAEFIK_LISTEN_IP:-0.0.0.0}:443:443"

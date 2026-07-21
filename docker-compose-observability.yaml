@@ -103,7 +103,7 @@ services:
   #  ALLOY (Log & metrics collector)
   # ===========================
   alloy:
-    image: grafana/alloy:v1.17.1
+    image: grafana/alloy:v1.18.0
     restart: unless-stopped
     user: "root" # Alloy needs root to read logs from other containers in /var/lib/docker
     environment:

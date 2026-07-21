@@ -88,7 +88,7 @@ services:
   #  DOZZLE (Container log viewer)
   # ===========================
   dozzle:
-    image: amir20/dozzle:v10.6.10
+    image: amir20/dozzle:v10.6.11
     restart: always
     networks:
       - traefik
@@ -130,45 +130,7 @@ services:
     # check-crowdsec.sh: every WATCHDOG_CROWDSEC_CHECK_INTERVAL (default 1h)
     # check-system.sh: every WATCHDOG_SYSTEM_CHECK_INTERVAL (default 5m)
     # check-traefik.sh: every WATCHDOG_TRAEFIK_CHECK_INTERVAL (default 5m)
-    entrypoint: >
-      sh -c "
-        # Trap SIGTERM/INT to kill all background jobs on stop
-        trap 'kill 0' TERM INT;
-        # Start certificate check loop in background
-        (while true; do
-          sh /check-certs.sh;
-          echo 'Cert check: sleeping for 24h...';
-          sleep 86400;
-        done) &
-        # Start CrowdSec check loop in background (if enabled)
-        (if [ \"$${CROWDSEC_ENABLE}\" != \"false\" ]; then
-          while true; do
-            sh /check-crowdsec.sh;
-            echo \"CrowdSec check: sleeping for $${WATCHDOG_CROWDSEC_CHECK_INTERVAL:-3600}s...\";
-            sleep $${WATCHDOG_CROWDSEC_CHECK_INTERVAL:-3600};
-          done
-        else
-          echo 'CrowdSec check DISABLED.';
-        fi) &
-        # Start System check loop in background
-        (while true; do
-          sh /check-system.sh;
-          echo \"System check: sleeping for $${WATCHDOG_SYSTEM_CHECK_INTERVAL:-300}s...\";
-          sleep $${WATCHDOG_SYSTEM_CHECK_INTERVAL:-300};
-        done) &
-        # Start Traefik check loop in background
-        (while true; do
-          sh /check-traefik.sh;
-          echo \"Traefik check: sleeping for $${WATCHDOG_TRAEFIK_CHECK_INTERVAL:-300}s...\";
-          sleep $${WATCHDOG_TRAEFIK_CHECK_INTERVAL:-300};
-        done) &
-        # Start DNS check loop in foreground (wait for background jobs too)
-        while true; do
-          sh /check-dns.sh;
-          echo \"DNS check: sleeping for $${WATCHDOG_DNS_CHECK_INTERVAL:-21600}s...\";
-          sleep $${WATCHDOG_DNS_CHECK_INTERVAL:-21600};
-        done
-      "
+    # Note: Execution is now handled by crond via config/watchdog/entrypoint.sh
     volumes:
       - ./config/traefik/acme.json:/acme.json:ro
       - ./config/watchdog/check-certs.sh:/check-certs.sh:ro
@@ -211,15 +173,7 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  # ===========================
-  #  CTOP: Explicitly invoked with: docker compose run --rm ctop
-  # ===========================
-  ctop:
-    image: quay.io/vektorlab/ctop:0.7.7
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    profiles: [ "tools" ] # Trick: This way it doesn't start automatically, only if explicitly requested
+
 
 networks:
   traefik:
