@@ -1,3 +1,7 @@
+## v2026.07.21.2 (2026-07-21)
+
+- chore: add pip bootstrapping to Makefile and environment initialization script (06b27e0)
+
 ## v2026.07.21.1 (2026-07-21)
 
 - test: skip AppSec integration test when running from whitelisted local network IPs (c0d29de)
