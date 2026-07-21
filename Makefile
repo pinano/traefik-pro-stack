@@ -290,6 +290,8 @@ services: ## List available services
 ## - Executes integration tests against the live stack.
 .PHONY: test
 test: ## Run unit and integration tests
+	@if [ ! -d ".venv" ] && [ ! -d "venv" ]; then echo "❌ Error: Virtual environment not found. Please run 'make init' first."; exit 1; fi
+	@$(PYTHON) -m pip --version >/dev/null 2>&1 || (echo "📦 Bootstrapping pip..." && curl -sS https://bootstrap.pypa.io/get-pip.py | $(PYTHON) -q)
 	@$(PYTHON) -c "import pytest" 2>/dev/null || (echo "📦 Installing testing dependencies..." && $(PYTHON) -m pip install -r scripts/requirements.txt -q)
 	@echo "🧪 Running unit tests..."
 	@$(PYTHON) -m pytest tests/unit/

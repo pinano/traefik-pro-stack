@@ -52,7 +52,9 @@ fi
 # Install requirements
 if [ -f "scripts/requirements.txt" ]; then
     echo "⬇️  Installing/Updating Python dependencies..."
-    ./.venv/bin/pip install -q -r scripts/requirements.txt || echo "⚠️  Warning: Failed to install dependencies. Check your internet connection."
+    # Bootstrap pip if it is missing (common on Debian without python3-full)
+    ./.venv/bin/python3 -m pip --version &>/dev/null || (echo "📦 Bootstrapping pip..." && curl -sS https://bootstrap.pypa.io/get-pip.py | ./.venv/bin/python3 -q)
+    ./.venv/bin/python3 -m pip install -q -r scripts/requirements.txt || echo "⚠️  Warning: Failed to install dependencies. Check your internet connection."
 else
     echo "⚠️  Warning: scripts/requirements.txt not found. Skipping dependency installation."
 fi
