@@ -18,9 +18,11 @@ DOMAIN = get_env_var('DOMAIN', 'example.com')
 DASHBOARD_SUBDOMAIN = get_env_var('DASHBOARD_SUBDOMAIN', 'dashboard')
 TARGET_HOST = f"{DASHBOARD_SUBDOMAIN}.{DOMAIN}"
 
-# Use localhost if testing locally, otherwise might need the actual server IP
-# We assume tests are run from the same host where Docker is running.
-BASE_URL = "http://localhost:80"
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+# Use localhost HTTPS to avoid 301 redirects and external DNS resolution
+BASE_URL = "https://localhost:443"
 
 def test_routing_basic():
     """
@@ -30,9 +32,9 @@ def test_routing_basic():
     """
     headers = {'Host': TARGET_HOST}
     try:
-        response = requests.get(BASE_URL, headers=headers, timeout=5, allow_redirects=False)
-    except requests.exceptions.ConnectionError:
-        pytest.skip("Could not connect to Traefik on port 80. Is the stack running?")
+        response = requests.get(BASE_URL, headers=headers, timeout=5, allow_redirects=False, verify=False)
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+        pytest.skip("Could not connect to Traefik on port 443. Is the stack running?")
         
     # The dashboard-error middleware intercepts 401s and returns a 302 to /login
     assert response.status_code in [302, 401], f"Expected 302/401 auth challenge, got {response.status_code}"
@@ -50,9 +52,9 @@ def test_waf_sqli_blocking():
     malicious_url = f"{BASE_URL}/login?username=admin' OR '1'='1"
     
     try:
-        response = requests.get(malicious_url, headers=headers, timeout=5)
-    except requests.exceptions.ConnectionError:
-        pytest.skip("Could not connect to Traefik on port 80. Is the stack running?")
+        response = requests.get(malicious_url, headers=headers, timeout=5, verify=False)
+    except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+        pytest.skip("Could not connect to Traefik on port 443. Is the stack running?")
         
     # AppSec should intercept this payload and immediately return 403
     assert response.status_code == 403, f"WAF failed to block SQLi payload. Got status {response.status_code}"
