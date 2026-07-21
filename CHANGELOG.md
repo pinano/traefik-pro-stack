@@ -1,3 +1,10 @@
+## v2026.07.21.1 (2026-07-21)
+
+- test: skip AppSec integration test when running from whitelisted local network IPs (c0d29de)
+- test: spoof X-Forwarded-For header to bypass AppSec localhost whitelist in WAF tests (a8bf188)
+- test: update integration tests to use HTTPS with insecure verification on port 443 (8f95f91)
+- feat: add automatic installation of testing dependencies to the test make target (04732d2)
+
 ## v2026.07.21 (2026-07-21)
 
 - feat: implement modular startup initialization scripts, watchdog cron management, and enhanced environment security validation. (09b0e1c)
