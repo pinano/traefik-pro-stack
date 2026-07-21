@@ -290,6 +290,7 @@ services: ## List available services
 ## - Executes integration tests against the live stack.
 .PHONY: test
 test: ## Run unit and integration tests
+	@$(PYTHON) -c "import pytest" 2>/dev/null || (echo "📦 Installing testing dependencies..." && $(PYTHON) -m pip install -r scripts/requirements.txt -q)
 	@echo "🧪 Running unit tests..."
 	@$(PYTHON) -m pytest tests/unit/
 	@echo "🌐 Running integration tests..."
