@@ -333,7 +333,11 @@ This section details the layout of the project, including configuration files, t
 │   │   └── assets/                       # Custom stylesheets and image assets for the PoW screen
 │   │
 │   ├── dashboard/                        # Flask admin dashboard application
-│   │   ├── app.py                        # Server code managing SSO and domains.csv updates
+│   │   ├── app.py                        # Application entrypoint
+│   │   ├── config.py                     # Environment and config variables
+│   │   ├── extensions.py                 # Flask extensions setup
+│   │   ├── blueprints/                   # Route modules (auth, api, views)
+│   │   ├── utils/                        # Core logic (CSV, OpenSSL, Docker)
 │   │   └── Dockerfile                    # Container build configuration
 │   │
 │   ├── maintenance/
