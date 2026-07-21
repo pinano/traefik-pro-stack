@@ -1,3 +1,7 @@
+## v2026.07.21 (2026-07-21)
+
+- feat: implement modular startup initialization scripts, watchdog cron management, and enhanced environment security validation. (09b0e1c)
+
 ## v2026.07.19 (2026-07-19)
 
 - feat: enable and expose Prometheus metrics for CrowdSec in docker-compose (247fc01)
