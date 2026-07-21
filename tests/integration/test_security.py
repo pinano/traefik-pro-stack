@@ -48,7 +48,10 @@ def test_waf_sqli_blocking():
     if not appsec_enabled:
         pytest.skip("CROWDSEC_APPSEC_ENABLE is false. Skipping WAF test.")
 
-    headers = {'Host': TARGET_HOST}
+    headers = {
+        'Host': TARGET_HOST,
+        'X-Forwarded-For': '8.8.8.8' # Spoof external IP to bypass AppSec localhost whitelist
+    }
     malicious_url = f"{BASE_URL}/login?username=admin' OR '1'='1"
     
     try:
