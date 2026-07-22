@@ -1,3 +1,8 @@
+## v2026.07.22 (2026-07-22)
+
+- refactor: reorganize dashboard source code into modular structure with blueprints, extensions, and utility modules (a0dda34)
+- feat: refactor dashboard into blueprints and implement domain/captcha API management (c85ebd2)
+
 ## v2026.07.21.2 (2026-07-21)
 
 - chore: add pip bootstrapping to Makefile and environment initialization script (06b27e0)
