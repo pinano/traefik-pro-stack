@@ -8,7 +8,7 @@
 db_config:
   type: pgx
   user: crowdsec
-  password: 
+  password: 76c42e2b5ca98f018e6fb04648703d0a159a641c162e7a1439d38ae15a23c1ef
   db_name: crowdsec
   host: crowdsec-db
   port: 5432
