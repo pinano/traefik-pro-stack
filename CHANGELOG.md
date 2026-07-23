@@ -1,3 +1,10 @@
+## v2026.07.23 (2026-07-23)
+
+- chore: configure crowdsec database credentials, volume persistence, and refine database stats Makefile command (b4d4763)
+- feat: automate CrowdSec configuration generation using environment-aware template processing (fabe62a)
+- feat: integrate PostgreSQL as the backend database for CrowdSec with automated secret generation and management helpers (81f4ee2)
+- chore: update container images, improve shell robustness, and replace sed with python string substitution for configuration generation (a4743b5)
+
 ## v2026.07.22 (2026-07-22)
 
 - refactor: reorganize dashboard source code into modular structure with blueprints, extensions, and utility modules (a0dda34)
