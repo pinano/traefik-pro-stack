@@ -153,6 +153,27 @@ fi
 
 printf '%b\n' "${GREEN}✅ CrowdSec container is running${NC}"
 
+# Check CrowdSec PostgreSQL Database status (if container exists)
+DB_CONTAINER_ID=""
+if [ -n "$PROJECT_NAME" ]; then
+    DB_CONTAINER_ID=$(docker ps -aq --filter "label=com.docker.compose.project=$PROJECT_NAME" --filter "label=com.docker.compose.service=crowdsec-db" 2>/dev/null | head -n 1)
+fi
+if [ -z "$DB_CONTAINER_ID" ]; then
+    DB_CONTAINER_ID=$(docker ps -aq --filter "label=com.docker.compose.service=crowdsec-db" 2>/dev/null | head -n 1)
+fi
+
+if [ -n "$DB_CONTAINER_ID" ]; then
+    DB_STATUS=$(docker inspect -f '{{.State.Status}}' "$DB_CONTAINER_ID" 2>/dev/null || echo "none")
+    DB_HEALTH=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$DB_CONTAINER_ID" 2>/dev/null || echo "none")
+
+    if [ "$DB_STATUS" != "running" ] || [ "$DB_HEALTH" = "unhealthy" ]; then
+        printf '%b\n' "${RED}❌ CrowdSec PostgreSQL DB is not healthy (status: $DB_STATUS, health: $DB_HEALTH)${NC}"
+        send_telegram "CrowdSec PostgreSQL Database is <b>unhealthy or stopped</b>!%0AStatus: <code>${DB_STATUS}</code>, Health: <code>${DB_HEALTH}</code>%0A👉 <b>Action Required:</b> Check Postgres logs (e.g., <code>make logs crowdsec-db</code>)."
+        exit 1
+    fi
+    printf '%b\n' "${GREEN}✅ CrowdSec PostgreSQL DB is healthy${NC}"
+fi
+
 # Check LAPI status
 LAPI_STATUS=$(docker exec "$CROWDSEC_CONTAINER" cscli lapi status 2>&1)
 LAPI_EXIT_CODE=$?
