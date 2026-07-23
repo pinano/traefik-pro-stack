@@ -19,6 +19,7 @@ The core mission: protect multiple Docker-based web applications (and optionally
 | **Edge Router** | Traefik v3.x | TLS termination, middleware chain, dynamic routing |
 | **IPS** | CrowdSec | Collaborative IP reputation, behavioral detection |
 | **WAF** | CrowdSec AppSec | Layer-7 payload inspection (OWASP rules, virtual patches) |
+| **IPS Database** | PostgreSQL 16 | High-concurrency backend database for CrowdSec LAPI |
 | **Bot Defense** | Anubis | Proof-of-Work challenge via ForwardAuth |
 | **Session Cache** | Redis / Valkey | Anubis PoW sessions + CrowdSec ban cache |
 | **Log Aggregation** | Loki | Stores and indexes container logs |
@@ -135,7 +136,7 @@ The core mission: protect multiple Docker-based web applications (and optionally
 │
 └── Docker Compose Files:
     ├── docker-compose-edge.yaml              # Edge: Traefik (TLS termination, routing)
-    ├── docker-compose-security.yaml          # Security: CrowdSec, Redis, Redis Exporter, CrowdSec Web UI
+    ├── docker-compose-security.yaml          # Security: CrowdSec, PostgreSQL, Redis, Redis Exporter, CrowdSec Web UI
     ├── docker-compose-observability.yaml     # Observability: Grafana, Loki, Alloy, Prometheus
     ├── docker-compose-dashboard.yaml         # Dashboard: Dashboard, Dozzle, Watchdog, ctop
     ├── docker-compose-anubis.yaml            # Bot Defense: Anubis base template + Assets server
@@ -152,10 +153,11 @@ The core mission: protect multiple Docker-based web applications (and optionally
 Understanding the startup sequence is critical before suggesting any changes:
 
 1. **Env sync**: Merges `.env.dist` structure with existing `.env` values; backs up `.env` to `.env.bak`. Never destructive.
-2. **Credential sync**: Auto-generates `DASHBOARD_SECRET_KEY` if missing. Detects and regenerates changed admin passwords into bcrypt hashes. Updates `TRAEFIK_CERT_RESOLVER` based on `TRAEFIK_ACME_ENV_TYPE`.
+2. **Credential sync**: Auto-generates `DASHBOARD_SECRET_KEY`, `CROWDSEC_DB_PASSWORD`, `CROWDSEC_WEB_UI_PASSWORD`, `REDIS_PASSWORD` if missing. Detects and regenerates changed admin passwords into bcrypt hashes. Updates `TRAEFIK_CERT_RESOLVER` based on `TRAEFIK_ACME_ENV_TYPE`.
 3. **Asset prep**: Copies `.dist` Anubis assets if no custom overrides exist. Generates `traefik-generated.yaml` from `traefik.yaml.template` via `sed` substitution. Runs `generate-config.py` to produce all dynamic Traefik config.
 4. **Network + security prep**: Creates Docker networks (`traefik`, `anubis-backend`). Generates CrowdSec IP whitelist file. Probes for host Apache via TCP socket.
-5. **Security-first boot**: CrowdSec and Redis boot first. Health check loop (60s timeout). Traefik is not started until CrowdSec health check passes. Bouncer key is registered/re-registered every time.
+5. **Security-first boot**: CrowdSec, PostgreSQL DB, and Redis boot first. Health check loop (60s timeout). Traefik is not started until CrowdSec health check passes. Bouncer key is registered/re-registered every time.
+
 6. **Full stack start**: All remaining services launch. `grafana-setup-telegram` is called automatically.
 
 **Key invariant**: the script is idempotent — running it multiple times against an already-running stack does minimal work and avoids container recreations.
@@ -345,6 +347,8 @@ make shell crowdsec   # Open shell in container
 make validate         # Check .env for errors
 make crowdsec-decisions  # List active bans
 make crowdsec-unban 1.2.3.4
+make crowdsec-db-stats    # Show CrowdSec Postgres DB size, row counts & connections
+make crowdsec-db-shell    # Open interactive psql terminal in CrowdSec DB
 make certs-info       # Certificate status overview
 make check-updates    # Check for Docker image updates in compose files
 make help             # Full command list
