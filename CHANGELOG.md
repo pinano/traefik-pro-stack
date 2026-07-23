@@ -1,3 +1,8 @@
+## v2026.07.23.1 (2026-07-23)
+
+- perf: optimize host kernel sysctl limits, CrowdSec database memory, and Traefik connection pooling (ce7f644)
+- feat: add health monitoring for CrowdSec PostgreSQL database container (81a0214)
+
 ## v2026.07.23 (2026-07-23)
 
 - chore: configure crowdsec database credentials, volume persistence, and refine database stats Makefile command (b4d4763)
