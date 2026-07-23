@@ -99,10 +99,9 @@ crowdsec-db-shell: ## Open interactive psql terminal in CrowdSec Postgres DB
 .PHONY: crowdsec-db-stats
 crowdsec-db-stats: ## Show CrowdSec Postgres DB stats (size, connection count, row counts)
 	@echo "=== CrowdSec PostgreSQL Database Stats ==="
-	@$(call check_service,crowdsec-db,psql -U $${CROWDSEC_DB_USER:-crowdsec} -d $${CROWDSEC_DB_NAME:-crowdsec} -c "\
-		SELECT pg_size_pretty(pg_database_size('$${CROWDSEC_DB_NAME:-crowdsec}')) AS database_size; \
-		SELECT count(*) AS active_connections FROM pg_stat_activity WHERE datname = '$${CROWDSEC_DB_NAME:-crowdsec}'; \
-		SELECT relname AS table_name, n_live_tup AS estimated_rows FROM pg_stat_user_tables ORDER BY n_live_tup DESC;")
+	@$(call check_service,crowdsec-db,psql -U $${CROWDSEC_DB_USER:-crowdsec} -d $${CROWDSEC_DB_NAME:-crowdsec} -c "SELECT pg_size_pretty(pg_database_size('$${CROWDSEC_DB_NAME:-crowdsec}')) AS database_size;")
+	@$(call check_service,crowdsec-db,psql -U $${CROWDSEC_DB_USER:-crowdsec} -d $${CROWDSEC_DB_NAME:-crowdsec} -c "SELECT count(*) AS active_connections FROM pg_stat_activity WHERE datname = '$${CROWDSEC_DB_NAME:-crowdsec}';")
+	@$(call check_service,crowdsec-db,psql -U $${CROWDSEC_DB_USER:-crowdsec} -d $${CROWDSEC_DB_NAME:-crowdsec} -c "SELECT relname FROM pg_stat_user_tables ORDER BY n_live_tup DESC;")
 
 ##@help crowdsec-db-vacuum
 ## Runs VACUUM ANALYZE on the CrowdSec Postgres DB to optimize indexes and reclaim disk space.

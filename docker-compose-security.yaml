@@ -15,11 +15,13 @@ services:
       CROWDSEC_DB_USER: ${CROWDSEC_DB_USER:-crowdsec}
       CROWDSEC_DB_PASSWORD: ${CROWDSEC_DB_PASSWORD:-}
       CROWDSEC_DB_NAME: ${CROWDSEC_DB_NAME:-crowdsec}
+      CROWDSEC_BYPASS_DB_VOLUME_CHECK: "true"
     depends_on:
       crowdsec-db:
         condition: service_healthy
     volumes:
       - /etc/localtime:/etc/localtime:ro
+      - ./data/crowdsec/data:/var/lib/crowdsec/data/
       - ./config/crowdsec/acquis.yaml:/etc/crowdsec/acquis.yaml
       - ./config/crowdsec/acquis-base.yaml:/etc/crowdsec/acquis-base.yaml:ro
       - ./config/crowdsec/profiles.yaml:/etc/crowdsec/profiles.yaml
