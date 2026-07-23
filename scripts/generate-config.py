@@ -431,7 +431,7 @@ def process_router(entry, http_section, domain_to_cert_def):
     # Creates a higher priority router to intercept blocked paths
     if BLOCKED_PATHS:
         path_block_router_name = f"path-blocker-{safe_domain}"
-        paths_rule = " || ".join([f"PathRegexp(`.*{p}.*`)" for p in BLOCKED_PATHS])
+        paths_rule = " || ".join([f"PathRegexp(`.*{re.escape(p).replace('`', '')}.*`)" for p in BLOCKED_PATHS])
         http_section['routers'][path_block_router_name] = {
             'rule': f"Host(`{domain}`) && ({paths_rule})",
             'entryPoints': ["websecure"],
