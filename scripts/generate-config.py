@@ -609,6 +609,13 @@ def generate_configs():
         'http': {
             # Timeouts for legacy backends
             'serversTransports': {
+                'default': {
+                    'maxIdleConnsPerHost': 200,
+                    'forwardingTimeouts': {
+                        'responseHeaderTimeout': f"{T_ACTIVE}s",
+                        'idleConnTimeout': f"{T_IDLE}s"
+                    }
+                },
                 'legacy-transport': {
                     'forwardingTimeouts': {
                         'responseHeaderTimeout': f"{T_ACTIVE}s", # Wait T_ACTIVE (default 60s) for the first byte

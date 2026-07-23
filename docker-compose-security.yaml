@@ -68,6 +68,7 @@ services:
     restart: unless-stopped
     profiles:
       - crowdsec
+    command: postgres -c shared_buffers=128MB -c work_mem=16MB -c effective_cache_size=384MB -c maintenance_work_mem=64MB
     environment:
       POSTGRES_USER: ${CROWDSEC_DB_USER:-crowdsec}
       POSTGRES_PASSWORD: ${CROWDSEC_DB_PASSWORD:-}

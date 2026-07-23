@@ -249,6 +249,23 @@ The CrowdSec bouncer is configured fail-open:
 
 This prioritizes availability over security under fault conditions, which is appropriate for a general-purpose stack. If a Fail Closed posture is needed, it must be changed explicitly in `traefik.yaml.template`.
 
+### High-Traffic & Anti-DDoS Host Kernel Tuning (`sysctl`)
+
+To support high-concurrency traffic (10,000+ req/s) and protect against UDP/QUIC (HTTP/3) packet drops and TCP SYN floods, apply the following sysctl parameters on the Linux host / Proxmox host (`/etc/sysctl.d/99-traefik-anti-ddos.conf`):
+
+```ini
+# Increase socket max read/write buffers for HTTP/3 (QUIC / UDP)
+net.core.rmem_max = 7500000
+net.core.wmem_max = 7500000
+
+# Increase backlog queue to prevent packet drops under traffic spikes
+net.core.netdev_max_backlog = 10000
+net.ipv4.tcp_max_syn_backlog = 8192
+
+# Reuse TIME_WAIT sockets for fast backend connection pooling
+net.ipv4.tcp_tw_reuse = 1
+```
+
 ### Automatic Secret Management
 
 Do not prompt the user to generate secrets manually. `start.sh` auto-generates:
