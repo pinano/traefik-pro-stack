@@ -21,7 +21,9 @@
 set -euo pipefail
 
 # ─── Config ──────────────────────────────────────────────────────────────────
-GRAFANA_CONTAINER="${PROJECT_NAME:-stack}-grafana-1"
+# Resolve container dynamically via Docker label or fallback to default pattern
+DETECTED_GRAFANA=$(docker ps --quiet --filter "label=com.docker.compose.service=grafana" 2>/dev/null | head -n 1)
+GRAFANA_CONTAINER="${DETECTED_GRAFANA:-${PROJECT_NAME:-stack}-grafana-1}"
 AUTH="${DASHBOARD_ADMIN_USER:-admin}:${DASHBOARD_ADMIN_PASSWORD}"
 CONTACT_POINT_NAME="Telegram"
 
@@ -57,8 +59,8 @@ fi
 info "Waiting for Grafana container..."
 GRAFANA_READY=false
 for i in $(seq 1 24); do
-    # Check container is running first
-    if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${GRAFANA_CONTAINER}$"; then
+    # Check container is running first (supports both container ID and container name)
+    if ! docker inspect --format '{{.State.Running}}' "${GRAFANA_CONTAINER}" 2>/dev/null | grep -q "true"; then
         sleep 5
         continue
     fi

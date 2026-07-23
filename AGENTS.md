@@ -365,6 +365,8 @@ make help             # Full command list
 | Creating new secrets manually and adding them to .env | Use `openssl rand -hex 32` and update via `make init` or the auto-sync in `start.sh` |
 | Forgetting to add a domain to the Turnstile widget configuration | The CAPTCHA will fail to load on that domain, acting as an un-solvable ban for affected users. |
 | "Fixing" the `chmod 777` fallback in `start.sh` for `./data` | It is intentional. Without `sudo`, `chown 472:472` fails. 777 ensures non-root containers (Grafana/Loki) can write. Do not change it to 775. |
+| Using `sed` to replace secrets or emails with special characters | Use Python `str.replace` or literal string substitution in `init.d/` to prevent syntax errors with `#`, `/`, `&` or quotes |
+| Bypassing `restart-internal.sh` mutex locking | `restart-internal.sh` uses a `/tmp/stack-restart.lock` file lock to prevent race conditions during concurrent YAML generation |
 
 ---
 

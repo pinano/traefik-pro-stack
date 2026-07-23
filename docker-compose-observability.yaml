@@ -4,7 +4,7 @@ services:
   #  GRAFANA (The visualizer)
   # ===========================
   grafana:
-    image: grafana/grafana:13.1
+    image: grafana/grafana:13.1.1
     restart: unless-stopped
     environment:
       - GF_SERVER_ROOT_URL=https://${DASHBOARD_SUBDOMAIN}.${DOMAIN}/grafana
@@ -68,7 +68,7 @@ services:
   #  LOKI (Log storage)
   # ===========================
   loki:
-    image: grafana/loki:3.7.2
+    image: grafana/loki:3.7.4
     restart: unless-stopped
     command: -config.file=/etc/loki/local-config.yaml
     volumes:

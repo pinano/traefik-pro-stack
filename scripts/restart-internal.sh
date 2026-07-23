@@ -31,6 +31,23 @@ set -e
 # Suppress LibreSSL warnings on macOS (urllib3 v2 compatibility)
 export PYTHONWARNINGS="ignore:urllib3 v2 only supports"
 
+# ─── Mutex: Prevent concurrent executions ────────────────────────
+LOCKFILE="/tmp/stack-restart.lock"
+if command -v flock >/dev/null 2>&1; then
+    exec 200>"$LOCKFILE"
+    if ! flock -n 200; then
+        echo "⚠️ Another stack restart process is already running. Skipping concurrent execution."
+        exit 0
+    fi
+else
+    LOCKDIR="/tmp/stack-restart.lockdir"
+    if ! mkdir "$LOCKDIR" 2>/dev/null; then
+        echo "⚠️ Another stack restart process is already running. Skipping concurrent execution."
+        exit 0
+    fi
+    trap 'rm -rf "$LOCKDIR"' EXIT INT TERM
+fi
+
 echo ""
 echo "────────────────────────────────────────────────────────────────────────"
 echo "🔄 APPLYING CONFIGURATION CHANGES..."

@@ -114,13 +114,24 @@ update_env_var "TRAEFIK_CERT_RESOLVER" "$TRAEFIK_CERT_RESOLVER"
 # Generate traefik-generated.yaml from template (idempotent write)
 if [ -f "./config/traefik/traefik.yaml.template" ]; then
     TMP_TRAEFIK=$(mktemp)
-    sed -e "s#TRAEFIK_ACME_EMAIL_PLACEHOLDER#${TRAEFIK_ACME_EMAIL}#g" \
-        -e "s#TRAEFIK_ACME_CASERVER_PLACEHOLDER#${TRAEFIK_ACME_CA_SERVER}#g" \
-        -e "s#TRAEFIK_TIMEOUT_ACTIVE_PLACEHOLDER#${TRAEFIK_TIMEOUT_ACTIVE:-60}s#g" \
-        -e "s#TRAEFIK_TIMEOUT_IDLE_PLACEHOLDER#${TRAEFIK_TIMEOUT_IDLE:-90}s#g" \
-        -e "s#TRAEFIK_ACCESS_LOG_BUFFER_PLACEHOLDER#${TRAEFIK_ACCESS_LOG_BUFFER:-1000}#g" \
-        -e "s#TRAEFIK_LOG_LEVEL_PLACEHOLDER#${TRAEFIK_LOG_LEVEL:-INFO}#g" \
-        ./config/traefik/traefik.yaml.template > "$TMP_TRAEFIK"
+    python3 -c '
+import os, sys
+template_path = "./config/traefik/traefik.yaml.template"
+with open(template_path, "r", encoding="utf-8") as f:
+    content = f.read()
+replacements = {
+    "TRAEFIK_ACME_EMAIL_PLACEHOLDER": os.getenv("TRAEFIK_ACME_EMAIL", ""),
+    "TRAEFIK_ACME_CASERVER_PLACEHOLDER": os.getenv("TRAEFIK_ACME_CA_SERVER", ""),
+    "TRAEFIK_TIMEOUT_ACTIVE_PLACEHOLDER": f"{os.getenv(\"TRAEFIK_TIMEOUT_ACTIVE\", \"60\")}s",
+    "TRAEFIK_TIMEOUT_IDLE_PLACEHOLDER": f"{os.getenv(\"TRAEFIK_TIMEOUT_IDLE\", \"90\")}s",
+    "TRAEFIK_ACCESS_LOG_BUFFER_PLACEHOLDER": os.getenv("TRAEFIK_ACCESS_LOG_BUFFER", "1000"),
+    "TRAEFIK_LOG_LEVEL_PLACEHOLDER": os.getenv("TRAEFIK_LOG_LEVEL", "INFO")
+}
+for placeholder, value in replacements.items():
+    content = content.replace(placeholder, value)
+with open(sys.argv[1], "w", encoding="utf-8") as f:
+    f.write(content)
+' "$TMP_TRAEFIK"
     
     TARGET_TRAEFIK="./config/traefik/traefik-generated.yaml"
     if [ -f "$TARGET_TRAEFIK" ] && cmp -s "$TMP_TRAEFIK" "$TARGET_TRAEFIK"; then
@@ -137,8 +148,14 @@ fi
 # Generate valkey-generated.conf from template (idempotent write)
 if [ -f "./config/valkey/valkey.conf" ]; then
     TMP_VALKEY=$(mktemp)
-    sed "s#REDIS_PASSWORD_PLACEHOLDER#${REDIS_PASSWORD}#g" \
-        ./config/valkey/valkey.conf > "$TMP_VALKEY"
+    python3 -c '
+import os, sys
+with open("./config/valkey/valkey.conf", "r", encoding="utf-8") as f:
+    content = f.read()
+content = content.replace("REDIS_PASSWORD_PLACEHOLDER", os.getenv("REDIS_PASSWORD", ""))
+with open(sys.argv[1], "w", encoding="utf-8") as f:
+    f.write(content)
+' "$TMP_VALKEY"
     
     TARGET_VALKEY="./config/valkey/valkey-generated.conf"
     if [ -f "$TARGET_VALKEY" ] && cmp -s "$TMP_VALKEY" "$TARGET_VALKEY"; then
