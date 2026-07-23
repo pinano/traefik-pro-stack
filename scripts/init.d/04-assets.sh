@@ -164,6 +164,33 @@ with open(sys.argv[1], "w", encoding="utf-8") as f:
         cat "$TMP_VALKEY" > "$TARGET_VALKEY"
         rm "$TMP_VALKEY"
     fi
+
+# Generate CrowdSec config.yaml.local from template (idempotent write)
+if [ -f "./config/crowdsec/config.yaml.local.template" ]; then
+    TMP_CS_CONF=$(mktemp)
+    python3 -c '
+import os, sys
+with open("./config/crowdsec/config.yaml.local.template", "r", encoding="utf-8") as f:
+    content = f.read()
+replacements = {
+    "CROWDSEC_DB_USER_PLACEHOLDER": os.getenv("CROWDSEC_DB_USER", "crowdsec"),
+    "CROWDSEC_DB_PASSWORD_PLACEHOLDER": os.getenv("CROWDSEC_DB_PASSWORD", ""),
+    "CROWDSEC_DB_NAME_PLACEHOLDER": os.getenv("CROWDSEC_DB_NAME", "crowdsec")
+}
+for placeholder, value in replacements.items():
+    content = content.replace(placeholder, value)
+with open(sys.argv[1], "w", encoding="utf-8") as f:
+    f.write(content)
+' "$TMP_CS_CONF"
+
+    TARGET_CS_CONF="./config/crowdsec/config.yaml.local"
+    if [ -f "$TARGET_CS_CONF" ] && cmp -s "$TMP_CS_CONF" "$TARGET_CS_CONF"; then
+        rm "$TMP_CS_CONF"
+    else
+        cat "$TMP_CS_CONF" > "$TARGET_CS_CONF"
+        rm "$TMP_CS_CONF"
+    fi
+fi
 else
     echo "❌ Error: config/valkey/valkey.conf not found!"
     exit 1

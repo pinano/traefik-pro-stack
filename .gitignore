@@ -19,6 +19,7 @@ config/crowdsec/parsers/ip-whitelist.yaml
 config/crowdsec/acquis.yaml
 config/crowdsec/profiles.yaml
 config/valkey/valkey-generated.conf
+config/crowdsec/config.yaml.local
 config/crowdsec/scenarios/traefik-flood-429.yaml
 
 
