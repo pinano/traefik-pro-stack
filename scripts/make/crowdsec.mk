@@ -87,3 +87,38 @@ crowdsec-unban-country: ## Remove all bans for one or more countries (usage: mak
 		exit 1; \
 	fi; \
 	./scripts/crowdsec-geoblock.sh unban $(SERVICE_ARGS)
+
+##@help crowdsec-db-shell
+## Opens an interactive psql terminal inside the CrowdSec PostgreSQL container.
+.PHONY: crowdsec-db-shell
+crowdsec-db-shell: ## Open interactive psql terminal in CrowdSec Postgres DB
+	@$(call check_service,crowdsec-db,psql -U $${CROWDSEC_DB_USER:-crowdsec} -d $${CROWDSEC_DB_NAME:-crowdsec})
+
+##@help crowdsec-db-stats
+## Displays table sizes, active connections, and record counts for the CrowdSec Postgres DB.
+.PHONY: crowdsec-db-stats
+crowdsec-db-stats: ## Show CrowdSec Postgres DB stats (size, connection count, row counts)
+	@echo "=== CrowdSec PostgreSQL Database Stats ==="
+	@$(call check_service,crowdsec-db,psql -U $${CROWDSEC_DB_USER:-crowdsec} -d $${CROWDSEC_DB_NAME:-crowdsec} -c "\
+		SELECT pg_size_pretty(pg_database_size('$${CROWDSEC_DB_NAME:-crowdsec}')) AS database_size; \
+		SELECT count(*) AS active_connections FROM pg_stat_activity WHERE datname = '$${CROWDSEC_DB_NAME:-crowdsec}'; \
+		SELECT relname AS table_name, n_live_tup AS estimated_rows FROM pg_stat_user_tables ORDER BY n_live_tup DESC;")
+
+##@help crowdsec-db-vacuum
+## Runs VACUUM ANALYZE on the CrowdSec Postgres DB to optimize indexes and reclaim disk space.
+.PHONY: crowdsec-db-vacuum
+crowdsec-db-vacuum: ## Optimize CrowdSec Postgres DB indexes and reclaim space (VACUUM ANALYZE)
+	@echo "Running VACUUM ANALYZE on CrowdSec database..."
+	@$(call check_service,crowdsec-db,psql -U $${CROWDSEC_DB_USER:-crowdsec} -d $${CROWDSEC_DB_NAME:-crowdsec} -c "VACUUM ANALYZE;")
+	@echo "✅ Database optimization complete."
+
+##@help crowdsec-db-dump
+## Dumps a compressed SQL backup of the CrowdSec PostgreSQL database into backups/.
+.PHONY: crowdsec-db-dump
+crowdsec-db-dump: ## Create compressed SQL backup of CrowdSec DB in backups/
+	@mkdir -p backups
+	@DUMP_FILE="backups/crowdsec-db-$$(date +%Y%m%d_%H%M%S).sql.gz"; \
+	echo "Dumping CrowdSec database to $$DUMP_FILE..."; \
+	$(call check_service,crowdsec-db,pg_dump -U $${CROWDSEC_DB_USER:-crowdsec} $${CROWDSEC_DB_NAME:-crowdsec}) | gzip > "$$DUMP_FILE"; \
+	echo "✅ Backup created successfully: $$DUMP_FILE"
+

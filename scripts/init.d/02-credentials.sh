@@ -60,6 +60,14 @@ if [ -z "$CROWDSEC_WEB_UI_PASSWORD" ] || [ "$CROWDSEC_WEB_UI_PASSWORD" == "REPLA
     export CROWDSEC_WEB_UI_PASSWORD="$NEW_CS_UI_PASS"
 fi
 
+# CrowdSec PostgreSQL Database Password (auto-generate on first run)
+if [ -z "$CROWDSEC_DB_PASSWORD" ] || [ "$CROWDSEC_DB_PASSWORD" == "REPLACE_ME" ]; then
+    echo "   🔄 Generating CrowdSec PostgreSQL DB password..."
+    NEW_CS_DB_PASS=$(openssl rand -hex 32)
+    update_env_var "CROWDSEC_DB_PASSWORD" "$NEW_CS_DB_PASS"
+    export CROWDSEC_DB_PASSWORD="$NEW_CS_DB_PASS"
+fi
+
 # Redis Password (auto-generate on first run or if too short)
 # Alphanumeric-only to avoid URL-encoding issues in redis:// connection strings.
 # Minimum 20 characters enforced (119 bits of entropy from the base64 source).

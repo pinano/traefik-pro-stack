@@ -167,6 +167,7 @@ To ensure network isolation and avoid socket binding conflicts, the stack maps s
 | `dashboard` | `5000` | None | `traefik` (SSO auth-check) | Flask Admin Dashboard and SSO validation |
 | `crowdsec-lapi` | `8080` | None | `traefik` | Local API engine for log parsing alerts |
 | `crowdsec-appsec` | `7422` | None | `traefik` | Inline AppSec WAF payload inspection |
+| `crowdsec-db` | `5432` | None | `traefik` | PostgreSQL database for CrowdSec LAPI backend |
 | `crowdsec-web-ui` | `3000` | None | `traefik` | Management dashboard UI for CrowdSec |
 | `redis` (Cache) | `6379` | None | `traefik` & `anubis-backend` | Valkey cache server (DB 0: Bans, DB 1: PoW sessions) |
 | `redis-exporter` | `9121` | None | `traefik` | Metric exporter for Prometheus scraping |
@@ -213,7 +214,7 @@ This target launches an interactive configuration wizard (`scripts/initialize-en
 3.  Creates your local `.env` configuration file from the template (`.env.dist`).
 4.  Prompts you for essential parameters (primary domain name, project name, timezone, SSL registration email, ACME environment type, Anubis difficulty, CrowdSec collections, rate limits, and administrator credentials).
 
-Note that cryptographic secrets (`DASHBOARD_SECRET_KEY`, `REDIS_PASSWORD`, `ANUBIS_REDIS_PRIVATE_KEY`, `CROWDSEC_LAPI_KEY`, and `CROWDSEC_WEB_UI_PASSWORD`) are **not** generated during `make init`. They are auto-generated on the first `make start` execution when `start.sh` detects that these values are empty or set to their placeholder defaults. This design ensures that keys are only created once and are never silently overwritten on subsequent startups.
+Note that cryptographic secrets (`DASHBOARD_SECRET_KEY`, `REDIS_PASSWORD`, `ANUBIS_REDIS_PRIVATE_KEY`, `CROWDSEC_LAPI_KEY`, `CROWDSEC_DB_PASSWORD`, and `CROWDSEC_WEB_UI_PASSWORD`) are **not** generated during `make init`. They are auto-generated on the first `make start` execution when `start.sh` detects that these values are empty or set to their placeholder defaults. This design ensures that keys are only created once and are never silently overwritten on subsequent startups.
 
 ### Step 2: Customize Environment Variables
 

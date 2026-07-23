@@ -27,8 +27,8 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
             CROWDSEC_ID=$(docker ps -aq --filter label=com.docker.compose.project=$PROJECT_NAME --filter label=com.docker.compose.service=crowdsec | head -n 1)
         done
     else
-        echo -n "   ⏳ Starting security services (CrowdSec & Redis)..."
-        $COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d crowdsec redis > /dev/null
+        echo -n "   ⏳ Starting security services (CrowdSec, PostgreSQL & Redis)..."
+        $COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d crowdsec-db crowdsec redis > /dev/null
         sleep 1 # Allow terminal to settle
 
         # Wait for CrowdSec to be healthy
