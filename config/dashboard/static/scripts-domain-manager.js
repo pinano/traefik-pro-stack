@@ -401,6 +401,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     const statusOrder = { 'invalid': 0, 'loading': 1, 'valid': 2, null: 3, undefined: 3 };
                     valA = statusOrder[valA] !== undefined ? statusOrder[valA] : 3;
                     valB = statusOrder[valB] !== undefined ? statusOrder[valB] : 3;
+                } else if (currentSort.column === '_ssl_status') {
+                    const sslOrder = { 'error': 0, 'pending': 1, 'local': 2, 'ok': 3 };
+                    const sslA = (a.ssl_info && a.ssl_info.status) || 'pending';
+                    const sslB = (b.ssl_info && b.ssl_info.status) || 'pending';
+                    
+                    const scoreA = sslOrder[sslA] !== undefined ? sslOrder[sslA] : 1;
+                    const scoreB = sslOrder[sslB] !== undefined ? sslOrder[sslB] : 1;
+                    
+                    if (scoreA !== scoreB) {
+                        valA = scoreA;
+                        valB = scoreB;
+                    } else if (sslA === 'ok' && sslB === 'ok') {
+                        valA = (a.ssl_info && a.ssl_info.days_left != null) ? a.ssl_info.days_left : 9999;
+                        valB = (b.ssl_info && b.ssl_info.days_left != null) ? b.ssl_info.days_left : 9999;
+                    } else {
+                        valA = (a.ssl_info && a.ssl_info.message) || '';
+                        valB = (b.ssl_info && b.ssl_info.message) || '';
+                    }
                 } else {
                     valA = valA || '';
                     valB = valB || '';
