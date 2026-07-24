@@ -125,27 +125,40 @@ def certs_view():
             all_valid_domains.add(domain_env)
             expected_batch_sets.add(frozenset([domain_env]))
 
-    certs_by_domains = defaultdict(list)
+    # Sort certificates by expiration date descending (newest/longest valid first)
+    certificates_details.sort(key=lambda x: x.get('expiration_timestamp', 0), reverse=True)
+
+    now_ts = time.time()
+    covered_active_domains = set()
+
     for cert in certificates_details:
-        cert_doms = frozenset([cert['main']] + cert['sans'])
-        certs_by_domains[cert_doms].append(cert)
-    
-    final_certificates = []
-    
-    for cert_doms, certs in certs_by_domains.items():
-        certs.sort(key=lambda x: x.get('expiration_timestamp', 0), reverse=True)
-        
-        for i, cert in enumerate(certs):
-            cert_domains = frozenset([cert['main']] + cert['sans'])
-            is_valid_batch = cert_domains in expected_batch_sets
-            is_valid_single = len(cert_domains) == 1 and list(cert_domains)[0] in all_valid_domains
-            
-            if i > 0 or not (is_valid_batch or is_valid_single):
-                cert['superseded'] = True
-                cert['status'] = 'superseded'
-        
-        final_certificates.extend(certs)
-    
+        cert_doms = set(cert['sans'])
+        exp_ts = cert.get('expiration_timestamp', 0)
+
+        # Check 1: Expired certificate
+        if exp_ts > 0 and exp_ts <= now_ts:
+            cert['superseded'] = True
+            cert['status'] = 'expired'
+            continue
+
+        # Check 2: Obsolete certificate (domains no longer in domains.csv)
+        valid_in_cert = cert_doms.intersection(all_valid_domains)
+        if not valid_in_cert:
+            cert['superseded'] = True
+            cert['status'] = 'superseded'
+            continue
+
+        # Check 3: Superseded certificate (all domains covered by a newer cert)
+        if cert_doms.issubset(covered_active_domains):
+            cert['superseded'] = True
+            cert['status'] = 'superseded'
+            continue
+
+        # Active valid certificate
+        cert['superseded'] = False
+        covered_active_domains.update(cert_doms)
+
+    final_certificates = certificates_details
     final_certificates.sort(key=lambda x: (x['root'], x['main']))
 
     total_certs = len(final_certificates)

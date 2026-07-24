@@ -144,6 +144,32 @@ def load_expected_batch_sets():
                 
     return expected_batch_sets, all_valid_domains
 
+def extract_cert_expiration(cert_b64):
+    if not cert_b64:
+        return 0
+    try:
+        der = base64.b64decode(cert_b64)
+        import re
+        matches = re.findall(b'\x17\x0d([0-9]{12}Z)', der)
+        if len(matches) >= 2:
+            date_str = matches[1].decode('ascii')
+            dt = datetime.strptime(date_str, '%y%m%d%H%M%SZ')
+            return dt.timestamp()
+    except Exception:
+        pass
+    try:
+        cert_pem = base64.b64decode(cert_b64).decode('utf-8')
+        cmd = ['openssl', 'x509', '-noout', '-enddate']
+        process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        stdout, _ = process.communicate(input=cert_pem)
+        if process.returncode == 0 and '=' in stdout:
+            date_str = stdout.strip().split('=', 1)[1]
+            dt = datetime.strptime(date_str, '%b %d %H:%M:%S %Y GMT')
+            return dt.timestamp()
+    except Exception:
+        pass
+    return 0
+
 def prune_certs(dry_run=True):
     action = "Dry-run pruning" if dry_run else "Pruning"
     print(f"🧹 {action} Certificates in {ACME_FILE}...")
@@ -168,6 +194,7 @@ def prune_certs(dry_run=True):
     
     modified = False
     new_acme_data = {}
+    now_ts = datetime.now().timestamp()
 
     for resolver_name, resolver_data in acme_data.items():
         if not isinstance(resolver_data, dict) or 'Certificates' not in resolver_data:
@@ -179,75 +206,68 @@ def prune_certs(dry_run=True):
             new_acme_data[resolver_name] = resolver_data
             continue
 
-        kept_certs = []
-        removed_count = 0
-        
-        # Group by frozenset of domains to detect exact duplicates
-        certs_by_domains = defaultdict(list)
+        processed_certs = []
         for cert in certs:
             main = cert.get('domain', {}).get('main', '').lower()
             sans = [s.lower() for s in cert.get('domain', {}).get('sans', [])]
             cert_b64 = cert.get('certificate', '')
             actual_domains = extract_domains_from_cert(cert_b64)
             if actual_domains:
-                cert_doms = frozenset(actual_domains)
+                all_doms = set(actual_domains)
+                if main not in actual_domains:
+                    main = actual_domains[0]
             else:
-                cert_doms = frozenset([main] + sans if main else sans)
-            certs_by_domains[cert_doms].append(cert)
-            
-        for cert_domains, grouped_certs in certs_by_domains.items():
-            # Try to parse expiration to sort, if fails default to 0
-            def get_ts(c):
-                try:
-                    cert_pem = base64.b64decode(c.get('certificate', '')).decode('utf-8')
-                    cmd = ['openssl', 'x509', '-noout', '-enddate']
-                    process = subprocess.Popen(
-                        cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-                    )
-                    stdout, _ = process.communicate(input=cert_pem)
-                    if process.returncode == 0 and '=' in stdout:
-                        date_str = stdout.strip().split('=', 1)[1]
-                        dt = datetime.strptime(date_str, '%b %d %H:%M:%S %Y GMT')
-                        return dt.timestamp()
-                except Exception:
-                    pass
-                return 0
-                
-            grouped_certs.sort(key=get_ts, reverse=True)
-            
-            for i, cert in enumerate(grouped_certs):
-                main = cert.get('domain', {}).get('main', '').lower()
-                sans = [s.lower() for s in cert.get('domain', {}).get('sans', [])]
-                
-                cert_b64 = cert.get('certificate', '')
-                actual_domains = extract_domains_from_cert(cert_b64)
-                if actual_domains:
-                    cert_domains = frozenset(actual_domains)
-                    if main not in actual_domains:
-                        main = actual_domains[0]
-                    sans = [d for d in actual_domains if d != main]
-                else:
-                    cert_domains = frozenset([main] + sans if main else sans)
+                all_doms = set(([main] if main else []) + sans)
 
-                
-                is_valid_batch = cert_domains in expected_batch_sets
-                is_valid_single = len(cert_domains) == 1 and list(cert_domains)[0] in all_valid_domains
-                
-                if i == 0 and (is_valid_batch or is_valid_single):
-                    kept_certs.append(cert)
-                else:
-                    removed_count += 1
-                    if i > 0:
-                        reason = "Superseded (Older duplicate)"
-                    else:
-                        unknown = [d for d in cert_domains if d not in all_valid_domains]
-                        if unknown:
-                            reason = f"Unknown domains: {', '.join(unknown)}"
-                        else:
-                            reason = "Superseded (Obsolete grouping or batching)"
-                    
-                    print(f"   🗑️  Removing: {main} (Reason: {reason})")
-                    modified = True
+            exp_ts = extract_cert_expiration(cert_b64)
+            processed_certs.append({
+                'raw': cert,
+                'main': main,
+                'domains': all_doms,
+                'exp_ts': exp_ts
+            })
+
+        # Sort certificates by expiration date descending (newest/longest valid first)
+        processed_certs.sort(key=lambda x: x['exp_ts'], reverse=True)
+
+        kept_certs = []
+        removed_count = 0
+        covered_domains = set()
+
+        for item in processed_certs:
+            cert = item['raw']
+            main = item['main']
+            doms = item['domains']
+            exp_ts = item['exp_ts']
+
+            # Check 1: Is certificate expired?
+            if exp_ts > 0 and exp_ts <= now_ts:
+                exp_date = datetime.fromtimestamp(exp_ts).strftime('%Y-%m-%d')
+                print(f"   🗑️  Removing: {main} (Reason: Expired on {exp_date})")
+                removed_count += 1
+                modified = True
+                continue
+
+            # Check 2: Are all domains in the cert invalid/removed from domains.csv?
+            valid_in_cert = doms.intersection(all_valid_domains)
+            if not valid_in_cert:
+                unknown = sorted(list(doms - all_valid_domains))
+                reason = f"Obsolete domains: {', '.join(unknown[:3])}" if unknown else "Obsolete (Not in domains.csv)"
+                print(f"   🗑️  Removing: {main} (Reason: {reason})")
+                removed_count += 1
+                modified = True
+                continue
+
+            # Check 3: Is this certificate superseded (all its domains already covered by a newer cert)?
+            if doms.issubset(covered_domains):
+                print(f"   🗑️  Removing: {main} (Reason: Superseded by newer certificate)")
+                removed_count += 1
+                modified = True
+                continue
+
+            # Keep active valid certificate
+            kept_certs.append(cert)
+            covered_domains.update(doms)
 
         resolver_data['Certificates'] = kept_certs
         new_acme_data[resolver_name] = resolver_data
