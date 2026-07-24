@@ -299,7 +299,7 @@ function renderTables() {
     if (sortedData.length === 0) {
         captchaBody.innerHTML = `
             <tr>
-                <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                <td colspan="5" class="captcha-empty-cell">
                     No CAPTCHA configurations found.
                 </td>
             </tr>
@@ -318,25 +318,25 @@ function renderTables() {
             const isConfigured = row.site_key && row.secret_key;
 
             if (isUnsaved) {
-                tr.style.backgroundColor = 'rgba(245, 158, 11, 0.15)'; // Unsaved orange tint
+                tr.className = 'row-unsaved-tint';
             } else if (isConfigured) {
-                tr.style.backgroundColor = 'rgba(16, 185, 129, 0.05)'; // Green tint
+                tr.className = 'row-configured-tint';
             } else {
-                tr.style.backgroundColor = 'rgba(239, 68, 68, 0.05)'; // Red tint
+                tr.className = 'row-unconfigured-tint';
             }
 
             const statusIcon = isConfigured ? 
-                '<i data-lucide="shield-check" style="color: var(--success-color); min-width: 18px; min-height: 18px; width: 18px; height: 18px;"></i>' : 
-                '<i data-lucide="shield-off" style="color: var(--danger-color); min-width: 18px; min-height: 18px; width: 18px; height: 18px;"></i>';
-            const orphanLabel = row.isOrphan ? '<span style="color: var(--danger-color); font-size: 0.7rem; margin-left: 5px;">(Orphan)</span>' : '';
+                '<i data-lucide="shield-check" class="captcha-icon-active"></i>' : 
+                '<i data-lucide="shield-off" class="captcha-icon-inactive"></i>';
+            const orphanLabel = row.isOrphan ? '<span class="captcha-orphan-label">(Orphan)</span>' : '';
 
             tr.innerHTML = `
                 <td data-label="Root Domain">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div style="flex-shrink: 0; display: flex; align-items: center;">
+                    <div class="captcha-flex-row">
+                        <div class="captcha-flex-icon">
                             ${statusIcon}
                         </div>
-                        <span style="font-weight: 500; color: var(--text-color); word-break: break-word;">${escapeHtml(row.root_domain)}</span>
+                        <span class="captcha-domain-text">${escapeHtml(row.root_domain)}</span>
                         ${orphanLabel}
                     </div>
                 </td>
@@ -353,7 +353,7 @@ function renderTables() {
                 <td data-label="Secret Key">
                     <input type="text" class="data-input secret-key-input" value="${escapeHtml(row.secret_key)}" placeholder="Secret Key">
                 </td>
-                <td data-label="Action" style="text-align: center;">
+                <td data-label="Action" class="cell-center">
                     <button class="btn btn-danger btn-xs clear-keys-btn" title="Clear keys (Disable CAPTCHA)">
                         <i data-lucide="x-circle"></i>
                     </button>

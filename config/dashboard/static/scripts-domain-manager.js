@@ -219,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             otherObj._validation_errors = [];
                             const sCell = row.querySelector('.check-status-cell');
                             if (sCell) {
-                                sCell.innerHTML = '<i data-lucide="help-circle" style="color: #94a3b8; width: 1.2rem; height: 1.2rem;" title="Not validated"></i>';
+                                sCell.innerHTML = '<i data-lucide="help-circle" class="icon-status-pending" title="Not validated"></i>';
                                 if (window.lucide) lucide.createIcons({ root: sCell });
                             }
                             row.classList.remove('row-error');
@@ -230,7 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const statusCell = tr.querySelector('.check-status-cell');
             if (statusCell) {
-                statusCell.innerHTML = '<i data-lucide="help-circle" style="color: #94a3b8; width: 1.2rem; height: 1.2rem;" title="Not validated"></i>';
+                statusCell.innerHTML = '<i data-lucide="help-circle" class="icon-status-pending" title="Not validated"></i>';
                 if (window.lucide) lucide.createIcons({ root: statusCell });
             }
             tr.classList.remove('row-error');
@@ -452,27 +452,42 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let statusHtml = '';
         if (data._status === 'loading') {
-            statusHtml = '<i data-lucide="loader-2" class="animate-spin" style="width: 1rem; height: 1rem; color: #666;"></i>';
+            statusHtml = '<i data-lucide="loader-2" class="animate-spin icon-status-loading"></i>';
         } else if (data._status === 'valid') {
-            statusHtml = '<i data-lucide="check-circle" style="color: #059669; width: 1.2rem; height: 1.2rem;"></i>';
+            statusHtml = '<i data-lucide="check-circle" class="icon-status-valid"></i>';
         } else if (data._status === 'invalid') {
             const errors = data._validation_errors || [];
-            statusHtml = `<i data-lucide="x-circle" style="color: #7f1d1d; width: 1.2rem; height: 1.2rem;" title="${escapeHtml(errors.join('\n'))}"></i>`;
+            statusHtml = `<i data-lucide="x-circle" class="icon-status-invalid" title="${escapeHtml(errors.join('\n'))}"></i>`;
             tr.classList.add('row-error');
         } else {
-            statusHtml = '<i data-lucide="help-circle" style="color: #94a3b8; width: 1.2rem; height: 1.2rem;" title="Not validated"></i>';
+            statusHtml = '<i data-lucide="help-circle" class="icon-status-pending" title="Not validated"></i>';
+        }
+
+        let sslHtml = '';
+        const sslInfo = data.ssl_info || {};
+        if (sslInfo.status === 'ok') {
+            const expDays = sslInfo.days_left != null ? `${sslInfo.days_left} days left` : 'Active';
+            sslHtml = `<i data-lucide="shield-check" class="icon-ssl-active" title="SSL Active: ${expDays}"></i>`;
+        } else if (sslInfo.status === 'local') {
+            sslHtml = '<i data-lucide="shield" class="icon-ssl-local" title="Local Cert (mkcert)"></i>';
+        } else if (sslInfo.status === 'error') {
+            const msg = escapeHtml(sslInfo.message || 'SSL Error');
+            sslHtml = `<i data-lucide="shield-alert" class="icon-ssl-error" title="${msg}"></i>`;
+        } else {
+            sslHtml = '<i data-lucide="shield-off" class="icon-ssl-pending" title="Pending / No Certificate"></i>';
         }
 
         tr.innerHTML = `
-            <td class="check-status-cell" data-label="Valid" style="text-align: center;">${statusHtml}</td>
+            <td class="check-status-cell cell-center" data-label="Valid">${statusHtml}</td>
+            <td class="ssl-status-cell cell-center" data-label="SSL">${sslHtml}</td>
             <td data-label="Domain"><input type="text" readonly class="data-input" data-key="domain" value="${escapeHtml(data.domain || '')}" placeholder="dashboard.example.com"></td>
             <td data-label="Anubis Subdomain"><input type="text" class="data-input" data-key="anubis_subdomain" value="${escapeHtml(data.anubis_subdomain || '')}" placeholder="anubis"></td>
             <td data-label="Rate"><input type="text" class="data-input" data-key="rate" value="${escapeHtml(data.rate || '')}" placeholder="${defaultRateAvg}"></td>
             <td data-label="Burst"><input type="text" class="data-input" data-key="burst" value="${escapeHtml(data.burst || '')}" placeholder="${defaultRateBurst}"></td>
             <td data-label="Concurrency"><input type="text" class="data-input" data-key="concurrency" value="${escapeHtml(data.concurrency || '')}" placeholder="${defaultConcurrency}"></td>
-            <td data-label="Role" style="text-align: center; vertical-align: middle;">
+            <td data-label="Role" class="cell-center-middle">
                 <span class="badge badge-system">
-                    <i data-lucide="lock" style="width: 0.8rem; height: 0.8rem; margin-right: 0.25rem;"></i> Dashboard Domain
+                    <i data-lucide="lock" class="icon-lock-sm"></i> Dashboard Domain
                 </span>
             </td>
         `;
@@ -494,8 +509,6 @@ document.addEventListener('DOMContentLoaded', () => {
         deleted.forEach(data => {
             const tr = document.createElement('tr');
             const root = data._root_domain || '-';
-            // Use lighter/grayed out style or same colors? User asked specifically for the table.
-            // Style.css says background #f9fafb.
 
             tr.innerHTML = `
                 <td></td>
@@ -508,7 +521,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <td data-label="Burst"><input type="text" class="data-input" value="${escapeHtml(data.burst || '')}" disabled></td>
                 <td data-label="Concurrency"><input type="text" class="data-input" value="${escapeHtml(data.concurrency || '')}" disabled></td>
                 <td>
-                    <div style="display: flex; gap: 0.25rem; justify-content: center;">
+                    <div class="flex-center-compact">
                         <button class="btn btn-success btn-xs btn-compact restore-row-btn" title="Restore record">
                             <i data-lucide="rotate-ccw"></i>
                         </button>
@@ -596,19 +609,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let statusHtml = '';
         if (data._status === 'loading') {
-            statusHtml = '<i data-lucide="loader-2" class="animate-spin" style="width: 1rem; height: 1rem; color: #666;"></i>';
+            statusHtml = '<i data-lucide="loader-2" class="animate-spin icon-status-loading"></i>';
         } else if (data._status === 'valid') {
-            statusHtml = '<i data-lucide="check-circle" style="color: #059669; width: 1.2rem; height: 1.2rem;"></i>';
+            statusHtml = '<i data-lucide="check-circle" class="icon-status-valid"></i>';
         } else if (data._status === 'invalid') {
             const errors = data._validation_errors || [];
-            statusHtml = `<i data-lucide="x-circle" style="color: #7f1d1d; width: 1.2rem; height: 1.2rem;" title="${escapeHtml(errors.join('\n'))}"></i>`;
+            statusHtml = `<i data-lucide="x-circle" class="icon-status-invalid" title="${escapeHtml(errors.join('\n'))}"></i>`;
             tr.classList.add('row-error');
         } else {
-            statusHtml = '<i data-lucide="help-circle" style="color: #94a3b8; width: 1.2rem; height: 1.2rem;" title="Not validated"></i>';
+            statusHtml = '<i data-lucide="help-circle" class="icon-status-pending" title="Not validated"></i>';
+        }
+
+        let sslHtml = '';
+        const sslInfo = data.ssl_info || {};
+        if (sslInfo.status === 'ok') {
+            const expDays = sslInfo.days_left != null ? `${sslInfo.days_left} days left` : 'Active';
+            sslHtml = `<i data-lucide="shield-check" class="icon-ssl-active" title="SSL Active: ${expDays}"></i>`;
+        } else if (sslInfo.status === 'local') {
+            sslHtml = '<i data-lucide="shield" class="icon-ssl-local" title="Local Cert (mkcert)"></i>';
+        } else if (sslInfo.status === 'error') {
+            const msg = escapeHtml(sslInfo.message || 'SSL Error');
+            sslHtml = `<i data-lucide="shield-alert" class="icon-ssl-error" title="${msg}"></i>`;
+        } else {
+            sslHtml = '<i data-lucide="shield-off" class="icon-ssl-pending" title="Pending / No Certificate"></i>';
         }
 
         tr.innerHTML = `
-            <td class="check-status-cell" data-label="Valid" style="text-align: center;">${statusHtml}</td>
+            <td class="check-status-cell cell-center" data-label="Valid">${statusHtml}</td>
+            <td class="ssl-status-cell cell-center" data-label="SSL">${sslHtml}</td>
             <td class="root-domain-cell" data-label="Root Domain">${escapeHtml(root) || '-'}</td>
             <td data-label="Domain"><input type="text" class="data-input" data-key="domain" value="${escapeHtml(data.domain || '')}" placeholder="example.com"></td>
             <td data-label="Redirection"><input type="text" class="data-input" data-key="redirection" value="${escapeHtml(data.redirection || '')}" placeholder="www.example.com"></td>
@@ -691,7 +719,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Show loading spinner
             if (statusCell) {
-                statusCell.innerHTML = '<i data-lucide="loader-2" class="animate-spin" style="width: 1rem; height: 1rem; color: #666;"></i>';
+                statusCell.innerHTML = '<i data-lucide="loader-2" class="animate-spin icon-status-loading"></i>';
                 if (window.lucide) lucide.createIcons({ root: statusCell });
             }
             if (domainObj) domainObj._status = 'loading';
@@ -720,7 +748,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (localErrors.length > 0) {
                 if (statusCell) {
-                    statusCell.innerHTML = `<i data-lucide="x-circle" style="color: #7f1d1d; width: 1.2rem; height: 1.2rem;" title="${localErrors.join('\n')}"></i>`;
+                    statusCell.innerHTML = `<i data-lucide="x-circle" class="icon-status-invalid" title="${localErrors.join('\n')}"></i>`;
                     if (window.lucide) lucide.createIcons({ root: statusCell });
                 }
                 row.classList.add('row-error');
@@ -755,7 +783,7 @@ document.addEventListener('DOMContentLoaded', () => {
             rowMeta.filter(m => m.localErrors.length === 0).forEach(m => {
                 const statusCell = m.row.querySelector('.check-status-cell');
                 if (statusCell) {
-                    statusCell.innerHTML = '<i data-lucide="help-circle" style="color: #6b7280; width: 1.2rem; height: 1.2rem;" title="Check failed"></i>';
+                    statusCell.innerHTML = '<i data-lucide="help-circle" class="icon-status-failed" title="Check failed"></i>';
                     if (window.lucide) lucide.createIcons({ root: statusCell });
                 }
                 globalErrors.push(`${m.rowLabel}: Batch resolution check failed (${err.message})`);
@@ -813,14 +841,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (isError || data.status === 'mismatch') {
                 if (statusCell) {
-                    statusCell.innerHTML = `<i data-lucide="x-circle" style="color: #7f1d1d; width: 1.2rem; height: 1.2rem;" title="${tooltip.join('\n')}"></i>`;
+                    statusCell.innerHTML = `<i data-lucide="x-circle" class="icon-status-invalid" title="${tooltip.join('\n')}"></i>`;
                 }
                 row.classList.add('row-error');
                 if (m.domainObj) { m.domainObj._status = 'invalid'; m.domainObj._validation_errors = tooltip; }
                 allValid = false;
             } else {
                 if (statusCell) {
-                    statusCell.innerHTML = '<i data-lucide="check-circle" style="color: #22c55e; width: 1.2rem; height: 1.2rem;"></i>';
+                    statusCell.innerHTML = '<i data-lucide="check-circle" class="icon-status-valid-alt"></i>';
                 }
                 if (m.domainObj) m.domainObj._status = 'valid';
             }

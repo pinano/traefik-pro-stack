@@ -21,12 +21,11 @@
 
 <body>
     <div id="unsaved-notification" class="unsaved-changes-banner">
-        <i data-lucide="save" style="vertical-align: middle; margin-right: 0.5rem; width: 1.2rem; height: 1.2rem;"></i>
+        <i data-lucide="save" class="icon-inline"></i>
         Unsaved changes. Don't forget to save!
     </div>
     <div id="deploy-notification" class="deploy-needed-banner">
-        <i id="deploy-notification-icon" data-lucide="zap"
-            style="vertical-align: middle; margin-right: 0.5rem; width: 1.2rem; height: 1.2rem;"></i>
+        <i id="deploy-notification-icon" data-lucide="zap" class="icon-inline"></i>
         <span id="deploy-notification-text">Changes saved. Ready to deploy.</span>
     </div>
 
@@ -38,12 +37,12 @@
                         <a href="{{ url_for('views.dashboard') }}" class="back-link" title="Back to Dashboard">
                             <i data-lucide="arrow-left"></i>
                         </a>
-                        <h1 style="display: flex; align-items: baseline; gap: 0.5rem;">
+                        <h1 class="header-title-flex">
                             Traefik Pro Stack
-                            <span style="font-size: 1.1rem; color: var(--text-muted); font-weight: 400;">/ Domain Manager</span>
+                            <span class="header-title-sub">/ Domain Manager</span>
                         </h1>
                     </div>
-                    <div class="logo-subtitles" style="margin-top: 0.1rem;">
+                    <div class="logo-subtitles logo-subtitles-spacing">
                         <span>{{ domain }}</span>
                         <span class="subtitle-separator">|</span>
                     <button id="help-btn" class="subtitle-link help-link-btn" title="Usage Instructions">
@@ -68,7 +67,7 @@
                 <a href="#" id="theme-toggle" class="btn btn-secondary btn-icon-only" title="Toggle Theme">
                     <i id="theme-icon" data-lucide="moon"></i>
                 </a>
-                <form method="POST" action="{{ url_for('auth.logout') }}" style="display:inline;">
+                <form method="POST" action="{{ url_for('auth.logout') }}" class="form-inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-secondary" id="logout-btn">
                         <i data-lucide="log-out"></i> Logout
@@ -81,10 +80,10 @@
 
         <main>
             <div class="table-tools">
-                <button id="add-row-top-btn" class="btn btn-success" style="margin-right: 1rem;">
+                <button id="add-row-top-btn" class="btn btn-success btn-right-spacing">
                     <i data-lucide="plus"></i> Add Record
                 </button>
-                <div style="display: flex; gap: 0.75rem; align-items: center;">
+                <div class="flex-gap-center">
                     <div class="style-selector-wrapper">
                         <i data-lucide="palette" class="selector-icon"></i>
                         <select id="group-style-select" class="style-select" title="Grouping Visual Style">
@@ -166,10 +165,10 @@
             </div>
 
             <!-- Dashboard Domain (SSO & Admin Portal) -->
-            <div class="system-section" style="margin-top: 2rem;">
+            <div class="system-section section-top-spacing">
                 <div class="system-section-header">
                     <h2>
-                        <i data-lucide="shield" style="color: var(--primary-color); vertical-align: middle; margin-right: 0.5rem; width: 1.3rem; height: 1.3rem;"></i>
+                        <i data-lucide="shield" class="icon-lg-inline icon-primary"></i>
                         Dashboard Domain (SSO & Admin Portal)
                     </h2>
                 </div>
@@ -177,13 +176,14 @@
                     <table id="system-domain-table">
                         <thead>
                             <tr>
-                                <th style="width: 6%;">Valid</th>
-                                <th style="width: 32%;">Domain</th>
-                                <th style="width: 22%;">Anubis Subdomain</th>
-                                <th style="width: 10%;">Rate</th>
-                                <th style="width: 10%;">Burst</th>
-                                <th style="width: 10%;">Concurrency</th>
-                                <th style="width: 10%;">Role</th>
+                                <th class="col-valid">Valid</th>
+                                <th class="col-valid">SSL</th>
+                                <th class="col-domain">Domain</th>
+                                <th class="col-anubis">Anubis Subdomain</th>
+                                <th class="col-rate">Rate</th>
+                                <th class="col-burst">Burst</th>
+                                <th class="col-conc">Concurrency</th>
+                                <th class="col-role">Role</th>
                             </tr>
                         </thead>
                         <tbody id="system-domain-body">
@@ -195,7 +195,7 @@
 
             <div class="deleted-section">
                 <h2>
-                    <i data-lucide="trash-2" style="color: var(--text-muted); vertical-align: middle; margin-right: 0.5rem; width: 1.3rem; height: 1.3rem;"></i>
+                    <i data-lucide="trash-2" class="icon-lg-inline icon-muted"></i>
                     Deleted Records
                 </h2>
                 <div class="table-container">
@@ -229,7 +229,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 id="restart-modal-title">Soft Restart Progress</h2>
-                <button id="close-modal-btn" class="btn btn-secondary btn-sm" style="display: none;">Close</button>
+                <button id="close-modal-btn" class="btn btn-secondary btn-sm display-none">Close</button>
             </div>
             <div class="modal-body modal-body-console">
                 <pre id="log-container">Initializing stream...</pre>
@@ -244,7 +244,7 @@
                 <h2 id="confirm-modal-title">Confirm Deletion</h2>
             </div>
             <div class="modal-body">
-                <p id="confirm-msg" style="color: var(--text-color);">Are you sure you want to delete
+                <p id="confirm-msg" class="confirm-text-color">Are you sure you want to delete
                     this domain?</p>
             </div>
             <div class="modal-footer">
@@ -256,74 +256,67 @@
 
     <!-- Help Modal -->
     <div id="help-modal" class="modal-overlay">
-        <div class="modal">
+        <div class="modal help-modal-width">
             <div class="modal-header">
                 <h2>Usage Instructions</h2>
                 <button id="close-help-btn" class="toast-close">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="help-section">
-                    <h3
-                        style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; color: var(--primary-color);">
-                        <i data-lucide="check-circle" style="color: var(--success-color);"></i> Status Indicators
+                    <h3 class="help-title-flex">
+                        <i data-lucide="check-circle" class="icon-success"></i> Status Indicators
                     </h3>
-                    <p style="margin-bottom: 0.75rem;">The <strong>Valid</strong> column shows the real-time status of
+                    <p class="help-p-spacing">The <strong>Valid</strong> column shows the real-time status of
                         each record:</p>
-                    <ul class="help-list" style="list-style: none; padding-left: 0;">
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
-                            <i data-lucide="help-circle" style="color: #94a3b8; flex-shrink: 0; margin-top: 2px;"></i>
+                    <ul class="help-list help-list-reset">
+                        <li class="help-item-flex">
+                            <i data-lucide="help-circle" class="help-icon-offset help-icon-slate"></i>
                             <span><strong>Pending:</strong> Record hasn't been validated yet or was recently
                                 modified.</span>
                         </li>
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
-                            <i data-lucide="loader-2" class="animate-spin"
-                                style="color: #666; flex-shrink: 0; margin-top: 2px;"></i>
+                        <li class="help-item-flex">
+                            <i data-lucide="loader-2" class="animate-spin help-icon-offset help-icon-gray"></i>
                             <span><strong>Validating:</strong> Checking DNS records and Docker services.</span>
                         </li>
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
-                            <i data-lucide="check-circle" style="color: #059669; flex-shrink: 0; margin-top: 2px;"></i>
+                        <li class="help-item-flex">
+                            <i data-lucide="check-circle" class="help-icon-offset help-icon-emerald"></i>
                             <span><strong>Valid:</strong> DNS resolves correctly to this host and the service
                                 exists.</span>
                         </li>
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
-                            <i data-lucide="x-circle" style="color: #7f1d1d; flex-shrink: 0; margin-top: 2px;"></i>
+                        <li class="help-item-flex">
+                            <i data-lucide="x-circle" class="help-icon-offset help-icon-red"></i>
                             <span><strong>Invalid:</strong> There is an issue (DNS mismatch, service missing, etc.).
                                 Hover to see details.</span>
                         </li>
                     </ul>
                 </div>
 
-                <div class="help-section" style="margin-top: 1.5rem;">
-                    <h3
-                        style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; color: var(--primary-color);">
+                <div class="help-section help-section-spacing">
+                    <h3 class="help-title-flex">
                         <i data-lucide="edit-3"></i> Editing & Actions
                     </h3>
-                    <ul class="help-list" style="list-style: none; padding-left: 0;">
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
-                            <i data-lucide="info" style="color: #f97316; flex-shrink: 0; margin-top: 2px;"></i>
-                            <span><strong>Unsaved Changes:</strong> Rows with pending changes are highlighted in <span
-                                    style="color: #f97316; font-weight: bold;">orange</span>.</span>
+                    <ul class="help-list help-list-reset">
+                        <li class="help-item-flex">
+                            <i data-lucide="info" class="help-icon-offset help-icon-orange"></i>
+                            <span><strong>Unsaved Changes:</strong> Rows with pending changes are highlighted in <span class="text-orange-bold">orange</span>.</span>
                         </li>
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
-                            <i data-lucide="search"
-                                style="color: var(--primary-color); flex-shrink: 0; margin-top: 2px;"></i>
+                        <li class="help-item-flex">
+                            <i data-lucide="search" class="help-icon-offset icon-primary"></i>
                             <span><strong>Service Selection:</strong> Search from running containers or use
                                 <code>apache-host</code>.</span>
                         </li>
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
-                            <i data-lucide="shield-check" style="color: #6366f1; flex-shrink: 0; margin-top: 2px;"></i>
+                        <li class="help-item-flex">
+                            <i data-lucide="shield-check" class="help-icon-offset help-icon-indigo"></i>
                             <span><strong>Anubis:</strong> Automatically verifies <code>subdomain.root_domain</code> DNS
                                 record.</span>
                         </li>
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
-                            <i data-lucide="save"
-                                style="color: var(--primary-color); flex-shrink: 0; margin-top: 2px;"></i>
+                        <li class="help-item-flex">
+                            <i data-lucide="save" class="help-icon-offset icon-primary"></i>
                             <span><strong>Save Changes:</strong> Persists all records. All entries must be valid (Green)
                                 to save.</span>
                         </li>
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
-                            <i data-lucide="rocket"
-                                style="color: #0d9488; flex-shrink: 0; margin-top: 2px;"></i>
+                        <li class="help-item-flex">
+                            <i data-lucide="rocket" class="help-icon-offset help-icon-teal"></i>
                             <span><strong>Deploy Changes:</strong> Applies your saved changes to the stack. The system will automatically choose between a <strong>Hot Reload</strong> (zero-downtime config update) or a <strong>Soft Restart</strong> (container updates for new domains/Anubis) based on the type of changes made.</span>
                         </li>
                     </ul>
