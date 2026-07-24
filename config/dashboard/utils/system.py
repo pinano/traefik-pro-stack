@@ -6,15 +6,38 @@ import json
 import base64
 import datetime
 import requests
-from config import BASE_DIR, ENV, TRAEFIK_ACME_ENV_TYPE, ACME_FILE, read_dotenv
-
+import ssl
 import time
+from config import BASE_DIR, ENV, TRAEFIK_ACME_ENV_TYPE, ACME_FILE, read_dotenv
 
 log = logging.getLogger(__name__)
 
 _SSL_MAP_CACHE = None
 _SSL_MAP_LAST_FETCH = 0
 _SSL_MAP_ACME_MTIME = 0
+
+def get_domain_ssl_info(domain, ssl_map):
+    """
+    Returns the SSL info for a given domain, resolving exact matches and wildcard certificates (*.domain.com).
+    """
+    if not domain:
+        return {'status': 'pending', 'message': 'No domain specified'}
+
+    if ssl_map.get('_is_local'):
+        return {'status': 'local', 'message': 'Local Certificate (mkcert)'}
+
+    d = domain.strip().lower()
+    if d in ssl_map:
+        return ssl_map[d]
+
+    # Wildcard lookup (*.domain.com)
+    parts = d.split('.')
+    for i in range(1, len(parts) - 1):
+        wildcard = '*.' + '.'.join(parts[i:])
+        if wildcard in ssl_map:
+            return ssl_map[wildcard]
+
+    return {'status': 'pending', 'message': 'No SSL Certificate in acme.json'}
 
 def get_ssl_status_map(force_refresh=False):
     """
@@ -62,7 +85,6 @@ def get_ssl_status_map(force_refresh=False):
                                 proc = subprocess.run(cmd, input=pem, capture_output=True, text=True)
                                 if proc.returncode == 0 and 'notAfter=' in proc.stdout:
                                     date_str = proc.stdout.strip().split('=', 1)[1]
-                                    import ssl, time
                                     exp_ts = int(ssl.cert_time_to_seconds(date_str))
                                     now_ts = int(time.time())
                                     days_left = (exp_ts - now_ts) // 86400

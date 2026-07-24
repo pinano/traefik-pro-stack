@@ -81,17 +81,11 @@ def api_domains():
             })
 
         try:
+            from utils.system import get_ssl_status_map, get_domain_ssl_info
             ssl_map = get_ssl_status_map()
-            is_local = ssl_map.get('_is_local', False)
-
             for entry in csv_data:
                 d = entry.get('domain', '').strip().lower()
-                if is_local:
-                    entry['ssl_info'] = {'status': 'local', 'message': 'Local Certificate (mkcert)'}
-                elif d in ssl_map:
-                    entry['ssl_info'] = ssl_map[d]
-                else:
-                    entry['ssl_info'] = {'status': 'error', 'message': 'No SSL Certificate in acme.json'}
+                entry['ssl_info'] = get_domain_ssl_info(d, ssl_map)
         except Exception as e:
             log.warning(f"Could not compute ssl_info for domains: {e}")
 
