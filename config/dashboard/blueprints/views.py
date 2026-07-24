@@ -59,7 +59,7 @@ def certs_view():
         if isinstance(resolver_data, dict) and isinstance(resolver_data.get('Certificates'), list):
             for cert in resolver_data['Certificates']:
                 if 'domain' in cert and cert.get('certificate'):
-                    cert_info = parse_certificate_data(cert['certificate'])
+                    cert_info = parse_certificate_data(cert['certificate'], cert.get('domain'))
                     
                     real_main = cert_info['cn'].lower() if cert_info['cn'] else "unknown"
                     real_sans = [s.lower() for s in cert_info['sans']]
@@ -180,14 +180,19 @@ def certs_view():
     try:
         from utils.system import get_ssl_status_map, get_domain_ssl_info
         import socket
+        from concurrent.futures import ThreadPoolExecutor
+
         ssl_map = get_ssl_status_map()
-        for d in sorted(list(missing_domains)):
+        sorted_missing = sorted(list(missing_domains))
+
+        def check_missing(d):
             info = get_domain_ssl_info(d, ssl_map)
             reason = info.get('message', '')
             remediation = info.get('remediation', '')
 
             if not reason or reason == 'No SSL Certificate in acme.json':
                 try:
+                    socket.setdefaulttimeout(0.3)
                     ip = socket.gethostbyname(d)
                     reason = "Pending Traefik ACME Request"
                     remediation = f"Domain resolves to IP ({ip}). Click 'Deploy Changes' or perform a Soft Restart to trigger ACME issuance."
@@ -195,11 +200,14 @@ def certs_view():
                     reason = "DNS Record Missing / Unresolved (NXDOMAIN)"
                     remediation = "Create an A/AAAA record pointing to this server IP in your DNS provider before requesting SSL."
 
-            missing_domains_details.append({
+            return {
                 'domain': d,
                 'reason': reason,
                 'remediation': remediation
-            })
+            }
+
+        with ThreadPoolExecutor(max_workers=min(len(sorted_missing) or 1, 20)) as executor:
+            missing_domains_details = list(executor.map(check_missing, sorted_missing))
     except Exception as e:
         current_app.logger.warning(f"Error fetching ssl_map for certs_view: {e}")
         for d in sorted(list(missing_domains)):
