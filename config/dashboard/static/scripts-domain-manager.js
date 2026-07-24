@@ -401,24 +401,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     const statusOrder = { 'invalid': 0, 'loading': 1, 'valid': 2, null: 3, undefined: 3 };
                     valA = statusOrder[valA] !== undefined ? statusOrder[valA] : 3;
                     valB = statusOrder[valB] !== undefined ? statusOrder[valB] : 3;
-                } else if (currentSort.column === '_ssl_status') {
-                    const sslOrder = { 'error': 0, 'pending': 1, 'local': 2, 'ok': 3 };
-                    const sslA = (a.ssl_info && a.ssl_info.status) || 'pending';
-                    const sslB = (b.ssl_info && b.ssl_info.status) || 'pending';
-                    
-                    const scoreA = sslOrder[sslA] !== undefined ? sslOrder[sslA] : 1;
-                    const scoreB = sslOrder[sslB] !== undefined ? sslOrder[sslB] : 1;
-                    
-                    if (scoreA !== scoreB) {
-                        valA = scoreA;
-                        valB = scoreB;
-                    } else if (sslA === 'ok' && sslB === 'ok') {
-                        valA = (a.ssl_info && a.ssl_info.days_left != null) ? a.ssl_info.days_left : 9999;
-                        valB = (b.ssl_info && b.ssl_info.days_left != null) ? b.ssl_info.days_left : 9999;
-                    } else {
-                        valA = (a.ssl_info && a.ssl_info.message) || '';
-                        valB = (b.ssl_info && b.ssl_info.message) || '';
-                    }
                 } else {
                     valA = valA || '';
                     valB = valB || '';
@@ -481,25 +463,8 @@ document.addEventListener('DOMContentLoaded', () => {
             statusHtml = '<i data-lucide="help-circle" class="icon-status-pending" title="Not validated"></i>';
         }
 
-        let sslHtml = '';
-        const sslInfo = data.ssl_info || {};
-        if (sslInfo.status === 'ok') {
-            const expDays = sslInfo.days_left != null ? `${sslInfo.days_left} days left` : 'Active';
-            sslHtml = `<i data-lucide="shield-check" class="icon-ssl-active" title="SSL Active: ${expDays}"></i>`;
-        } else if (sslInfo.status === 'local') {
-            sslHtml = '<i data-lucide="shield" class="icon-ssl-local" title="Local Cert (mkcert)"></i>';
-        } else if (sslInfo.status === 'error') {
-            const msg = escapeHtml(sslInfo.message || 'SSL Error');
-            const remedy = sslInfo.remediation ? `\n💡 Action: ${escapeHtml(sslInfo.remediation)}` : '';
-            sslHtml = `<i data-lucide="shield-alert" class="icon-ssl-error" title="${msg}${remedy}"></i>`;
-        } else {
-            const remedy = sslInfo.remediation ? `\n💡 Action: ${escapeHtml(sslInfo.remediation)}` : '';
-            sslHtml = `<i data-lucide="shield-off" class="icon-ssl-pending" title="Pending / No Certificate${remedy}"></i>`;
-        }
-
         tr.innerHTML = `
             <td class="check-status-cell cell-center" data-label="Valid">${statusHtml}</td>
-            <td class="ssl-status-cell cell-center" data-label="SSL">${sslHtml}</td>
             <td data-label="Domain"><input type="text" readonly class="data-input" data-key="domain" value="${escapeHtml(data.domain || '')}" placeholder="dashboard.example.com"></td>
             <td data-label="Anubis Subdomain"><input type="text" class="data-input" data-key="anubis_subdomain" value="${escapeHtml(data.anubis_subdomain || '')}" placeholder="anubis"></td>
             <td data-label="Rate"><input type="text" class="data-input" data-key="rate" value="${escapeHtml(data.rate || '')}" placeholder="${defaultRateAvg}"></td>
@@ -531,7 +496,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const root = data._root_domain || '-';
 
             tr.innerHTML = `
-                <td></td>
                 <td></td>
                 <td class="root-domain-cell" data-label="Root Domain">${escapeHtml(root)}</td>
                 <td data-label="Domain"><input type="text" class="data-input" value="${escapeHtml(data.domain || '')}" disabled></td>
@@ -641,25 +605,8 @@ document.addEventListener('DOMContentLoaded', () => {
             statusHtml = '<i data-lucide="help-circle" class="icon-status-pending" title="Not validated"></i>';
         }
 
-        let sslHtml = '';
-        const sslInfo = data.ssl_info || {};
-        if (sslInfo.status === 'ok') {
-            const expDays = sslInfo.days_left != null ? `${sslInfo.days_left} days left` : 'Active';
-            sslHtml = `<i data-lucide="shield-check" class="icon-ssl-active" title="SSL Active: ${expDays}"></i>`;
-        } else if (sslInfo.status === 'local') {
-            sslHtml = '<i data-lucide="shield" class="icon-ssl-local" title="Local Cert (mkcert)"></i>';
-        } else if (sslInfo.status === 'error') {
-            const msg = escapeHtml(sslInfo.message || 'SSL Error');
-            const remedy = sslInfo.remediation ? `\n💡 Action: ${escapeHtml(sslInfo.remediation)}` : '';
-            sslHtml = `<i data-lucide="shield-alert" class="icon-ssl-error" title="${msg}${remedy}"></i>`;
-        } else {
-            const remedy = sslInfo.remediation ? `\n💡 Action: ${escapeHtml(sslInfo.remediation)}` : '';
-            sslHtml = `<i data-lucide="shield-off" class="icon-ssl-pending" title="Pending / No Certificate${remedy}"></i>`;
-        }
-
         tr.innerHTML = `
             <td class="check-status-cell cell-center" data-label="Valid">${statusHtml}</td>
-            <td class="ssl-status-cell cell-center" data-label="SSL">${sslHtml}</td>
             <td class="root-domain-cell" data-label="Root Domain">${escapeHtml(root) || '-'}</td>
             <td data-label="Domain"><input type="text" class="data-input" data-key="domain" value="${escapeHtml(data.domain || '')}" placeholder="example.com"></td>
             <td data-label="Redirection"><input type="text" class="data-input" data-key="redirection" value="${escapeHtml(data.redirection || '')}" placeholder="www.example.com"></td>

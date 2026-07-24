@@ -80,15 +80,6 @@ def api_domains():
                 'enabled': True
             })
 
-        try:
-            from utils.system import get_ssl_status_map, get_domain_ssl_info
-            ssl_map = get_ssl_status_map()
-            for entry in csv_data:
-                d = entry.get('domain', '').strip().lower()
-                entry['ssl_info'] = get_domain_ssl_info(d, ssl_map)
-        except Exception as e:
-            log.warning(f"Could not compute ssl_info for domains: {e}")
-
         return jsonify(csv_data)
 
     if request.method == 'POST':

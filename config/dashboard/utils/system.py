@@ -168,55 +168,77 @@ def get_ssl_status_map(force_refresh=False):
     return ssl_map
 
 
+class UnixHTTPConnection(http.client.HTTPConnection):
+    def __init__(self, path):
+        super().__init__('localhost')
+        self.path = path
+    def connect(self):
+        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.sock.connect(self.path)
+
 def get_traefik_acme_log_errors():
     """
-    Parses recent Traefik container logs via Docker API to extract real-time ACME certificate failure reasons.
+    Parses recent Traefik container logs via Docker Unix socket or Docker CLI to extract real-time ACME certificate failure reasons.
     Returns dict: { 'domain.com': {'status': 'error', 'message': '...', 'remediation': '...'} }
     """
     errors = {}
+    log_text = ""
+
+    # Attempt 1: Direct Unix Socket connection to Docker Daemon
     try:
-        from utils.docker import get_docker_client
-        client = get_docker_client()
-        if not client:
-            return errors
-        container = client.containers.get('traefik')
-        log_bytes = container.logs(tail=800, timestamps=False)
-        log_text = log_bytes.decode('utf-8', errors='ignore')
+        if os.path.exists('/var/run/docker.sock'):
+            conn = UnixHTTPConnection('/var/run/docker.sock')
+            conn.request('GET', '/containers/traefik/logs?stdout=1&stderr=1&tail=1000')
+            res = conn.getresponse()
+            if res.status == 200:
+                log_text = res.read().decode('utf-8', errors='ignore')
+    except Exception:
+        pass
 
-        import re
-        lines = log_text.splitlines()
-        for line in lines:
-            if 'acme' in line.lower() or 'certificate' in line.lower():
-                found_domains = re.findall(r'([a-zA-Z0-9][a-zA-Z0-9\.\-]+\.[a-zA-Z]{2,})', line)
-                for d in found_domains:
-                    d_clean = d.strip('"`\'[]() ').lower()
-                    if not d_clean or '.' not in d_clean or 'letsencrypt' in d_clean or 'traefik' in d_clean or 'github' in d_clean or d_clean.startswith('acme'):
-                        continue
+    # Attempt 2: Fallback to docker CLI
+    if not log_text:
+        try:
+            proc = subprocess.run(['docker', 'logs', '--tail', '1000', 'traefik'], capture_output=True, text=True, timeout=3)
+            if proc.returncode == 0:
+                log_text = proc.stdout + '\n' + proc.stderr
+        except Exception:
+            pass
 
-                    remediation = "Verify domain DNS A/AAAA record points to this server IP and ports 80/443 are open."
+    if not log_text:
+        return errors
+
+    import re
+    lines = log_text.splitlines()
+    for line in lines:
+        if 'acme' in line.lower() or 'certificate' in line.lower():
+            found_domains = re.findall(r'([a-zA-Z0-9][a-zA-Z0-9\.\-]+\.[a-zA-Z]{2,})', line)
+            for d in found_domains:
+                d_clean = d.strip('"`\'[]() ').lower()
+                if not d_clean or '.' not in d_clean or 'letsencrypt' in d_clean or 'traefik' in d_clean or 'github' in d_clean or d_clean.startswith('acme'):
+                    continue
+
+                remediation = "Verify domain DNS A/AAAA record points to this server IP and ports 80/443 are open."
+                msg = "DNS Validation / Auth Failed (403)"
+
+                line_lower = line.lower()
+                if 'caa' in line_lower:
+                    msg = "Blocked by CAA DNS Record"
+                    remediation = "Add 'CAA 0 issue \"letsencrypt.org\"' to your domain DNS records."
+                elif 'ratelimit' in line_lower or '429' in line_lower:
+                    msg = "ACME Rate Limit Exceeded (429)"
+                    remediation = "Let's Encrypt rate limit reached. Wait for the 7-day rate limit window reset."
+                elif 'unauthorized' in line_lower or '403' in line_lower:
                     msg = "DNS Validation / Auth Failed (403)"
+                    remediation = "Verify domain DNS A/AAAA record points to this server IP and ports 80/443 are open."
+                elif 'connection refused' in line_lower or 'timeout' in line_lower:
+                    msg = "Network Timeout / Port 80 Blocked"
+                    remediation = "Ensure server port 80/443 is accessible publicly."
 
-                    line_lower = line.lower()
-                    if 'caa' in line_lower:
-                        msg = "Blocked by CAA DNS Record"
-                        remediation = "Add 'CAA 0 issue \"letsencrypt.org\"' to your domain DNS records."
-                    elif 'ratelimit' in line_lower or '429' in line_lower:
-                        msg = "ACME Rate Limit Exceeded (429)"
-                        remediation = "Let's Encrypt rate limit reached. Wait for the 7-day rate limit window reset."
-                    elif 'unauthorized' in line_lower or '403' in line_lower:
-                        msg = "DNS Validation / Auth Failed (403)"
-                        remediation = "Verify domain DNS A/AAAA record points to this server IP and ports 80/443 are open."
-                    elif 'connection refused' in line_lower or 'timeout' in line_lower:
-                        msg = "Network Timeout / Port 80 Blocked"
-                        remediation = "Ensure server port 80/443 is accessible publicly."
-
-                    errors[d_clean] = {
-                        'status': 'error',
-                        'message': msg,
-                        'remediation': remediation
-                    }
-    except Exception as e:
-        log.debug(f"Could not parse Traefik container logs: {e}")
+                errors[d_clean] = {
+                    'status': 'error',
+                    'message': msg,
+                    'remediation': remediation
+                }
     return errors
 
 def get_subprocess_env():
