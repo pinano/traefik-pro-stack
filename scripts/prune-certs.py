@@ -51,26 +51,45 @@ from datetime import datetime
 
 
 
-def extract_domains_from_cert(cert_b64):
-    try:
-        cert_pem = base64.b64decode(cert_b64).decode('utf-8')
-        cmd = ['openssl', 'x509', '-noout', '-ext', 'subjectAltName']
-        process = subprocess.Popen(
-            cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-        )
-        stdout, _ = process.communicate(input=cert_pem)
-        if process.returncode == 0:
-            actual_domains = []
-            for line in stdout.splitlines():
-                line = line.strip()
-                if line.startswith('DNS:'):
-                    for part in line.split(','):
-                        part = part.strip()
-                        if part.startswith('DNS:'):
-                            actual_domains.append(part[4:].lower())
-            return actual_domains
-    except Exception:
-        pass
+def extract_domains_from_cert(cert_dict_or_b64):
+    # If passed a dictionary from acme.json (fast path)
+    if isinstance(cert_dict_or_b64, dict):
+        domain_info = cert_dict_or_b64.get('domain', {})
+        if isinstance(domain_info, dict):
+            main = domain_info.get('main', '').strip().lower()
+            sans = [s.strip().lower() for s in domain_info.get('sans', []) if s.strip()]
+            if main or sans:
+                doms = []
+                if main:
+                    doms.append(main)
+                for s in sans:
+                    if s not in doms:
+                        doms.append(s)
+                return doms
+        cert_b64 = cert_dict_or_b64.get('certificate', '')
+    else:
+        cert_b64 = cert_dict_or_b64
+
+    if cert_b64:
+        try:
+            cert_pem = base64.b64decode(cert_b64).decode('utf-8')
+            cmd = ['openssl', 'x509', '-noout', '-ext', 'subjectAltName']
+            process = subprocess.Popen(
+                cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+            )
+            stdout, _ = process.communicate(input=cert_pem)
+            if process.returncode == 0:
+                actual_domains = []
+                for line in stdout.splitlines():
+                    line = line.strip()
+                    if line.startswith('DNS:'):
+                        for part in line.split(','):
+                            part = part.strip()
+                            if part.startswith('DNS:'):
+                                actual_domains.append(part[4:].lower())
+                return actual_domains
+        except Exception:
+            pass
     return []
 
 from collections import defaultdict
@@ -227,7 +246,7 @@ def prune_certs(dry_run=True):
             main = cert.get('domain', {}).get('main', '').lower()
             sans = [s.lower() for s in cert.get('domain', {}).get('sans', [])]
             cert_b64 = cert.get('certificate', '')
-            actual_domains = extract_domains_from_cert(cert_b64)
+            actual_domains = extract_domains_from_cert(cert)
             if actual_domains:
                 all_doms = set(actual_domains)
                 if main not in actual_domains:
