@@ -32,6 +32,24 @@
     --color-violet-hover: #a78bfa;
     --color-teal: #0d9488;
 
+    /* Legacy Shade Aliases */
+    --color-indigo-500: var(--color-indigo);
+    --color-indigo-400: var(--color-indigo-hover);
+    --color-green-500: var(--color-green);
+    --color-green-400: var(--color-green-hover);
+    --color-green-700: var(--color-green-dark);
+    --color-red-500: var(--color-red);
+    --color-red-400: var(--color-red-hover);
+    --color-red-900: var(--color-red-dark);
+    --color-red-950: #450a0a;
+    --color-amber-500: var(--color-amber);
+    --color-sky-500: var(--color-sky);
+    --color-sky-400: var(--color-sky-hover);
+    --color-violet-500: var(--color-violet);
+    --color-violet-400: var(--color-violet-hover);
+    --color-teal-500: var(--color-teal);
+    --color-teal-600: var(--color-teal);
+
     /* --- Border Radius --- */
     --radius-2xl: 1rem;
     --radius-full: 50%;
