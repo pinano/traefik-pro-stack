@@ -8,7 +8,7 @@ from flask import Blueprint, request, jsonify, Response
 from blueprints.auth import login_required
 from extensions import limiter
 from config import BASE_DIR, GENERATE_CONFIG_SCRIPT, RESTART_INTERNAL_SCRIPT, DASHBOARD_SUBDOMAIN, DOMAIN, TRAEFIK_ACME_ENV_TYPE
-from utils.system import get_subprocess_env, build_compose_env, get_external_services, resolve_domain, check_host_file
+from utils.system import get_subprocess_env, build_compose_env, get_external_services, resolve_domain, check_host_file, get_ssl_status_map
 from utils.csv_manager import read_csv, write_csv, read_captcha_csv, write_captcha_csv, validate_domain_data, validate_captcha_data, get_root_domain
 from utils.csv_manager import TURNSTILE_SITE_KEY_RE, TURNSTILE_SECRET_KEY_RE, HCAPTCHA_SITE_KEY_RE, HCAPTCHA_SECRET_KEY_RE, RECAPTCHA_KEY_RE
 
@@ -79,6 +79,21 @@ def api_domains():
                 'concurrency': '',
                 'enabled': True
             })
+
+        try:
+            ssl_map = get_ssl_status_map()
+            is_local = ssl_map.get('_is_local', False)
+
+            for entry in csv_data:
+                d = entry.get('domain', '').strip().lower()
+                if is_local:
+                    entry['ssl_info'] = {'status': 'local', 'message': 'Certificado local (mkcert)'}
+                elif d in ssl_map:
+                    entry['ssl_info'] = ssl_map[d]
+                else:
+                    entry['ssl_info'] = {'status': 'error', 'message': 'Sin certificado SSL en acme.json (no emitido)'}
+        except Exception as e:
+            log.warning(f"Could not compute ssl_info for domains: {e}")
 
         return jsonify(csv_data)
 
@@ -459,6 +474,8 @@ def restart_stack():
 @login_required
 def restart_stream():
     def generate():
+        yield "data: 🚀 Conectando con el servidor e iniciando regeneración...\n\n"
+
         process = subprocess.Popen(
             ['bash', RESTART_INTERNAL_SCRIPT],
             cwd=BASE_DIR,

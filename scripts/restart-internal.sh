@@ -30,6 +30,7 @@ set -e
 
 # Suppress LibreSSL warnings on macOS (urllib3 v2 compatibility)
 export PYTHONWARNINGS="ignore:urllib3 v2 only supports"
+export PYTHONUNBUFFERED=1
 
 # ─── Mutex: Prevent concurrent executions ────────────────────────
 LOCKFILE="/tmp/stack-restart.lock"
@@ -86,7 +87,7 @@ else
     PYTHON_CMD="python3"
 fi
 
-$PYTHON_CMD scripts/generate-config.py | sed 's/^/   /'
+$PYTHON_CMD scripts/generate-config.py | sed -u 's/^/   /'
 
 # ─── Step 1b: Regenerate CrowdSec profiles.yaml ─────────────────
 # profiles.yaml depends on captcha_keys.csv (managed from the Captchas UI).
