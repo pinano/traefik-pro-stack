@@ -154,7 +154,12 @@
                         <th></th>
                     </thead>
                     <tbody id="domains-body">
-                        <!-- Data will be loaded here -->
+                        <tr id="domains-loading-row">
+                            <td colspan="11" class="text-center" style="padding: 2.5rem; color: var(--text-muted);">
+                                <i data-lucide="loader-2" class="animate-spin" style="width: 2rem; height: 2rem; margin-bottom: 0.5rem; color: var(--primary-color);"></i>
+                                <div>Loading domain records...</div>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -187,7 +192,11 @@
                             </tr>
                         </thead>
                         <tbody id="system-domain-body">
-                            <!-- Rendered by JS -->
+                            <tr id="system-loading-row">
+                                <td colspan="8" class="text-center" style="padding: 1.5rem; color: var(--text-muted);">
+                                    <i data-lucide="loader-2" class="animate-spin" style="width: 1.5rem; height: 1.5rem; color: var(--primary-color);"></i>
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
