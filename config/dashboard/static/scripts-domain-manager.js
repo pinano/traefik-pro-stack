@@ -512,6 +512,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             tr.innerHTML = `
                 <td></td>
+                <td></td>
                 <td class="root-domain-cell" data-label="Root Domain">${escapeHtml(root)}</td>
                 <td data-label="Domain"><input type="text" class="data-input" value="${escapeHtml(data.domain || '')}" disabled></td>
                 <td data-label="Redirection"><input type="text" class="data-input" value="${escapeHtml(data.redirection || '')}" disabled></td>
