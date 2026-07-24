@@ -146,7 +146,7 @@
                             <i data-lucide="chevron-up" class="sort-icon asc"></i>
                             <i data-lucide="chevron-down" class="sort-icon desc"></i>
                         </th>
-                        <th class="sortable" data-sort="concurrency">Concurrency
+                        <th class="sortable" data-sort="concurrency">Concur.
                             <i data-lucide="chevrons-up-down" class="sort-icon default"></i>
                             <i data-lucide="chevron-up" class="sort-icon asc"></i>
                             <i data-lucide="chevron-down" class="sort-icon desc"></i>
@@ -177,12 +177,12 @@
                         <thead>
                             <tr>
                                 <th class="col-valid">Valid</th>
-                                <th class="col-valid">SSL</th>
+                                <th class="col-ssl">SSL</th>
                                 <th class="col-domain">Domain</th>
                                 <th class="col-anubis">Anubis Subdomain</th>
                                 <th class="col-rate">Rate</th>
                                 <th class="col-burst">Burst</th>
-                                <th class="col-conc">Concurrency</th>
+                                <th class="col-conc">Concur.</th>
                                 <th class="col-role">Role</th>
                             </tr>
                         </thead>
@@ -203,6 +203,7 @@
                         <thead>
                             <tr>
                                 <th>Valid</th>
+                                <th>SSL</th>
                                 <th>Root Domain</th>
                                 <th>Domain</th>
                                 <th>Redirection</th>
@@ -210,7 +211,7 @@
                                 <th>Anubis Subdomain</th>
                                 <th>Rate</th>
                                 <th>Burst</th>
-                                <th>Concurrency</th>
+                                <th>Concur.</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -287,6 +288,31 @@
                             <i data-lucide="x-circle" class="help-icon-offset help-icon-red"></i>
                             <span><strong>Invalid:</strong> There is an issue (DNS mismatch, service missing, etc.).
                                 Hover to see details.</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="help-section help-section-spacing">
+                    <h3 class="help-title-flex">
+                        <i data-lucide="shield-check" class="icon-primary"></i> SSL Status Indicators
+                    </h3>
+                    <p class="help-p-spacing">The <strong>SSL</strong> column displays real-time certificate status for each domain:</p>
+                    <ul class="help-list help-list-reset">
+                        <li class="help-item-flex">
+                            <i data-lucide="shield-check" class="help-icon-offset icon-ssl-active"></i>
+                            <span><strong>Active:</strong> Valid SSL certificate found in <code>acme.json</code>. Hover to view remaining days.</span>
+                        </li>
+                        <li class="help-item-flex">
+                            <i data-lucide="shield" class="help-icon-offset icon-ssl-local"></i>
+                            <span><strong>Local:</strong> Using local development certificate (<code>mkcert</code>).</span>
+                        </li>
+                        <li class="help-item-flex">
+                            <i data-lucide="shield-alert" class="help-icon-offset icon-ssl-error"></i>
+                            <span><strong>Error:</strong> ACME issuance failed. Hover to view reason (CAA DNS record, rate limits, DNS mismatch).</span>
+                        </li>
+                        <li class="help-item-flex">
+                            <i data-lucide="shield-off" class="help-icon-offset icon-ssl-pending"></i>
+                            <span><strong>Pending:</strong> No certificate in <code>acme.json</code> yet. Deploy changes to initiate issuance.</span>
                         </li>
                     </ul>
                 </div>

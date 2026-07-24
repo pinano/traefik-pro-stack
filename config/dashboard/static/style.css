@@ -2271,13 +2271,38 @@ select.data-input:focus {
 .text-orange-bold { color: var(--color-orange-500); font-weight: bold; }
 .help-section-spacing { margin-top: 1.5rem; }
 
-.col-valid { width: 6%; }
-.col-domain { width: 32%; }
-.col-anubis { width: 22%; }
+.col-valid { width: 3.5%; min-width: 45px; }
+.col-ssl { width: 3.5%; min-width: 45px; }
+.col-domain { width: 30%; }
+.col-anubis { width: 20%; }
 .col-rate { width: 10%; }
 .col-burst { width: 10%; }
-.col-conc { width: 10%; }
-.col-role { width: 10%; }
+.col-conc { width: 11%; }
+.col-role { width: 12%; }
+
+#domains-table th:nth-child(1),
+#domains-table td:nth-child(1),
+#deleted-domains-table th:nth-child(1),
+#deleted-domains-table td:nth-child(1) {
+    width: 45px;
+    text-align: center;
+}
+
+#domains-table th:nth-child(2),
+#domains-table td:nth-child(2),
+#deleted-domains-table th:nth-child(2),
+#deleted-domains-table td:nth-child(2) {
+    width: 45px;
+    text-align: center;
+}
+
+#domains-table th:nth-child(11),
+#domains-table td:nth-child(11),
+#deleted-domains-table th:nth-child(11),
+#deleted-domains-table td:nth-child(11) {
+    width: 45px;
+    text-align: center;
+}
 
 /* JS Dynamic Icon & Layout Classes */
 .icon-status-loading { color: var(--color-slate-500); width: 1rem; height: 1rem; }
