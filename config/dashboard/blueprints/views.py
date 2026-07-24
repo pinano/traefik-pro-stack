@@ -179,11 +179,22 @@ def certs_view():
     missing_domains_details = []
     try:
         from utils.system import get_ssl_status_map, get_domain_ssl_info
+        import socket
         ssl_map = get_ssl_status_map()
         for d in sorted(list(missing_domains)):
             info = get_domain_ssl_info(d, ssl_map)
             reason = info.get('message', '')
-            remediation = info.get('remediation', 'Deploy changes or run a soft restart to trigger ACME certificate request.')
+            remediation = info.get('remediation', '')
+
+            if not reason or reason == 'No SSL Certificate in acme.json':
+                try:
+                    ip = socket.gethostbyname(d)
+                    reason = "Pending Traefik ACME Request"
+                    remediation = f"Domain resolves to IP ({ip}). Click 'Deploy Changes' or perform a Soft Restart to trigger ACME issuance."
+                except Exception:
+                    reason = "DNS Record Missing / Unresolved (NXDOMAIN)"
+                    remediation = "Create an A/AAAA record pointing to this server IP in your DNS provider before requesting SSL."
+
             missing_domains_details.append({
                 'domain': d,
                 'reason': reason,
@@ -194,7 +205,7 @@ def certs_view():
         for d in sorted(list(missing_domains)):
             missing_domains_details.append({
                 'domain': d,
-                'reason': '',
+                'reason': 'No Certificate Found',
                 'remediation': 'Deploy changes to request SSL certificate.'
             })
 

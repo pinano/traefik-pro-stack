@@ -106,11 +106,6 @@
                             <i data-lucide="chevron-up" class="sort-icon asc"></i>
                             <i data-lucide="chevron-down" class="sort-icon desc"></i>
                         </th>
-                        <th class="sortable" data-sort="_ssl_status">SSL
-                            <i data-lucide="chevrons-up-down" class="sort-icon default"></i>
-                            <i data-lucide="chevron-up" class="sort-icon asc"></i>
-                            <i data-lucide="chevron-down" class="sort-icon desc"></i>
-                        </th>
                         <th class="sortable" data-sort="_root_domain">Root Domain
                             <i data-lucide="chevrons-up-down" class="sort-icon default"></i>
                             <i data-lucide="chevron-up" class="sort-icon asc"></i>
@@ -154,12 +149,7 @@
                         <th></th>
                     </thead>
                     <tbody id="domains-body">
-                        <tr id="domains-loading-row">
-                            <td colspan="11" class="text-center" style="padding: 2.5rem; color: var(--text-muted);">
-                                <i data-lucide="loader-2" class="animate-spin" style="width: 2rem; height: 2rem; margin-bottom: 0.5rem; color: var(--primary-color);"></i>
-                                <div>Loading domain records...</div>
-                            </td>
-                        </tr>
+                        <!-- Data will be loaded here -->
                     </tbody>
                 </table>
             </div>
@@ -182,7 +172,6 @@
                         <thead>
                             <tr>
                                 <th class="col-valid">Valid</th>
-                                <th class="col-ssl">SSL</th>
                                 <th class="col-domain">Domain</th>
                                 <th class="col-anubis">Anubis Subdomain</th>
                                 <th class="col-rate">Rate</th>
@@ -192,11 +181,7 @@
                             </tr>
                         </thead>
                         <tbody id="system-domain-body">
-                            <tr id="system-loading-row">
-                                <td colspan="8" class="text-center" style="padding: 1.5rem; color: var(--text-muted);">
-                                    <i data-lucide="loader-2" class="animate-spin" style="width: 1.5rem; height: 1.5rem; color: var(--primary-color);"></i>
-                                </td>
-                            </tr>
+                            <!-- Rendered by JS -->
                         </tbody>
                     </table>
                 </div>
@@ -212,7 +197,6 @@
                         <thead>
                             <tr>
                                 <th>Valid</th>
-                                <th>SSL</th>
                                 <th>Root Domain</th>
                                 <th>Domain</th>
                                 <th>Redirection</th>
@@ -301,30 +285,7 @@
                     </ul>
                 </div>
 
-                <div class="help-section help-section-spacing">
-                    <h3 class="help-title-flex">
-                        <i data-lucide="shield-check" class="icon-primary"></i> SSL Status Indicators
-                    </h3>
-                    <p class="help-p-spacing">The <strong>SSL</strong> column displays real-time certificate status for each domain:</p>
-                    <ul class="help-list help-list-reset">
-                        <li class="help-item-flex">
-                            <i data-lucide="shield-check" class="help-icon-offset icon-ssl-active"></i>
-                            <span><strong>Active:</strong> Valid SSL certificate found in <code>acme.json</code>. Hover to view remaining days.</span>
-                        </li>
-                        <li class="help-item-flex">
-                            <i data-lucide="shield" class="help-icon-offset icon-ssl-local"></i>
-                            <span><strong>Local:</strong> Using local development certificate (<code>mkcert</code>).</span>
-                        </li>
-                        <li class="help-item-flex">
-                            <i data-lucide="shield-alert" class="help-icon-offset icon-ssl-error"></i>
-                            <span><strong>Error:</strong> ACME issuance failed. Hover to view reason (CAA DNS record, rate limits, DNS mismatch).</span>
-                        </li>
-                        <li class="help-item-flex">
-                            <i data-lucide="shield-off" class="help-icon-offset icon-ssl-pending"></i>
-                            <span><strong>Pending:</strong> No certificate in <code>acme.json</code> yet. Deploy changes to initiate issuance.</span>
-                        </li>
-                    </ul>
-                </div>
+
 
                 <div class="help-section help-section-spacing">
                     <h3 class="help-title-flex">
