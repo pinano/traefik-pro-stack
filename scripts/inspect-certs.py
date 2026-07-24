@@ -296,7 +296,7 @@ def inspect_certs(verbose=False):
         print(f"\n⚠️  NOT IN USE / SUPERSEDED CERTIFICATES ({len(dirty_certs)} found):")
         for cert in dirty_certs:
             print(f"   ➜ Main: {cert['main']} (Reason: {cert['dirty_reason']})")
-        print("\n   👉 Run 'make certs-prune-force' to safely remove them.")
+        print("\n   👉 Run 'make certs-prune-force' to safely remove them (NOTE: Traefik must be stopped first with 'make stop traefik').")
 
     if not missing_domains and not dirty_certs and expected_domains:
         print("\n✨ All certificates are 100% active and perfectly aligned with domains.csv.")
