@@ -87,11 +87,11 @@ def api_domains():
             for entry in csv_data:
                 d = entry.get('domain', '').strip().lower()
                 if is_local:
-                    entry['ssl_info'] = {'status': 'local', 'message': 'Certificado local (mkcert)'}
+                    entry['ssl_info'] = {'status': 'local', 'message': 'Local Certificate (mkcert)'}
                 elif d in ssl_map:
                     entry['ssl_info'] = ssl_map[d]
                 else:
-                    entry['ssl_info'] = {'status': 'error', 'message': 'Sin certificado SSL en acme.json (no emitido)'}
+                    entry['ssl_info'] = {'status': 'error', 'message': 'No SSL Certificate in acme.json'}
         except Exception as e:
             log.warning(f"Could not compute ssl_info for domains: {e}")
 
@@ -474,7 +474,7 @@ def restart_stack():
 @login_required
 def restart_stream():
     def generate():
-        yield "data: 🚀 Conectando con el servidor e iniciando regeneración...\n\n"
+        yield "data: 🚀 Connecting to server and initiating regeneration...\n\n"
 
         process = subprocess.Popen(
             ['bash', RESTART_INTERNAL_SCRIPT],

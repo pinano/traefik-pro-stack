@@ -161,14 +161,48 @@ def certs_view():
     
     missing_domains = expected_domains - covered_domains
     missing_count = len(missing_domains)
-    
+
+    missing_domains_details = []
+    traefik_errors = {}
+    try:
+        import requests, re
+        res = requests.get("http://traefik:8080/api/rawdata", timeout=2)
+        if res.status_code == 200:
+            rawdata = res.json()
+            for r_name, r_val in rawdata.get('routers', {}).items():
+                err = r_val.get('error', '')
+                rule = r_val.get('rule', '')
+                if err and 'Host(' in rule:
+                    hosts = re.findall(r'`([^`]+)`', rule)
+                    for h in hosts:
+                        err_msg = "SSL Issuance Failed"
+                        if 'CAA' in err:
+                            err_msg = "Blocked by CAA DNS Record"
+                        elif 'rateLimited' in err:
+                            err_msg = "ACME Rate Limit Exceeded (429)"
+                        elif 'unauthorized' in err:
+                            err_msg = "DNS Validation Failed (403 Unauthorized)"
+                        elif err:
+                            err_msg = err
+                        traefik_errors[h.lower()] = err_msg
+    except Exception:
+        pass
+
+    for d in sorted(list(missing_domains)):
+        reason = traefik_errors.get(d.lower(), "")
+        missing_domains_details.append({
+            'domain': d,
+            'reason': reason
+        })
+
     return render_template('certs.html', 
                            domain=DOMAIN,
                            certificates=final_certificates,
                            total_certs=total_certs,
                            total_unique_domains=total_unique_domains,
                            missing_count=missing_count,
-                           missing_domains=sorted(list(missing_domains)))
+                           missing_domains=sorted(list(missing_domains)),
+                           missing_domains_details=missing_domains_details)
 
 @views_bp.route('/captchas')
 @login_required

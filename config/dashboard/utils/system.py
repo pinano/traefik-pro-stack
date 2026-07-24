@@ -72,13 +72,13 @@ def get_ssl_status_map():
                     for h in hosts:
                         h_lower = h.lower()
                         if h_lower not in ssl_map or ssl_map[h_lower].get('status') != 'ok':
-                            err_msg = "Error al obtener certificado SSL"
+                            err_msg = "SSL Certificate Issuance Failed"
                             if 'CAA' in err:
-                                err_msg = "Bloqueado por registro CAA en DNS"
+                                err_msg = "Blocked by CAA DNS Record"
                             elif 'rateLimited' in err:
-                                err_msg = "Límite de ráfaga ACME alcanzado (429)"
+                                err_msg = "ACME Rate Limit Exceeded (429)"
                             elif 'unauthorized' in err:
-                                err_msg = "Fallo de validación DNS (403 unauthorized)"
+                                err_msg = "DNS Validation Failed (403 Unauthorized)"
                             elif err:
                                 err_msg = err
                             ssl_map[h_lower] = {
