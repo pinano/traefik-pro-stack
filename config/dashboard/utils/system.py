@@ -95,17 +95,23 @@ def get_ssl_status_map(force_refresh=False):
                         h_lower = h.lower()
                         if h_lower not in ssl_map or ssl_map[h_lower].get('status') != 'ok':
                             err_msg = "SSL Certificate Issuance Failed"
+                            remediation = "Check domain DNS resolution and Traefik logs."
                             if 'CAA' in err:
                                 err_msg = "Blocked by CAA DNS Record"
+                                remediation = "Add 'CAA 0 issue \"letsencrypt.org\"' to your domain DNS records."
                             elif 'rateLimited' in err:
                                 err_msg = "ACME Rate Limit Exceeded (429)"
+                                remediation = "Let's Encrypt rate limit reached. Wait for the 7-day rate limit window reset."
                             elif 'unauthorized' in err:
                                 err_msg = "DNS Validation Failed (403 Unauthorized)"
+                                remediation = "Verify DNS A/AAAA record points to this server IP and ports 80/443 are open."
                             elif err:
                                 err_msg = err
+
                             ssl_map[h_lower] = {
                                 'status': 'error',
-                                'message': err_msg
+                                'message': err_msg,
+                                'remediation': remediation
                             }
     except Exception:
         pass

@@ -2296,3 +2296,40 @@ select.data-input:focus {
 .row-configured-tint { background-color: var(--row-configured-tint-bg); }
 .row-unconfigured-tint { background-color: var(--row-unconfigured-tint-bg); }
 
+/* Missing Cert Card & Remediation Styles */
+.missing-cert-card {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.75rem;
+    list-style: none;
+}
+
+.missing-cert-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.95rem;
+}
+
+.missing-cert-remediation {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-color);
+    background-color: var(--neutral-alt-bg);
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--color-amber);
+}
+
+.remediation-icon {
+    width: 1.1rem;
+    height: 1.1rem;
+    color: var(--color-amber);
+    flex-shrink: 0;
+}
+

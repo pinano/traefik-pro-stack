@@ -163,37 +163,26 @@ def certs_view():
     missing_count = len(missing_domains)
 
     missing_domains_details = []
-    traefik_errors = {}
     try:
-        import requests, re
-        res = requests.get("http://traefik:8080/api/rawdata", timeout=2)
-        if res.status_code == 200:
-            rawdata = res.json()
-            for r_name, r_val in rawdata.get('routers', {}).items():
-                err = r_val.get('error', '')
-                rule = r_val.get('rule', '')
-                if err and 'Host(' in rule:
-                    hosts = re.findall(r'`([^`]+)`', rule)
-                    for h in hosts:
-                        err_msg = "SSL Issuance Failed"
-                        if 'CAA' in err:
-                            err_msg = "Blocked by CAA DNS Record"
-                        elif 'rateLimited' in err:
-                            err_msg = "ACME Rate Limit Exceeded (429)"
-                        elif 'unauthorized' in err:
-                            err_msg = "DNS Validation Failed (403 Unauthorized)"
-                        elif err:
-                            err_msg = err
-                        traefik_errors[h.lower()] = err_msg
-    except Exception:
-        pass
-
-    for d in sorted(list(missing_domains)):
-        reason = traefik_errors.get(d.lower(), "")
-        missing_domains_details.append({
-            'domain': d,
-            'reason': reason
-        })
+        from utils.system import get_ssl_status_map
+        ssl_map = get_ssl_status_map()
+        for d in sorted(list(missing_domains)):
+            info = ssl_map.get(d.lower(), {})
+            reason = info.get('message', '')
+            remediation = info.get('remediation', 'Deploy changes or run a soft restart to trigger ACME certificate request.')
+            missing_domains_details.append({
+                'domain': d,
+                'reason': reason,
+                'remediation': remediation
+            })
+    except Exception as e:
+        log.warning(f"Error fetching ssl_map for certs_view: {e}")
+        for d in sorted(list(missing_domains)):
+            missing_domains_details.append({
+                'domain': d,
+                'reason': '',
+                'remediation': 'Deploy changes to request SSL certificate.'
+            })
 
     return render_template('certs.html', 
                            domain=DOMAIN,

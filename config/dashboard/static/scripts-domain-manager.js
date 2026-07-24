@@ -490,9 +490,11 @@ document.addEventListener('DOMContentLoaded', () => {
             sslHtml = '<i data-lucide="shield" class="icon-ssl-local" title="Local Cert (mkcert)"></i>';
         } else if (sslInfo.status === 'error') {
             const msg = escapeHtml(sslInfo.message || 'SSL Error');
-            sslHtml = `<i data-lucide="shield-alert" class="icon-ssl-error" title="${msg}"></i>`;
+            const remedy = sslInfo.remediation ? `\n💡 Action: ${escapeHtml(sslInfo.remediation)}` : '';
+            sslHtml = `<i data-lucide="shield-alert" class="icon-ssl-error" title="${msg}${remedy}"></i>`;
         } else {
-            sslHtml = '<i data-lucide="shield-off" class="icon-ssl-pending" title="Pending / No Certificate"></i>';
+            const remedy = sslInfo.remediation ? `\n💡 Action: ${escapeHtml(sslInfo.remediation)}` : '';
+            sslHtml = `<i data-lucide="shield-off" class="icon-ssl-pending" title="Pending / No Certificate${remedy}"></i>`;
         }
 
         tr.innerHTML = `
@@ -648,9 +650,11 @@ document.addEventListener('DOMContentLoaded', () => {
             sslHtml = '<i data-lucide="shield" class="icon-ssl-local" title="Local Cert (mkcert)"></i>';
         } else if (sslInfo.status === 'error') {
             const msg = escapeHtml(sslInfo.message || 'SSL Error');
-            sslHtml = `<i data-lucide="shield-alert" class="icon-ssl-error" title="${msg}"></i>`;
+            const remedy = sslInfo.remediation ? `\n💡 Action: ${escapeHtml(sslInfo.remediation)}` : '';
+            sslHtml = `<i data-lucide="shield-alert" class="icon-ssl-error" title="${msg}${remedy}"></i>`;
         } else {
-            sslHtml = '<i data-lucide="shield-off" class="icon-ssl-pending" title="Pending / No Certificate"></i>';
+            const remedy = sslInfo.remediation ? `\n💡 Action: ${escapeHtml(sslInfo.remediation)}` : '';
+            sslHtml = `<i data-lucide="shield-off" class="icon-ssl-pending" title="Pending / No Certificate${remedy}"></i>`;
         }
 
         tr.innerHTML = `

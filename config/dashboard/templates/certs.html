@@ -78,18 +78,25 @@
 
             {% if missing_domains %}
             <div class="alert alert-danger">
-                <strong><i data-lucide="alert-triangle" style="vertical-align: text-bottom;"></i> Missing
-                    Certificates / ACME Errors:</strong>
+                <strong><i data-lucide="alert-triangle"></i> Missing Certificates / ACME Errors:</strong>
                 <p>The following domains are expected based on <code>domains.csv</code> but lack a valid SSL certificate in <code>acme.json</code>:</p>
                 <br>
                 <ul class="error-list">
                     {% for item in missing_domains_details %}
-                    <li style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem;">
-                        <span><strong>{{ item.domain }}</strong></span>
-                        {% if item.reason %}
-                        <span class="badge badge-danger" style="font-size: 0.85rem; padding: 4px 8px;">{{ item.reason }}</span>
-                        {% else %}
-                        <span style="color: var(--text-muted); font-size: 0.8rem;">(Pending / No Certificate)</span>
+                    <li class="missing-cert-card">
+                        <div class="missing-cert-header">
+                            <span class="missing-cert-domain"><strong>{{ item.domain }}</strong></span>
+                            {% if item.reason %}
+                            <span class="badge badge-danger">{{ item.reason }}</span>
+                            {% else %}
+                            <span class="badge badge-warning">(Pending / No Certificate)</span>
+                            {% endif %}
+                        </div>
+                        {% if item.remediation %}
+                        <div class="missing-cert-remediation">
+                            <i data-lucide="lightbulb" class="remediation-icon"></i>
+                            <span><strong>Action Required:</strong> {{ item.remediation }}</span>
+                        </div>
                         {% endif %}
                     </li>
                     {% endfor %}
