@@ -170,9 +170,25 @@ def extract_cert_expiration(cert_b64):
         pass
     return 0
 
+def is_traefik_running():
+    try:
+        res = subprocess.run(
+            ['docker', 'ps', '--filter', 'label=com.docker.compose.service=traefik', '--filter', 'status=running', '-q'],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=3
+        )
+        return bool(res.stdout.strip())
+    except Exception:
+        return False
+
 def prune_certs(dry_run=True):
     action = "Dry-run pruning" if dry_run else "Pruning"
     print(f"🧹 {action} Certificates in {ACME_FILE}...")
+    
+    if is_traefik_running():
+        print("\n⚠️  WARNING: Traefik is currently RUNNING.")
+        print("   Modifying acme.json while Traefik is active will NOT take effect because Traefik")
+        print("   will overwrite acme.json with its in-memory cache upon shutdown/restart.")
+        print("   👉 Required sequence: 1) 'make stop traefik'  2) 'make certs-prune-force'  3) 'make start traefik'\n")
     
     if not os.path.exists(ACME_FILE) or os.path.getsize(ACME_FILE) == 0:
         print(f"⚠️  {ACME_FILE} is empty or missing. Nothing to prune.")
@@ -299,7 +315,11 @@ def prune_certs(dry_run=True):
             # Ensure permissions 600
             os.chmod(ACME_FILE, 0o600)
             print("✅ Successfully updated acme.json")
-            print("👉 IMPORTANT: Restart Traefik to apply changes: 'make restart traefik'")
+            if is_traefik_running():
+                print("⚠️  REMINDER: Traefik is currently RUNNING. These changes will be overwritten when Traefik restarts!")
+                print("👉 You must STOP Traefik ('make stop traefik'), run 'make certs-prune-force', and then START Traefik ('make start traefik').")
+            else:
+                print("👉 Start Traefik to apply changes: 'make start traefik'")
             sys.exit(0)
         except Exception as e:
             print(f"❌ Error writing {ACME_FILE}: {e}")
