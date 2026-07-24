@@ -109,6 +109,11 @@
     --github-icon-filter: none;
     --backrest-icon-filter: none;
 
+    /* Status & Tint Variables */
+    --row-unsaved-tint-bg: rgba(245, 158, 11, 0.15);
+    --row-configured-tint-bg: rgba(16, 185, 129, 0.05);
+    --row-unconfigured-tint-bg: rgba(239, 68, 68, 0.05);
+
     /* Card Custom Colors - Light Mode */
     --card-domains-bg: rgba(14, 165, 233, 0.07);
     --card-domains-hover-bg: rgba(14, 165, 233, 0.12);
@@ -2256,14 +2261,14 @@ select.data-input:focus {
     margin-top: 2px;
 }
 
-.help-icon-slate { color: #94a3b8; }
-.help-icon-gray { color: #666; }
-.help-icon-emerald { color: #059669; }
-.help-icon-red { color: #7f1d1d; }
-.help-icon-orange { color: #f97316; }
-.help-icon-indigo { color: #6366f1; }
-.help-icon-teal { color: #0d9488; }
-.text-orange-bold { color: #f97316; font-weight: bold; }
+.help-icon-slate { color: var(--color-slate-400); }
+.help-icon-gray { color: var(--color-slate-500); }
+.help-icon-emerald { color: var(--color-green-700); }
+.help-icon-red { color: var(--color-red-900); }
+.help-icon-orange { color: var(--color-orange-500); }
+.help-icon-indigo { color: var(--color-indigo-500); }
+.help-icon-teal { color: var(--color-teal-600); }
+.text-orange-bold { color: var(--color-orange-500); font-weight: bold; }
 .help-section-spacing { margin-top: 1.5rem; }
 
 .col-valid { width: 6%; }
@@ -2273,4 +2278,35 @@ select.data-input:focus {
 .col-burst { width: 10%; }
 .col-conc { width: 10%; }
 .col-role { width: 10%; }
+
+/* JS Dynamic Icon & Layout Classes */
+.icon-status-loading { color: var(--color-slate-500); width: 1rem; height: 1rem; }
+.icon-status-valid { color: var(--color-green-700); width: 1.2rem; height: 1.2rem; }
+.icon-status-valid-alt { color: var(--color-green-500); width: 1.2rem; height: 1.2rem; }
+.icon-status-invalid { color: var(--color-red-900); width: 1.2rem; height: 1.2rem; }
+.icon-status-pending { color: var(--color-slate-400); width: 1.2rem; height: 1.2rem; }
+.icon-status-failed { color: var(--color-slate-500); width: 1.2rem; height: 1.2rem; }
+
+.icon-ssl-active { color: var(--color-green-500); width: 1.2rem; height: 1.2rem; }
+.icon-ssl-local { color: var(--color-indigo-500); width: 1.2rem; height: 1.2rem; }
+.icon-ssl-error { color: var(--color-red-500); width: 1.2rem; height: 1.2rem; }
+.icon-ssl-pending { color: var(--color-slate-400); width: 1.2rem; height: 1.2rem; }
+
+.icon-lock-sm { width: 0.8rem; height: 0.8rem; margin-right: 0.25rem; }
+.cell-center { text-align: center; }
+.cell-center-middle { text-align: center; vertical-align: middle; }
+.flex-center-compact { display: flex; gap: 0.25rem; justify-content: center; }
+
+/* Captcha JS Classes */
+.captcha-empty-cell { text-align: center; color: var(--text-muted); padding: 2rem; }
+.captcha-icon-active { color: var(--success-color); min-width: 18px; min-height: 18px; width: 18px; height: 18px; }
+.captcha-icon-inactive { color: var(--danger-color); min-width: 18px; min-height: 18px; width: 18px; height: 18px; }
+.captcha-orphan-label { color: var(--danger-color); font-size: 0.7rem; margin-left: 5px; }
+.captcha-flex-row { display: flex; align-items: center; gap: 8px; }
+.captcha-flex-icon { flex-shrink: 0; display: flex; align-items: center; }
+.captcha-domain-text { font-weight: 500; color: var(--text-color); word-break: break-word; }
+
+.row-unsaved-tint { background-color: var(--row-unsaved-tint-bg); }
+.row-configured-tint { background-color: var(--row-configured-tint-bg); }
+.row-unconfigured-tint { background-color: var(--row-unconfigured-tint-bg); }
 
