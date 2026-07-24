@@ -159,15 +159,29 @@ def certs_view():
             
     total_unique_domains = len(unique_domains)
     
-    missing_domains = expected_domains - covered_domains
+    wildcards = {d for d in covered_domains if d.startswith('*.')}
+    missing_domains = set()
+    for exp in expected_domains:
+        if exp in covered_domains:
+            continue
+        parts = exp.split('.')
+        is_covered = False
+        for i in range(1, len(parts) - 1):
+            w = '*.' + '.'.join(parts[i:])
+            if w in wildcards:
+                is_covered = True
+                break
+        if not is_covered:
+            missing_domains.add(exp)
+
     missing_count = len(missing_domains)
 
     missing_domains_details = []
     try:
-        from utils.system import get_ssl_status_map
+        from utils.system import get_ssl_status_map, get_domain_ssl_info
         ssl_map = get_ssl_status_map()
         for d in sorted(list(missing_domains)):
-            info = ssl_map.get(d.lower(), {})
+            info = get_domain_ssl_info(d, ssl_map)
             reason = info.get('message', '')
             remediation = info.get('remediation', 'Deploy changes or run a soft restart to trigger ACME certificate request.')
             missing_domains_details.append({
@@ -176,7 +190,7 @@ def certs_view():
                 'remediation': remediation
             })
     except Exception as e:
-        log.warning(f"Error fetching ssl_map for certs_view: {e}")
+        current_app.logger.warning(f"Error fetching ssl_map for certs_view: {e}")
         for d in sorted(list(missing_domains)):
             missing_domains_details.append({
                 'domain': d,

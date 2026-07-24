@@ -77,19 +77,24 @@
             </div>
 
             {% if missing_domains %}
-            <div class="alert alert-danger">
-                <strong><i data-lucide="alert-triangle"></i> Missing Certificates / ACME Errors:</strong>
-                <p>The following domains are expected based on <code>domains.csv</code> but lack a valid SSL certificate in <code>acme.json</code>:</p>
-                <br>
-                <ul class="error-list">
+            <div class="missing-certs-container-card">
+                <div class="missing-certs-card-header">
+                    <div class="missing-certs-header-title">
+                        <i data-lucide="alert-triangle" class="icon-danger-inline"></i>
+                        <h3>Missing Certificates / ACME Errors</h3>
+                    </div>
+                    <span class="badge badge-danger">{{ missing_count }} {{ 'Domain' if missing_count == 1 else 'Domains' }} Affected</span>
+                </div>
+                <p class="missing-certs-card-desc">The following domains are defined in <code>domains.csv</code> but lack a valid SSL certificate in <code>acme.json</code>:</p>
+                <div class="missing-certs-list">
                     {% for item in missing_domains_details %}
-                    <li class="missing-cert-card">
-                        <div class="missing-cert-header">
-                            <span class="missing-cert-domain"><strong>{{ item.domain }}</strong></span>
+                    <div class="missing-cert-item">
+                        <div class="missing-cert-item-header">
+                            <span class="missing-cert-domain">{{ item.domain }}</span>
                             {% if item.reason %}
                             <span class="badge badge-danger">{{ item.reason }}</span>
                             {% else %}
-                            <span class="badge badge-warning">(Pending / No Certificate)</span>
+                            <span class="badge badge-warning">Pending / No Certificate</span>
                             {% endif %}
                         </div>
                         {% if item.remediation %}
@@ -98,9 +103,9 @@
                             <span><strong>Action Required:</strong> {{ item.remediation }}</span>
                         </div>
                         {% endif %}
-                    </li>
+                    </div>
                     {% endfor %}
-                </ul>
+                </div>
             </div>
             {% endif %}
 
