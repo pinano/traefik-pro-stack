@@ -2143,3 +2143,134 @@ select.data-input:focus {
     }
 }
 
+/* ====================================================================== */
+/* DOMAIN MANAGER UTILITY CLASSES */
+/* ====================================================================== */
+
+.icon-inline {
+    vertical-align: middle;
+    margin-right: 0.5rem;
+    width: 1.2rem;
+    height: 1.2rem;
+}
+
+.icon-lg-inline {
+    vertical-align: middle;
+    margin-right: 0.5rem;
+    width: 1.3rem;
+    height: 1.3rem;
+}
+
+.icon-primary {
+    color: var(--primary-color);
+}
+
+.icon-muted {
+    color: var(--text-muted);
+}
+
+.icon-success {
+    color: var(--success-color);
+}
+
+.icon-warning {
+    color: var(--warning-color);
+}
+
+.icon-danger {
+    color: var(--danger-color);
+}
+
+.header-title-flex {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+.header-title-sub {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+.logo-subtitles-spacing {
+    margin-top: 0.1rem;
+}
+
+.form-inline {
+    display: inline;
+}
+
+.btn-right-spacing {
+    margin-right: 1rem;
+}
+
+.flex-gap-center {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.section-top-spacing {
+    margin-top: 2rem;
+}
+
+.modal-help-width {
+    max-width: 650px;
+}
+
+.confirm-text-color {
+    color: var(--text-color);
+}
+
+.display-none {
+    display: none;
+}
+
+.help-title-flex {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    color: var(--primary-color);
+}
+
+.help-p-spacing {
+    margin-bottom: 0.75rem;
+}
+
+.help-list-reset {
+    list-style: none;
+    padding-left: 0;
+}
+
+.help-item-flex {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.help-icon-offset {
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.help-icon-slate { color: #94a3b8; }
+.help-icon-gray { color: #666; }
+.help-icon-emerald { color: #059669; }
+.help-icon-red { color: #7f1d1d; }
+.help-icon-orange { color: #f97316; }
+.help-icon-indigo { color: #6366f1; }
+.help-icon-teal { color: #0d9488; }
+.text-orange-bold { color: #f97316; font-weight: bold; }
+.help-section-spacing { margin-top: 1.5rem; }
+
+.col-valid { width: 6%; }
+.col-domain { width: 32%; }
+.col-anubis { width: 22%; }
+.col-rate { width: 10%; }
+.col-burst { width: 10%; }
+.col-conc { width: 10%; }
+.col-role { width: 10%; }
+

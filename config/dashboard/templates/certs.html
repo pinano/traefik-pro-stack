@@ -79,13 +79,19 @@
             {% if missing_domains %}
             <div class="alert alert-danger">
                 <strong><i data-lucide="alert-triangle" style="vertical-align: text-bottom;"></i> Missing
-                    Certificates:</strong>
-                <p>The following domains are expected based on <code>domains.csv</code> but were not found in any active
-                    certificate:</p>
+                    Certificates / ACME Errors:</strong>
+                <p>The following domains are expected based on <code>domains.csv</code> but lack a valid SSL certificate in <code>acme.json</code>:</p>
                 <br>
                 <ul class="error-list">
-                    {% for d in missing_domains %}
-                    <li>{{ d }}</li>
+                    {% for item in missing_domains_details %}
+                    <li style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem;">
+                        <span><strong>{{ item.domain }}</strong></span>
+                        {% if item.reason %}
+                        <span class="badge badge-danger" style="font-size: 0.85rem; padding: 4px 8px;">{{ item.reason }}</span>
+                        {% else %}
+                        <span style="color: var(--text-muted); font-size: 0.8rem;">(Pending / No Certificate)</span>
+                        {% endif %}
+                    </li>
                     {% endfor %}
                 </ul>
             </div>
