@@ -205,7 +205,7 @@ def get_traefik_acme_log_errors():
                 pass
 
             target = container_id or 'traefik'
-            conn.request('GET', f'/containers/{target}/logs?stdout=1&stderr=1&tail=10000')
+            conn.request('GET', f'/containers/{target}/logs?stdout=1&stderr=1&tail=2000')
             res = conn.getresponse()
             if res.status == 200:
                 log_text = res.read().decode('utf-8', errors='ignore')
@@ -216,7 +216,7 @@ def get_traefik_acme_log_errors():
     if not log_text:
         for cname in ['traefik', 'traefik-1', 'root-traefik-1']:
             try:
-                proc = subprocess.run(['docker', 'logs', '--tail', '10000', cname], capture_output=True, text=True, timeout=5)
+                proc = subprocess.run(['docker', 'logs', '--tail', '2000', cname], capture_output=True, text=True, timeout=2)
                 if proc.returncode == 0 and proc.stdout:
                     log_text = proc.stdout + '\n' + proc.stderr
                     break
