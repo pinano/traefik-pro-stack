@@ -185,21 +185,21 @@ def get_traefik_acme_log_errors():
     errors = {}
     log_text = ""
 
-    # Attempt 1: Direct Unix Socket connection to Docker Daemon
+    # Attempt 1: Direct Unix Socket connection to Docker Daemon (scan up to 10,000 log lines)
     try:
         if os.path.exists('/var/run/docker.sock'):
             conn = UnixHTTPConnection('/var/run/docker.sock')
-            conn.request('GET', '/containers/traefik/logs?stdout=1&stderr=1&tail=1000')
+            conn.request('GET', '/containers/traefik/logs?stdout=1&stderr=1&tail=10000')
             res = conn.getresponse()
             if res.status == 200:
                 log_text = res.read().decode('utf-8', errors='ignore')
     except Exception:
         pass
 
-    # Attempt 2: Fallback to docker CLI
+    # Attempt 2: Fallback to docker CLI (scan up to 10,000 log lines)
     if not log_text:
         try:
-            proc = subprocess.run(['docker', 'logs', '--tail', '1000', 'traefik'], capture_output=True, text=True, timeout=3)
+            proc = subprocess.run(['docker', 'logs', '--tail', '10000', 'traefik'], capture_output=True, text=True, timeout=5)
             if proc.returncode == 0:
                 log_text = proc.stdout + '\n' + proc.stderr
         except Exception:
@@ -215,7 +215,7 @@ def get_traefik_acme_log_errors():
             found_domains = re.findall(r'([a-zA-Z0-9][a-zA-Z0-9\.\-]+\.[a-zA-Z]{2,})', line)
             for d in found_domains:
                 d_clean = d.strip('"`\'[]() ').lower()
-                if not d_clean or '.' not in d_clean or 'letsencrypt' in d_clean or 'traefik' in d_clean or 'github' in d_clean or d_clean.startswith('acme'):
+                if not d_clean or '.' not in d_clean or 'letsencrypt' in d_clean or 'traefik' in d_clean or 'github' in d_clean or d_clean.startswith('acme') or d_clean.endswith('.acme') or d_clean.endswith('.json'):
                     continue
 
                 remediation = "Verify domain DNS A/AAAA record points to this server IP and ports 80/443 are open."
@@ -225,9 +225,9 @@ def get_traefik_acme_log_errors():
                 if 'caa' in line_lower:
                     msg = "Blocked by CAA DNS Record"
                     remediation = "Add 'CAA 0 issue \"letsencrypt.org\"' to your domain DNS records."
-                elif 'ratelimit' in line_lower or '429' in line_lower:
+                elif 'ratelimit' in line_lower or '429' in line_lower or 'failed authorizations' in line_lower:
                     msg = "ACME Rate Limit Exceeded (429)"
-                    remediation = "Let's Encrypt rate limit reached. Wait for the 7-day rate limit window reset."
+                    remediation = "Too many failed ACME authorizations (5/hr limit reached). Wait 1 hour for Let's Encrypt rate limit window to reset."
                 elif 'unauthorized' in line_lower or '403' in line_lower:
                     msg = "DNS Validation / Auth Failed (403)"
                     remediation = "Verify domain DNS A/AAAA record points to this server IP and ports 80/443 are open."
