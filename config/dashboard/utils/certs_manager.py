@@ -3,9 +3,58 @@ import subprocess
 import datetime
 import re
 
+def extract_der_bytes(cert_b64):
+    """
+    Extracts binary DER bytes from base64-encoded PEM or raw certificate data.
+    """
+    if not cert_b64:
+        return None
+    try:
+        if isinstance(cert_b64, bytes):
+            cert_str = cert_b64.decode('utf-8', errors='ignore')
+        else:
+            cert_str = str(cert_b64)
+
+        if '-----BEGIN' in cert_str:
+            lines = [line.strip() for line in cert_str.splitlines() if line.strip() and not line.startswith('-----')]
+            return base64.b64decode(''.join(lines))
+
+        raw = base64.b64decode(cert_str)
+        if b'-----BEGIN' in raw:
+            pem_text = raw.decode('utf-8', errors='ignore')
+            lines = [line.strip() for line in pem_text.splitlines() if line.strip() and not line.startswith('-----')]
+            return base64.b64decode(''.join(lines))
+        return raw
+    except Exception:
+        return None
+
+def parse_expiration_date(der_bytes):
+    """
+    Parses X.509 expiration date (notAfter) directly from DER bytes using ASN.1 UTCTime and GeneralizedTime tags.
+    """
+    if not der_bytes:
+        return None
+    dates = []
+    # UTCTime tag \x17 (YYMMDDHHMMSSZ)
+    for m in re.finditer(b'\x17.([0-9]{12}Z)', der_bytes):
+        try:
+            dt = datetime.datetime.strptime(m.group(1).decode('ascii'), '%y%m%d%H%M%SZ').replace(tzinfo=datetime.timezone.utc)
+            dates.append(dt)
+        except Exception:
+            pass
+    # GeneralizedTime tag \x18 (YYYYMMDDHHMMSSZ)
+    for m in re.finditer(b'\x18.([0-9]{14}Z)', der_bytes):
+        try:
+            dt = datetime.datetime.strptime(m.group(1).decode('ascii'), '%Y%m%d%H%M%SZ').replace(tzinfo=datetime.timezone.utc)
+            dates.append(dt)
+        except Exception:
+            pass
+    return max(dates) if dates else None
+
 def parse_certificate_data(cert_b64, cert_domain_dict=None):
     """
     Parses X.509 certificate data in pure Python without spawning openssl subprocesses (0.002ms).
+    Falls back gracefully to OpenSSL CLI if pure Python parsing encounters unexpected formatting.
     """
     data = {
         'error': None,
@@ -23,15 +72,14 @@ def parse_certificate_data(cert_b64, cert_domain_dict=None):
     if not cert_b64:
         return data
 
+    # Fast path: Pure Python DER date parsing (0.001ms)
     try:
-        der = base64.b64decode(cert_b64)
-        matches = re.findall(b'\x17\x0d([0-9]{12}Z)', der)
-        if len(matches) >= 2:
-            date_str = matches[1].decode('ascii')
-            dt = datetime.datetime.strptime(date_str, '%y%m%d%H%M%SZ').replace(tzinfo=datetime.timezone.utc)
-            formatted = dt.strftime('%Y-%m-%d %H:%M:%S UTC')
+        der_bytes = extract_der_bytes(cert_b64)
+        dt = parse_expiration_date(der_bytes)
+        if dt:
             now = datetime.datetime.now(datetime.timezone.utc)
             delta = (dt - now).days
+            formatted = dt.strftime('%Y-%m-%d %H:%M:%S UTC')
             data['valid_days'] = delta
             data['expiration_timestamp'] = dt.timestamp()
             data['expiration_text'] = f"{formatted} ({delta} days left)"
@@ -41,7 +89,6 @@ def parse_certificate_data(cert_b64, cert_domain_dict=None):
 
     # Fallback to OpenSSL CLI if DER parser fails
     try:
-        import subprocess
         cert_pem = base64.b64decode(cert_b64).decode('utf-8')
         cmd = ['openssl', 'x509', '-noout', '-subject', '-enddate', '-ext', 'subjectAltName']
         process = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
@@ -58,13 +105,13 @@ def parse_certificate_data(cert_b64, cert_domain_dict=None):
                 if line.startswith('notAfter='):
                     date_str = line.split('=', 1)[1]
                     try:
-                        dt = datetime.datetime.strptime(date_str, '%b %d %H:%M:%S %Y GMT')
-                        formatted = dt.strftime('%Y-%m-%d %H:%M:%S')
-                        now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
-                        delta = dt - now
-                        data['valid_days'] = delta.days
+                        dt = datetime.datetime.strptime(date_str, '%b %d %H:%M:%S %Y GMT').replace(tzinfo=datetime.timezone.utc)
+                        formatted = dt.strftime('%Y-%m-%d %H:%M:%S UTC')
+                        now = datetime.datetime.now(datetime.timezone.utc)
+                        delta = (dt - now).days
+                        data['valid_days'] = delta
                         data['expiration_timestamp'] = dt.timestamp()
-                        data['expiration_text'] = f"{formatted} ({delta.days} days left)"
+                        data['expiration_text'] = f"{formatted} ({delta} days left)"
                     except Exception:
                         data['expiration_text'] = date_str
                 
@@ -75,3 +122,4 @@ def parse_certificate_data(cert_b64, cert_domain_dict=None):
         data['error'] = str(e)
 
     return data
+
