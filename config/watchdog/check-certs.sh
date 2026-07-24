@@ -239,6 +239,10 @@ FOUND_DOMAINS=$(echo $FOUND_DOMAINS | tr ' ' '\n' | sort -u)
 # Find missing expected domains
 MISSING_DOMAINS=""
 MISSING_COUNT=0
+
+# Fetch Traefik rawdata if accessible to inspect router error states
+TRAEFIK_RAWDATA=$(curl -s --max-time 3 "http://traefik:8080/api/rawdata" 2>/dev/null || true)
+
 for ED in $EXPECTED_DOMAINS; do
     FOUND=false
     for FD in $FOUND_DOMAINS; do
@@ -248,14 +252,32 @@ for ED in $EXPECTED_DOMAINS; do
         fi
     done
     if [ "$FOUND" = "false" ]; then
-        MISSING_DOMAINS="${MISSING_DOMAINS}• <b>${ED}</b>%0A"
+        # Inspect if Traefik rawdata contains specific ACME errors for this domain
+        REASON=""
+        if [ -n "$TRAEFIK_RAWDATA" ]; then
+            ROUTER_ERR=$(echo "$TRAEFIK_RAWDATA" | jq -r --arg dom "$ED" '
+                (.routers // {}) | to_entries[] | select(.value.rule | contains($dom)) | .value.error // empty
+            ' 2>/dev/null | head -n 1)
+
+            if echo "$ROUTER_ERR" | grep -qi "CAA"; then
+                REASON=" [<b>Causa:</b> Bloqueado por registro CAA en DNS]"
+            elif echo "$ROUTER_ERR" | grep -qi "rateLimited"; then
+                REASON=" [<b>Causa:</b> Límite de ráfaga ACME alcanzado (429)]"
+            elif echo "$ROUTER_ERR" | grep -qi "unauthorized"; then
+                REASON=" [<b>Causa:</b> DNS no apunta a este servidor o puerto 80/443 cerrado]"
+            elif [ -n "$ROUTER_ERR" ]; then
+                REASON=" [<b>Error:</b> ${ROUTER_ERR}]"
+            fi
+        fi
+
+        MISSING_DOMAINS="${MISSING_DOMAINS}• <b>${ED}</b>${REASON}%0A"
         MISSING_COUNT=$((MISSING_COUNT + 1))
-        printf '%b\n' "${RED}[MISSING] Expected domain $ED has no certificate in acme.json!${NC}"
+        printf '%b\n' "${RED}[MISSING] Expected domain $ED has no certificate in acme.json!${REASON}${NC}"
     fi
 done
 
 if [ $MISSING_COUNT -gt 0 ]; then
-    MESSAGE="Found <b>${MISSING_COUNT}</b> expected domain(s) with <b>no SSL certificates</b> in acme.json:%0A%0A${MISSING_DOMAINS}%0ATraefik may have failed to resolve or obtain certificates for them.%0A👉 <b>Action Required:</b> Check Traefik logs to debug certificate generation."
+    MESSAGE="Encontrados <b>${MISSING_COUNT}</b> dominio(s) <b>sin certificado SSL</b> en acme.json:%0A%0A${MISSING_DOMAINS}%0ATraefik no ha podido generar el certificado para estos dominios.%0A👉 <b>Acción requerida:</b> Revisa los registros DNS o la configuración de CAA del dominio."
     send_telegram "$MESSAGE"
     ERRORS=$((ERRORS + MISSING_COUNT))
 fi

@@ -126,17 +126,21 @@ function initiateStream(streamUrl, modalTitle, successMsg) {
     eventSource.onmessage = (event) => {
         const line = event.data;
 
-        if (line.trim() === '[Process finished with code 0]') {
-            if (logContainer) logContainer.textContent += `\n${successMsg}\n`;
-            if (closeModalBtn) closeModalBtn.style.display = 'block';
-            eventSource.close();
-        } else if (line.includes('[Process finished with code')) {
-            if (logContainer) logContainer.textContent += `\n❌ ${line}\n`;
-            if (closeModalBtn) closeModalBtn.style.display = 'block';
-            if (deployBtn) deployBtn.disabled = false;
-            eventSource.close();
-        } else {
-            if (logContainer) {
+        if (logContainer) {
+            if (logContainer.textContent === 'Connecting...\n') {
+                logContainer.textContent = '';
+            }
+
+            if (line.trim() === '[Process finished with code 0]') {
+                logContainer.textContent += `\n${successMsg}\n`;
+                if (closeModalBtn) closeModalBtn.style.display = 'block';
+                eventSource.close();
+            } else if (line.includes('[Process finished with code')) {
+                logContainer.textContent += `\n❌ ${line}\n`;
+                if (closeModalBtn) closeModalBtn.style.display = 'block';
+                if (deployBtn) deployBtn.disabled = false;
+                eventSource.close();
+            } else {
                 logContainer.textContent += line + '\n';
                 if (logContainer.parentElement) {
                     logContainer.parentElement.scrollTop = logContainer.parentElement.scrollHeight;

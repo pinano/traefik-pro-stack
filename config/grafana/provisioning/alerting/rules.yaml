@@ -334,6 +334,49 @@ groups:
         execErrState: Error
         isPaused: false
 
+      - uid: alert-traefik-acme-issuance-failed
+        title: TraefikACMEIssuanceFailed
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: increase(traefik_tls_cert_resolver_failures_total[5m]) or on() vector(0)
+              instant: true
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: "__expr__"
+            model:
+              conditions:
+                - evaluator:
+                    params: [0]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                  type: query
+              refId: C
+              type: classic_conditions
+        for: 1m
+        labels:
+          severity: warning
+          host: "${DOMAIN}"
+        annotations:
+          summary: "Traefik ACME certificate issuance failed"
+          description: "Traefik failed to obtain or renew an SSL certificate via ACME. Check CAA DNS records or rate limits."
+        noDataState: OK
+        execErrState: Error
+        isPaused: false
+
   # ============================================
   # HOST RESOURCES (Node Exporter)
   # ============================================

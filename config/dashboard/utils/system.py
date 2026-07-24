@@ -2,9 +2,93 @@ import os
 import subprocess
 import socket
 import logging
-from config import BASE_DIR, ENV, TRAEFIK_ACME_ENV_TYPE, read_dotenv
+import json
+import base64
+import datetime
+import requests
+from config import BASE_DIR, ENV, TRAEFIK_ACME_ENV_TYPE, ACME_FILE, read_dotenv
 
 log = logging.getLogger(__name__)
+
+def get_ssl_status_map():
+    """
+    Parses acme.json and queries Traefik API to return SSL certificate status per domain.
+    """
+    if TRAEFIK_ACME_ENV_TYPE == 'local':
+        return {"_is_local": True}
+
+    ssl_map = {}
+    if os.path.exists(ACME_FILE):
+        try:
+            with open(ACME_FILE, 'r') as f:
+                data = json.load(f)
+
+            for resolver_name, resolver_data in data.items():
+                if isinstance(resolver_data, dict) and 'Certificates' in resolver_data:
+                    certs = resolver_data.get('Certificates') or []
+                    for cert in certs:
+                        main = cert.get('domain', {}).get('main', '').lower()
+                        sans = [s.lower() for s in cert.get('domain', {}).get('sans', [])]
+                        all_doms = ([main] if main else []) + sans
+                        
+                        cert_b64 = cert.get('certificate', '')
+                        days_left = None
+                        if cert_b64:
+                            try:
+                                pem = base64.b64decode(cert_b64).decode('utf-8')
+                                cmd = ['openssl', 'x509', '-noout', '-enddate']
+                                proc = subprocess.run(cmd, input=pem, capture_output=True, text=True)
+                                if proc.returncode == 0 and 'notAfter=' in proc.stdout:
+                                    date_str = proc.stdout.strip().split('=', 1)[1]
+                                    cmd_fmt = ['date', '-d', date_str, '+%s']
+                                    ts_proc = subprocess.run(cmd_fmt, capture_output=True, text=True)
+                                    if ts_proc.returncode == 0:
+                                        exp_ts = int(ts_proc.stdout.strip())
+                                        now_ts = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+                                        days_left = (exp_ts - now_ts) // 86400
+                            except Exception:
+                                pass
+
+                        for d in all_doms:
+                            if d:
+                                ssl_map[d] = {
+                                    'status': 'ok',
+                                    'days_left': days_left
+                                }
+        except Exception as e:
+            log.error(f"Error parsing acme.json: {e}")
+
+    try:
+        res = requests.get("http://traefik:8080/api/rawdata", timeout=2)
+        if res.status_code == 200:
+            rawdata = res.json()
+            routers = rawdata.get('routers', {})
+            for r_name, r_val in routers.items():
+                err = r_val.get('error', '')
+                rule = r_val.get('rule', '')
+                if err and 'Host(' in rule:
+                    import re
+                    hosts = re.findall(r'`([^`]+)`', rule)
+                    for h in hosts:
+                        h_lower = h.lower()
+                        if h_lower not in ssl_map or ssl_map[h_lower].get('status') != 'ok':
+                            err_msg = "Error al obtener certificado SSL"
+                            if 'CAA' in err:
+                                err_msg = "Bloqueado por registro CAA en DNS"
+                            elif 'rateLimited' in err:
+                                err_msg = "Límite de ráfaga ACME alcanzado (429)"
+                            elif 'unauthorized' in err:
+                                err_msg = "Fallo de validación DNS (403 unauthorized)"
+                            elif err:
+                                err_msg = err
+                            ssl_map[h_lower] = {
+                                'status': 'error',
+                                'message': err_msg
+                            }
+    except Exception:
+        pass
+
+    return ssl_map
 
 def get_subprocess_env():
     """
