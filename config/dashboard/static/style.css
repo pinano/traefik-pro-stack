@@ -2283,6 +2283,16 @@ select.data-input:focus {
     text-align: center;
 }
 
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+    animation: spin 1s linear infinite;
+    display: inline-block;
+}
+
 /* JS Dynamic Icon & Layout Classes */
 .icon-status-loading { color: var(--color-slate-500); width: 1rem; height: 1rem; }
 .icon-status-valid { color: var(--color-green-700); width: 1.2rem; height: 1.2rem; }
