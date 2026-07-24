@@ -185,25 +185,43 @@ def get_traefik_acme_log_errors():
     errors = {}
     log_text = ""
 
-    # Attempt 1: Direct Unix Socket connection to Docker Daemon (scan up to 10,000 log lines)
+    # Attempt 1: Direct Unix Socket connection to Docker Daemon (discovers exact Traefik container ID)
     try:
         if os.path.exists('/var/run/docker.sock'):
             conn = UnixHTTPConnection('/var/run/docker.sock')
-            conn.request('GET', '/containers/traefik/logs?stdout=1&stderr=1&tail=10000')
+            container_id = None
+            try:
+                conn.request('GET', '/containers/json')
+                res = conn.getresponse()
+                if res.status == 200:
+                    containers = json.loads(res.read().decode('utf-8'))
+                    for c in containers:
+                        names = [n.lstrip('/') for n in c.get('Names', [])]
+                        image = c.get('Image', '').lower()
+                        if 'traefik' in image or any('traefik' in n for n in names):
+                            container_id = c.get('Id') or names[0]
+                            break
+            except Exception:
+                pass
+
+            target = container_id or 'traefik'
+            conn.request('GET', f'/containers/{target}/logs?stdout=1&stderr=1&tail=10000')
             res = conn.getresponse()
             if res.status == 200:
                 log_text = res.read().decode('utf-8', errors='ignore')
     except Exception:
         pass
 
-    # Attempt 2: Fallback to docker CLI (scan up to 10,000 log lines)
+    # Attempt 2: Fallback to docker CLI (tries traefik, traefik-1)
     if not log_text:
-        try:
-            proc = subprocess.run(['docker', 'logs', '--tail', '10000', 'traefik'], capture_output=True, text=True, timeout=5)
-            if proc.returncode == 0:
-                log_text = proc.stdout + '\n' + proc.stderr
-        except Exception:
-            pass
+        for cname in ['traefik', 'traefik-1', 'root-traefik-1']:
+            try:
+                proc = subprocess.run(['docker', 'logs', '--tail', '10000', cname], capture_output=True, text=True, timeout=5)
+                if proc.returncode == 0 and proc.stdout:
+                    log_text = proc.stdout + '\n' + proc.stderr
+                    break
+            except Exception:
+                pass
 
     if not log_text:
         return errors
