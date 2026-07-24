@@ -4,66 +4,33 @@
 
 :root {
 
-    /* --- Primitive Colors --- */
-    --color-amber-100: #fef3c7;
-    --color-amber-300: #fcd34d;
-    --color-amber-400: #facc15;
-    --color-amber-50: #fffbeb;
-    --color-amber-500: #f59e0b;
-    --color-amber-700: #b45309;
-    --color-amber-800: #92400e;
-    --color-blue-200: #bfdbfe;
-    --color-blue-500: #3b82f6;
-    --color-custom-blue: #6c78af;
-    --color-green-100: #dcfce7;
-    --color-green-300: #6ee7b7;
-    --color-green-400: #34d399;
-    --color-green-500: #10b981;
-    --color-green-700: #15803d;
-    --color-indigo-100: #e0e7ff;
-    --color-indigo-300: #a5b4fc;
-    --color-indigo-400: #818cf8;
-    --color-indigo-500: #6366f1;
-    --color-orange-100: #ffedd5;
-    --color-orange-300: #fdba74;
-    --color-orange-50: #fff7ed;
-    --color-orange-500: #f97316;
-    --color-purple-100: #f3e8ff;
-    --color-purple-500: #a855f7;
-    --color-red-100: #fee2e2;
-    --color-red-200: #fecaca;
-    --color-red-300: #fca5a5;
-    --color-red-400: #f87171;
-    --color-red-50: #fef2f2;
-    --color-red-500: #ef4444;
-    --color-red-600: #dc2626;
-    --color-red-700: #b91c1c;
-    --color-red-800: #991b1b;
-    --color-red-900: #7f1d1d;
-    --color-red-950: #450a0a;
-    --color-rose-100: #ffe4e6;
-    --color-rose-600: #e11d48;
-    --color-sky-100: #e0f2fe;
-    --color-sky-400: #38bdf8;
-    --color-sky-500: #0ea5e9;
-    --color-sky-700: #0369a1;
+    /* --- Core Unified Palette --- */
+    --color-white: #ffffff;
+    --color-slate-50: #f8fafc;
     --color-slate-100: #f1f5f9;
     --color-slate-200: #e2e8f0;
     --color-slate-300: #cbd5e1;
     --color-slate-400: #94a3b8;
-    --color-slate-50: #f8fafc;
     --color-slate-500: #64748b;
     --color-slate-600: #475569;
     --color-slate-700: #334155;
     --color-slate-800: #1e293b;
     --color-slate-900: #0f172a;
-    --color-teal-100: #ccfbf1;
-    --color-teal-500: #14b8a6;
-    --color-teal-600: #0d9488;
-    --color-violet-100: #ede9fe;
-    --color-violet-400: #a78bfa;
-    --color-violet-500: #8b5cf6;
-    --color-white: #ffffff;
+
+    --color-indigo: #6366f1;
+    --color-indigo-hover: #818cf8;
+    --color-green: #10b981;
+    --color-green-hover: #34d399;
+    --color-green-dark: #059669;
+    --color-red: #ef4444;
+    --color-red-hover: #f87171;
+    --color-red-dark: #7f1d1d;
+    --color-amber: #f59e0b;
+    --color-sky: #0ea5e9;
+    --color-sky-hover: #38bdf8;
+    --color-violet: #8b5cf6;
+    --color-violet-hover: #a78bfa;
+    --color-teal: #0d9488;
 
     /* --- Border Radius --- */
     --radius-2xl: 1rem;
@@ -73,26 +40,21 @@
     --radius-sm: 0.25rem;
     --radius-xl: 0.75rem;
     --radius-xs: 0.125rem;
-    /* Pastel Palette (Vivid Mode) */
-    --primary-color: var(--color-indigo-500);
-    /* Soft Indigo */
-    --primary-hover: var(--color-indigo-400);
-    --danger-color: var(--color-red-400);
-    /* Soft Rose */
-    --danger-hover: var(--color-red-300);
-    --success-color: var(--color-green-400);
-    /* Soft Emerald */
-    --success-hover: var(--color-green-300);
-    --warning-color: var(--color-amber-500);
-    /* Amber */
 
-    /* New Button Colors */
-    --info-color: var(--color-sky-500);
-    /* Sky 500 */
-    --info-hover: var(--color-sky-400);
-    --validate-color: var(--color-violet-500);
-    /* Violet 500 */
-    --validate-hover: var(--color-violet-400);
+    /* Semantic Theme Aliases */
+    --primary-color: var(--color-indigo);
+    --primary-hover: var(--color-indigo-hover);
+    --danger-color: var(--color-red-hover);
+    --danger-hover: var(--color-red);
+    --success-color: var(--color-green-hover);
+    --success-hover: var(--color-green);
+    --warning-color: var(--color-amber);
+
+    /* Action Button Colors */
+    --info-color: var(--color-sky);
+    --info-hover: var(--color-sky-hover);
+    --validate-color: var(--color-violet);
+    --validate-hover: var(--color-violet-hover);
 
     --bg-color: var(--color-slate-50);
     /* Slate 50 */
@@ -161,9 +123,8 @@
 }
 
 [data-theme="dark"] {
-    --primary-color: var(--color-indigo-400);
-    /* Soft Indigo */
-    --primary-hover: var(--color-indigo-500);
+    --primary-color: var(--color-indigo-hover);
+    --primary-hover: var(--color-indigo);
 
     --bg-color: var(--color-slate-900);
     /* Slate 900 */
