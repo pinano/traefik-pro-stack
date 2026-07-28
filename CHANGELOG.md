@@ -1,3 +1,8 @@
+## v2026.07.28 (2026-07-28)
+
+- style: increase width and add min-width to dashboard role column (4b0dd8d)
+- feat: add red, orange, amber, green, and blue color palette variables to dashboard stylesheet (926ad23)
+
 ## v2026.07.25 (2026-07-25)
 
 - feat: implement pure Python X.509 DER parsing to improve certificate expiration check performance (c464b8e)
