@@ -49,6 +49,20 @@
     --color-violet-400: var(--color-violet-hover);
     --color-teal-500: var(--color-teal);
     --color-teal-600: var(--color-teal);
+    --color-red-100: #fee2e2;
+    --color-red-200: #fecaca;
+    --color-red-300: #fca5a5;
+    --color-red-600: #dc2626;
+    --color-red-700: #b91c1c;
+    --color-red-800: #991b1b;
+    --color-orange-500: #f97316;
+    --color-amber-100: #fef3c7;
+    --color-amber-400: #fbbf24;
+    --color-amber-700: #b45309;
+    --color-green-100: #d1fae5;
+    --color-sky-100: #e0f2fe;
+    --color-sky-700: #0369a1;
+    --color-blue-500: #3b82f6;
 
     /* --- Border Radius --- */
     --radius-2xl: 1rem;
