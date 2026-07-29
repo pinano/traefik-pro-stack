@@ -400,9 +400,12 @@ def main():
         elif latest_tag == current_tag:
             print(f"{latest_tag:<15} | 🟢 Up-to-date")
         else:
-            print(f"{latest_tag:<15} | 🔴 Update Available!")
-            updates_available += 1
-            image_updates_dict[img_str] = f"{image_name}:{latest_tag}"
+            if "postgres" in image_name:
+                print(f"{latest_tag:<15} | ⚠️  Update Available (Use 'make upgrade-postgres VERSION={latest_tag}')")
+            else:
+                print(f"{latest_tag:<15} | 🔴 Update Available!")
+                updates_available += 1
+                image_updates_dict[img_str] = f"{image_name}:{latest_tag}"
             
     print("=" * 105)
     print()

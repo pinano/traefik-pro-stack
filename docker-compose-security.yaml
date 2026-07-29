@@ -74,10 +74,10 @@ services:
       POSTGRES_PASSWORD: ${CROWDSEC_DB_PASSWORD:-}
       POSTGRES_DB: ${CROWDSEC_DB_NAME:-crowdsec}
       TZ: ${TZ:-UTC}
+      PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ./data/crowdsec/postgres:/var/lib/postgresql/data
-
     networks:
       - traefik
     security_opt:
@@ -92,12 +92,11 @@ services:
         max-size: "20m"
         max-file: "3"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${CROWDSEC_DB_USER:-crowdsec} -d ${CROWDSEC_DB_NAME:-crowdsec}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${CROWDSEC_DB_USER:-crowdsec} -d ${CROWDSEC_DB_NAME:-crowdsec}" ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
-
 
   # ===========================
   #  REDIS (Session cache for Anubis PoW + CrowdSec ban cache)
@@ -163,7 +162,7 @@ services:
     restart: unless-stopped
     profiles:
       - crowdsec
-    command: ["node", "dist/server/index.js"]
+    command: [ "node", "dist/server/index.js" ]
     environment:
       - CROWDSEC_URL=http://crowdsec:8080
       - CROWDSEC_USER=${CROWDSEC_WEB_UI_USER:-crowdsec-web-ui}

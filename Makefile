@@ -137,6 +137,17 @@ help-%:
 release: ## Generate a new CalVer release, update CHANGELOG.md, and create a git tag
 	@./scripts/release.sh
 
+##@help upgrade-postgres
+## Safely upgrades the PostgreSQL database major version.
+## - Dumps the current data
+## - Backs up the old directory
+## - Updates the docker-compose image tag
+## - Restores the data into the new container
+## Usage: make upgrade-postgres VERSION=18.4-alpine3.23
+.PHONY: upgrade-postgres
+upgrade-postgres: ## Upgrade PostgreSQL version (usage: make upgrade-postgres VERSION=...)
+	@./scripts/upgrade-postgres.sh $(VERSION)
+
 ##@help update
 ## Safely updates a production environment to the latest release.
 ## - Fetches the latest tags from the remote repository.
