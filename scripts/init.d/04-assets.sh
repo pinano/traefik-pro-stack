@@ -15,8 +15,6 @@ echo "── [3/6] 🎨 Preparing application assets ─────────
 #   - Redis:   root (no issue)
 
 DATA_DIRS=(
-    "data/crowdsec/db"
-    "data/crowdsec/config"
     "data/grafana"
     "data/loki"
     "data/alloy"
