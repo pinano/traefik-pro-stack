@@ -2271,7 +2271,7 @@ select.data-input:focus {
 .col-rate { width: 10%; }
 .col-burst { width: 10%; }
 .col-conc { width: 11%; }
-.col-role { width: 15.5%; min-width: 160px; }
+.col-role { width: 180px; }
 
 #domains-table th:nth-child(1),
 #domains-table td:nth-child(1),
