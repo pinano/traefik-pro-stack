@@ -1,3 +1,7 @@
+## v2026.07.29 (2026-07-29)
+
+- chore: update service images, crowdsec plugin version, and refine dashboard UI style (8886e2a)
+
 ## v2026.07.28 (2026-07-28)
 
 - style: increase width and add min-width to dashboard role column (4b0dd8d)
