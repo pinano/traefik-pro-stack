@@ -169,8 +169,8 @@ services:
       - CROWDSEC_PASSWORD=${CROWDSEC_WEB_UI_PASSWORD:-}
       - BASE_PATH=/crowdsec
       - TZ=${TZ}
-      - NODE_OPTIONS=--max-old-space-size=256
-      - CROWDSEC_LOOKBACK_PERIOD=${CROWDSEC_LOOKBACK_PERIOD:-24h}
+      - NODE_OPTIONS=--max-old-space-size=384
+      - CROWDSEC_LOOKBACK_PERIOD=${CROWDSEC_LOOKBACK_PERIOD:-7d}
       - CROWDSEC_PROMETHEUS_URL=http://crowdsec:6060/metrics
     volumes:
       - ./config/crowdsec-web-ui:/app/data
@@ -185,9 +185,9 @@ services:
       # making all /crowdsec requests fall through to the dashboard catch-all router.
       test: [ "CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))" ]
       interval: 30s
-      timeout: 10s
+      timeout: 15s
       retries: 3
-      start_period: 30s
+      start_period: 45s
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=traefik"
