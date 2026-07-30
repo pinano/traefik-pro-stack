@@ -155,3 +155,76 @@ function initiateStream(streamUrl, modalTitle, successMsg) {
         eventSource.close();
     };
 }
+
+/**
+ * Shared: Initialize sticky header behavior on scroll.
+ * Used by domains.html, certs.html, captchas.html.
+ */
+function initStickyHeader() {
+    const header = document.querySelector('header');
+    if (!header) return;
+
+    const headerSpacer = document.createElement('div');
+    headerSpacer.className = 'header-spacer';
+    header.after(headerSpacer);
+
+    window.addEventListener('scroll', () => {
+        if (window.innerWidth > 768) {
+            const stickyThreshold = 50;
+            if (window.scrollY > stickyThreshold) {
+                header.classList.add('header-scrolled');
+                headerSpacer.style.display = 'block';
+                headerSpacer.style.height = header.offsetHeight + 'px';
+            } else {
+                header.classList.remove('header-scrolled');
+                headerSpacer.style.display = 'none';
+            }
+        } else {
+            header.classList.remove('header-scrolled');
+            headerSpacer.style.display = 'none';
+        }
+    });
+}
+
+/**
+ * Shared: Initialize help modal open/close handlers.
+ * Expects #help-btn, #help-modal, #close-help-btn, #close-help-footer-btn in the DOM.
+ */
+function initHelpModal() {
+    const helpBtn = document.getElementById('help-btn');
+    const helpModal = document.getElementById('help-modal');
+    const closeHelpBtn = document.getElementById('close-help-btn');
+    const closeHelpFooterBtn = document.getElementById('close-help-footer-btn');
+
+    if (helpBtn && helpModal) {
+        helpBtn.addEventListener('click', () => {
+            helpModal.classList.add('show');
+        });
+        const closeHelpFn = () => helpModal.classList.remove('show');
+        if (closeHelpBtn) closeHelpBtn.addEventListener('click', closeHelpFn);
+        if (closeHelpFooterBtn) closeHelpFooterBtn.addEventListener('click', closeHelpFn);
+    }
+}
+
+/**
+ * Shared: Check for version updates and update the footer badge.
+ * Expects #current-version and #update-badge in the DOM.
+ * @param {string} currentVersion - The current app version string.
+ */
+function initVersionCheck(currentVersion) {
+    if (!currentVersion || currentVersion === 'Unknown') return;
+    const cacheBuster = new Date().getTime();
+    fetch(`https://raw.githubusercontent.com/pinano/traefik-pro-stack/main/VERSION?t=${cacheBuster}`, { cache: "no-store" })
+        .then(response => response.ok ? response.text() : Promise.reject("Fetch failed"))
+        .then(latest => {
+            const latestVersion = latest.trim();
+            const badge = document.getElementById('update-badge');
+            if (badge && latestVersion && latestVersion !== currentVersion) {
+                badge.innerHTML = `<span class="update-badge-warning">(Update available: ${latestVersion} - <a href="https://github.com/pinano/traefik-pro-stack/blob/main/CHANGELOG.md" target="_blank">changelog</a>)</span>`;
+            } else if (badge && latestVersion === currentVersion) {
+                badge.innerHTML = `<span class="update-badge-latest">(Latest)</span>`;
+            }
+        })
+        .catch(e => console.log("Could not check for updates."));
+}
+

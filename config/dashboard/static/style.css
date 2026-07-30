@@ -322,6 +322,14 @@ header {
     height: 20px;
 }
 
+.back-link-static {
+    cursor: default;
+}
+
+.back-link-static:hover {
+    transform: none;
+}
+
 .logo-subtitles {
     display: flex;
     align-items: center;
@@ -693,7 +701,8 @@ input[type="number"] {
     transition: all 0.2s;
 }
 
-input:focus, .style-select:focus {
+input:focus,
+.style-select:focus {
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
@@ -1349,6 +1358,20 @@ select.data-input:focus {
     margin-bottom: 2rem;
 }
 
+.login-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.login-header h1 {
+    margin-bottom: 0.5rem;
+}
+
+.login-header p {
+    margin-bottom: 0;
+    color: var(--text-muted);
+}
+
 .remember-me-group {
     display: flex;
     align-items: center;
@@ -1409,8 +1432,11 @@ select.data-input:focus {
 .app-card::before {
     content: '';
     position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%);
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0) 100%);
     opacity: 0;
     transition: opacity 0.3s ease;
     pointer-events: none;
@@ -1552,6 +1578,22 @@ select.data-input:focus {
     color: var(--primary-color);
 }
 
+.app-icon-domains {
+    color: #0ea5e9;
+}
+
+.app-icon-certs {
+    color: #10b981;
+}
+
+.app-icon-captchas {
+    color: #f59e0b;
+}
+
+.app-icon-disabled {
+    color: #94a3b8;
+}
+
 .app-title {
     font-size: 1.5rem;
     font-weight: 700;
@@ -1559,9 +1601,22 @@ select.data-input:focus {
     margin-bottom: 0.5rem;
 }
 
+.app-title-disabled {
+    color: #6b7280;
+}
+
 .app-desc {
     font-size: 0.875rem;
     color: var(--color-slate-500);
+}
+
+.icon-external-link {
+    width: 1.1rem;
+    height: 1.1rem;
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 0.35rem;
+    opacity: 0.6;
 }
 
 /* ====================================================================== */
@@ -1657,7 +1712,8 @@ select.data-input:focus {
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
 }
 
-.deploy-needed-banner.show, .unsaved-changes-banner.show {
+.deploy-needed-banner.show,
+.unsaved-changes-banner.show {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2075,7 +2131,7 @@ select.data-input:focus {
         color: white;
     }
 
-    #deleted-domains-table td:last-child > div {
+    #deleted-domains-table td:last-child>div {
         width: 100%;
         display: flex !important;
         gap: 0.5rem !important;
@@ -2249,29 +2305,254 @@ select.data-input:focus {
     margin-bottom: 0.5rem;
 }
 
+.help-item-flex-border {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 0.75rem;
+}
+
+.help-item-flex-border:last-child {
+    border-bottom: none;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0;
+}
+
 .help-icon-offset {
     flex-shrink: 0;
     margin-top: 2px;
 }
 
-.help-icon-slate { color: var(--color-slate-400); }
-.help-icon-gray { color: var(--color-slate-500); }
-.help-icon-emerald { color: var(--color-green-700); }
-.help-icon-red { color: var(--color-red-900); }
-.help-icon-orange { color: var(--color-orange-500); }
-.help-icon-indigo { color: var(--color-indigo-500); }
-.help-icon-teal { color: var(--color-teal-600); }
-.text-orange-bold { color: var(--color-orange-500); font-weight: bold; }
-.help-section-spacing { margin-top: 1.5rem; }
+.help-icon-slate {
+    color: var(--color-slate-400);
+}
 
-.col-valid { width: 3.5%; min-width: 45px; }
-.col-ssl { width: 3.5%; min-width: 45px; }
-.col-domain { width: 30%; }
-.col-anubis { width: 20%; }
-.col-rate { width: 10%; }
-.col-burst { width: 10%; }
-.col-conc { width: 11%; }
-.col-role { width: 180px; }
+.help-icon-gray {
+    color: var(--color-slate-500);
+}
+
+.help-icon-emerald {
+    color: var(--color-green-700);
+}
+
+.help-icon-red {
+    color: var(--color-red-900);
+}
+
+.help-icon-orange {
+    color: var(--color-orange-500);
+}
+
+.help-icon-indigo {
+    color: var(--color-indigo-500);
+}
+
+.help-icon-teal {
+    color: var(--color-teal-600);
+}
+
+.help-icon-success {
+    color: var(--success-color);
+}
+
+.help-icon-danger {
+    color: var(--danger-color);
+}
+
+.text-orange-bold {
+    color: var(--color-orange-500);
+    font-weight: bold;
+}
+
+.help-section-spacing {
+    margin-top: 1.5rem;
+}
+
+.help-cmd-badge {
+    flex-shrink: 0;
+    background: #f1f5f9;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.85rem;
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.help-cmd-desc {
+    margin-top: 2px;
+}
+
+.help-intro-text {
+    margin-bottom: 1rem;
+    color: var(--text-muted);
+}
+
+/* Cert-specific table column widths */
+.col-cert-status {
+    width: 5%;
+}
+
+.col-cert-root {
+    width: 15%;
+}
+
+.col-cert-main {
+    width: 25%;
+    text-align: center;
+}
+
+.col-cert-sans {
+    width: 35%;
+}
+
+.col-cert-expiration {
+    width: 20%;
+    text-align: center;
+}
+
+/* Cert status icon sizing */
+.cert-status-icon {
+    width: 1.2rem;
+    height: 1.2rem;
+}
+
+.cert-status-icon.icon-success {
+    color: var(--success-color);
+}
+
+.cert-status-icon.icon-warning {
+    color: var(--warning-color);
+}
+
+.cert-status-icon.icon-danger {
+    color: var(--danger-color);
+}
+
+/* Summary card value colors */
+.value-success {
+    color: var(--success-color);
+}
+
+.value-danger {
+    color: var(--danger-color);
+}
+
+/* Cert table helpers */
+.text-muted-sm {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.cell-main-domain {
+    font-weight: 500;
+    text-align: center;
+}
+
+.cert-badge-count {
+    margin-left: 0.5rem;
+    cursor: help;
+    vertical-align: middle;
+}
+
+.superseded-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.cert-expiry-warning {
+    color: var(--warning-color);
+    font-weight: bold;
+}
+
+.cert-expiry-expired {
+    color: var(--danger-color);
+    font-weight: bold;
+}
+
+.badge-not-in-use {
+    font-size: 0.85rem;
+    margin-top: 4px;
+    padding: 4px 6px;
+}
+
+.empty-table-cell {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+}
+
+/* Captcha table-tools alignment */
+.table-tools-end {
+    justify-content: flex-end;
+}
+
+/* Footer */
+.version-footer {
+    text-align: center;
+    margin-top: 2rem;
+    padding: 1rem 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.update-badge-warning {
+    color: var(--warning-color);
+}
+
+.update-badge-warning a {
+    color: var(--warning-color);
+    text-decoration: underline;
+}
+
+.update-badge-latest {
+    color: var(--success-color);
+}
+
+/* Captcha orphan label inline */
+.captcha-orphan-inline {
+    color: var(--danger-color);
+    font-size: 0.7rem;
+    margin-top: 4px;
+    font-weight: bold;
+}
+
+.col-valid {
+    width: 3.5%;
+    min-width: 45px;
+}
+
+.col-ssl {
+    width: 3.5%;
+    min-width: 45px;
+}
+
+.col-domain {
+    width: 15% !important;
+}
+
+.col-anubis {
+    width: 15% !important;
+}
+
+.col-rate {
+    width: 5% !important;
+}
+
+.col-burst {
+    width: 5% !important;
+}
+
+.col-conc {
+    width: 5% !important;
+}
+
+.col-role {
+    width: 180px;
+}
 
 #domains-table th:nth-child(1),
 #domains-table td:nth-child(1),
@@ -2298,8 +2579,13 @@ select.data-input:focus {
 }
 
 @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .animate-spin {
@@ -2308,35 +2594,145 @@ select.data-input:focus {
 }
 
 /* JS Dynamic Icon & Layout Classes */
-.icon-status-loading { color: var(--color-slate-500); width: 1rem; height: 1rem; }
-.icon-status-valid { color: var(--color-green-700); width: 1.2rem; height: 1.2rem; }
-.icon-status-valid-alt { color: var(--color-green-500); width: 1.2rem; height: 1.2rem; }
-.icon-status-invalid { color: var(--color-red-900); width: 1.2rem; height: 1.2rem; }
-.icon-status-pending { color: var(--color-slate-400); width: 1.2rem; height: 1.2rem; }
-.icon-status-failed { color: var(--color-slate-500); width: 1.2rem; height: 1.2rem; }
+.icon-status-loading {
+    color: var(--color-slate-500);
+    width: 1rem;
+    height: 1rem;
+}
 
-.icon-ssl-active { color: var(--color-green-500); width: 1.2rem; height: 1.2rem; }
-.icon-ssl-local { color: var(--color-indigo-500); width: 1.2rem; height: 1.2rem; }
-.icon-ssl-error { color: var(--color-red-500); width: 1.2rem; height: 1.2rem; }
-.icon-ssl-pending { color: var(--color-slate-400); width: 1.2rem; height: 1.2rem; }
+.icon-status-valid {
+    color: var(--color-green-700);
+    width: 1.2rem;
+    height: 1.2rem;
+}
 
-.icon-lock-sm { width: 0.8rem; height: 0.8rem; margin-right: 0.25rem; }
-.cell-center { text-align: center; }
-.cell-center-middle { text-align: center; vertical-align: middle; }
-.flex-center-compact { display: flex; gap: 0.25rem; justify-content: center; }
+.icon-status-valid-alt {
+    color: var(--color-green-500);
+    width: 1.2rem;
+    height: 1.2rem;
+}
+
+.icon-status-invalid {
+    color: var(--color-red-900);
+    width: 1.2rem;
+    height: 1.2rem;
+}
+
+.icon-status-pending {
+    color: var(--color-slate-400);
+    width: 1.2rem;
+    height: 1.2rem;
+}
+
+.icon-status-failed {
+    color: var(--color-slate-500);
+    width: 1.2rem;
+    height: 1.2rem;
+}
+
+.icon-ssl-active {
+    color: var(--color-green-500);
+    width: 1.2rem;
+    height: 1.2rem;
+}
+
+.icon-ssl-local {
+    color: var(--color-indigo-500);
+    width: 1.2rem;
+    height: 1.2rem;
+}
+
+.icon-ssl-error {
+    color: var(--color-red-500);
+    width: 1.2rem;
+    height: 1.2rem;
+}
+
+.icon-ssl-pending {
+    color: var(--color-slate-400);
+    width: 1.2rem;
+    height: 1.2rem;
+}
+
+.icon-lock-sm {
+    width: 0.8rem;
+    height: 0.8rem;
+    margin-right: 0.25rem;
+}
+
+.cell-center {
+    text-align: center;
+}
+
+.cell-center-middle {
+    text-align: center;
+    vertical-align: middle;
+}
+
+.flex-center-compact {
+    display: flex;
+    gap: 0.25rem;
+    justify-content: center;
+}
 
 /* Captcha JS Classes */
-.captcha-empty-cell { text-align: center; color: var(--text-muted); padding: 2rem; }
-.captcha-icon-active { color: var(--success-color); min-width: 18px; min-height: 18px; width: 18px; height: 18px; }
-.captcha-icon-inactive { color: var(--danger-color); min-width: 18px; min-height: 18px; width: 18px; height: 18px; }
-.captcha-orphan-label { color: var(--danger-color); font-size: 0.7rem; margin-left: 5px; }
-.captcha-flex-row { display: flex; align-items: center; gap: 8px; }
-.captcha-flex-icon { flex-shrink: 0; display: flex; align-items: center; }
-.captcha-domain-text { font-weight: 500; color: var(--text-color); word-break: break-word; }
+.captcha-empty-cell {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 2rem;
+}
 
-.row-unsaved-tint { background-color: var(--row-unsaved-tint-bg); }
-.row-configured-tint { background-color: var(--row-configured-tint-bg); }
-.row-unconfigured-tint { background-color: var(--row-unconfigured-tint-bg); }
+.captcha-icon-active {
+    color: var(--success-color);
+    min-width: 18px;
+    min-height: 18px;
+    width: 18px;
+    height: 18px;
+}
+
+.captcha-icon-inactive {
+    color: var(--danger-color);
+    min-width: 18px;
+    min-height: 18px;
+    width: 18px;
+    height: 18px;
+}
+
+.captcha-orphan-label {
+    color: var(--danger-color);
+    font-size: 0.7rem;
+    margin-left: 5px;
+}
+
+.captcha-flex-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.captcha-flex-icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+}
+
+.captcha-domain-text {
+    font-weight: 500;
+    color: var(--text-color);
+    word-break: break-word;
+}
+
+.row-unsaved-tint {
+    background-color: var(--row-unsaved-tint-bg);
+}
+
+.row-configured-tint {
+    background-color: var(--row-configured-tint-bg);
+}
+
+.row-unconfigured-tint {
+    background-color: var(--row-unconfigured-tint-bg);
+}
 
 /* Full-Width Missing Certificates Alert Card */
 .missing-certs-container-card {
@@ -2425,4 +2821,3 @@ select.data-input:focus {
     color: var(--warning-color);
     flex-shrink: 0;
 }
-

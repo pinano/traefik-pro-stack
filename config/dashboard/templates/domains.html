@@ -1,25 +1,16 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ domain }} - Domain Manager</title>
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
-    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
-    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
-    <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}" crossorigin="use-credentials">
-    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?t={{ timestamp | default(0) }}">
-    <link
-        href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,300;0,400;0,700;1,300&display=swap"
-        rel="stylesheet">
+{% block title %}{{ domain }} - Domain Manager{% endblock %}
+
+{% block css_cache %}?t={{ timestamp | default(0) }}{% endblock %}
+
+{% block head_extra %}
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ url_for('static', filename='theme.js') }}?t={{ timestamp | default(0) }}"></script>
-</head>
+{% endblock %}
 
-<body>
+{% block content %}
     <div id="unsaved-notification" class="unsaved-changes-banner">
         <i data-lucide="save" class="icon-inline"></i>
         Unsaved changes. Don't forget to save!
@@ -329,7 +320,9 @@
 
     <!-- Global Service Dropdown (attached to body to escape table overflow) -->
     <div id="global-service-dropdown" class="dropdown-menu"></div>
+{% endblock %}
 
+{% block scripts %}
     <script src="{{ url_for('static', filename='utils.js') }}?v=1.1"></script>
     <script src="{{ url_for('static', filename='scripts-domain-manager.js') }}?v=1.1"></script>
     <script>
@@ -341,6 +334,4 @@
         // Initialize Lucide icons
         lucide.createIcons();
     </script>
-</body>
-
-</html>
+{% endblock %}
