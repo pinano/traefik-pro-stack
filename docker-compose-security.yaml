@@ -169,6 +169,7 @@ services:
       - CROWDSEC_PASSWORD=${CROWDSEC_WEB_UI_PASSWORD:-}
       - BASE_PATH=/crowdsec
       - TZ=${TZ}
+      - AUTH_ENABLED=false
       - NODE_OPTIONS=--max-old-space-size=512
       - CROWDSEC_LOOKBACK_PERIOD=${CROWDSEC_LOOKBACK_PERIOD:-7d}
       - CROWDSEC_PROMETHEUS_URL=http://crowdsec:6060/metrics
