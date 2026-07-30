@@ -1,3 +1,8 @@
+## v2026.07.30 (2026-07-30)
+
+- refactor: implement base template for dashboard and update styling for certs, domain, and captcha views (7acdb03)
+- chore: increase CrowdSec node memory limits, restore default lookback period, and adjust health check timings (673c742)
+
 ## v2026.07.29 (2026-07-29)
 
 - chore: update service images, crowdsec plugin version, and refine dashboard UI style (8886e2a)
