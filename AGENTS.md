@@ -138,7 +138,7 @@ The core mission: protect multiple Docker-based web applications (and optionally
     ├── docker-compose-edge.yaml              # Edge: Traefik (TLS termination, routing)
     ├── docker-compose-security.yaml          # Security: CrowdSec, PostgreSQL, Redis, Redis Exporter, CrowdSec Web UI
     ├── docker-compose-observability.yaml     # Observability: Grafana, Loki, Alloy, Prometheus
-    ├── docker-compose-dashboard.yaml         # Dashboard: Dashboard, Dozzle, Watchdog, ctop
+    ├── docker-compose-dashboard.yaml         # Dashboard: Dashboard, Dozzle, Watchdog
     ├── docker-compose-anubis.yaml            # Bot Defense: Anubis base template + Assets server
     ├── docker-compose-anubis-generated.yaml  # Auto-generated Anubis instances (per TLD, do not edit)
     ├── docker-compose-backrest.yaml          # Backups: Backrest (Restic Web UI + Rclone)
@@ -198,7 +198,7 @@ The stack uses multiple compose files to keep concerns separated:
 | `docker-compose-edge.yaml` | Traefik |
 | `docker-compose-security.yaml` | CrowdSec, Redis, Redis Exporter, CrowdSec Web UI |
 | `docker-compose-observability.yaml` | Grafana, Loki, Alloy, Prometheus |
-| `docker-compose-dashboard.yaml` | Dashboard (Flask), Dozzle, Watchdog, ctop |
+| `docker-compose-dashboard.yaml` | Dashboard (Flask), Dozzle, Watchdog |
 | `docker-compose-anubis.yaml` | Anubis base template + Anubis Assets server |
 | `docker-compose-anubis-generated.yaml` | Auto-generated Anubis instances (from `generate-config.py`) |
 | `docker-compose-backrest.yaml` | Backrest (Restic + Rclone) — conditionally included when `BACKREST_ENABLE=true` |

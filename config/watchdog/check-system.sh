@@ -132,21 +132,18 @@ else
         fi
         
         # 1a. Check Running Status
-        # Ignore ctop since it's run on-demand
-        if [ "$c_service" != "ctop" ]; then
-            if [ "$c_status" != "running" ]; then
-                printf '%b\n' "${RED}❌ Container $c_name ($c_service) is NOT running! Status: $c_status${NC}"
-                ALERTS="${ALERTS}• <b>Container Down</b>: <code>${c_name}</code> (service <code>${c_service}</code>) is <b>${c_status}</b>!%0A"
+        if [ "$c_status" != "running" ]; then
+            printf '%b\n' "${RED}❌ Container $c_name ($c_service) is NOT running! Status: $c_status${NC}"
+            ALERTS="${ALERTS}• <b>Container Down</b>: <code>${c_name}</code> (service <code>${c_service}</code>) is <b>${c_status}</b>!%0A"
+            ERRORS=$((ERRORS + 1))
+        else
+            # 1b. Check Health Status
+            if [ "$c_health" = "unhealthy" ]; then
+                printf '%b\n' "${RED}❌ Container $c_name ($c_service) is UNHEALTHY!${NC}"
+                ALERTS="${ALERTS}• <b>Container Unhealthy</b>: <code>${c_name}</code> is <b>unhealthy</b>!%0A"
                 ERRORS=$((ERRORS + 1))
             else
-                # 1b. Check Health Status
-                if [ "$c_health" = "unhealthy" ]; then
-                    printf '%b\n' "${RED}❌ Container $c_name ($c_service) is UNHEALTHY!${NC}"
-                    ALERTS="${ALERTS}• <b>Container Unhealthy</b>: <code>${c_name}</code> is <b>unhealthy</b>!%0A"
-                    ERRORS=$((ERRORS + 1))
-                else
-                    printf '%b\n' "${GREEN}✅ Container $c_name is running ($c_status / health: $c_health)${NC}"
-                fi
+                printf '%b\n' "${GREEN}✅ Container $c_name is running ($c_status / health: $c_health)${NC}"
             fi
         fi
         
@@ -154,6 +151,11 @@ else
         # Record restart count in new cache
         echo "${c_name}=${c_restarts}" >> "$NEW_RESTART_CACHE"
         
+        # Skip restart alerts for non-essential UI services (crowdsec-web-ui)
+        if [ "$c_service" = "crowdsec-web-ui" ]; then
+            continue
+        fi
+
         # If cache exists, check if restart count increased
         if [ -f "$RESTART_CACHE" ]; then
             cached_restarts=$(grep "^${c_name}=" "$RESTART_CACHE" | cut -d'=' -f2)
