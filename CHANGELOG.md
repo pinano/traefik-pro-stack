@@ -1,3 +1,8 @@
+## v2026.08.09 (2026-08-09)
+
+- Merge branch 'main' of github.com:pinano/traefik-crowdsec-anubis-grafana (9fbb8d3)
+- Version bumps (8e56b5f)
+
 ## v2026.07.30 (2026-07-30)
 
 - refactor: implement base template for dashboard and update styling for certs, domain, and captcha views (7acdb03)
