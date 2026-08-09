@@ -1,25 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ domain }} - Certificates Inspector</title>
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
-    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
-    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
-    <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}" crossorigin="use-credentials">
-    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link
-        href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,300;0,400;0,700;1,300&display=swap"
-        rel="stylesheet">
-    <!-- Lucide Icons -->
+{% block title %}{{ domain }} - Certificates Inspector{% endblock %}
+
+{% block head_extra %}
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ url_for('static', filename='theme.js') }}?t={{ timestamp | default(0) }}"></script>
-</head>
+{% endblock %}
 
-<body>
+{% block content %}
     <div class="container">
         <header>
             <div class="logo">
@@ -28,12 +16,12 @@
                         <a href="{{ url_for('views.dashboard') }}" class="back-link" title="Back to Dashboard">
                             <i data-lucide="arrow-left"></i>
                         </a>
-                        <h1 style="display: flex; align-items: baseline; gap: 0.5rem;">
+                        <h1 class="header-title-flex">
                             Traefik Pro Stack
-                            <span style="font-size: 1.1rem; color: var(--text-muted); font-weight: 400;">/ Certificates</span>
+                            <span class="header-title-sub">/ Certificates</span>
                         </h1>
                     </div>
-                    <div class="logo-subtitles" style="margin-top: 0.1rem;">
+                    <div class="logo-subtitles logo-subtitles-spacing">
                         <span>{{ domain }}</span>
                         <span class="subtitle-separator">|</span>
                     <button id="help-btn" class="subtitle-link help-link-btn" title="Usage Instructions">
@@ -46,7 +34,7 @@
                 <a href="#" id="theme-toggle" class="btn btn-secondary btn-icon-only" title="Toggle Theme">
                     <i id="theme-icon" data-lucide="moon"></i>
                 </a>
-                <form method="POST" action="{{ url_for('auth.logout') }}" style="display:inline;">
+                <form method="POST" action="{{ url_for('auth.logout') }}" class="form-inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-secondary" id="logout-btn">
                         <i data-lucide="log-out"></i> Logout
@@ -66,11 +54,11 @@
                 </div>
                 <div class="summary-card">
                     <h3>Unique Domains Covered</h3>
-                    <div class="value" style="color: var(--success-color);">{{ total_unique_domains }}</div>
+                    <div class="value value-success">{{ total_unique_domains }}</div>
                 </div>
                 <div class="summary-card">
                     <h3>Missing Domains</h3>
-                    <div class="value" style="color: var(--danger-color);">
+                    <div class="value value-danger">
                         {{ missing_count }}
                     </div>
                 </div>
@@ -120,44 +108,43 @@
                 <table id="certs-table">
                     <thead>
                         <tr>
-                            <th class="sortable" data-sort="status" style="width: 5%">Status</th>
-                            <th class="sortable" data-sort="root" style="width: 15%">Root Domain</th>
-                            <th class="sortable" data-sort="main" style="width: 25%; text-align: center;">Main Domain
+                            <th class="sortable col-cert-status" data-sort="status">Status</th>
+                            <th class="sortable col-cert-root" data-sort="root">Root Domain</th>
+                            <th class="sortable col-cert-main" data-sort="main">Main Domain
                             </th>
-                            <th style="width: 35%">SANs</th>
-                            <th class="sortable" data-sort="expiration" style="width: 20%; text-align: center;">
+                            <th class="col-cert-sans">SANs</th>
+                            <th class="sortable col-cert-expiration" data-sort="expiration">
                                 Expiration</th>
                         </tr>
                     </thead>
                     <tbody id="certs-body">
                         {% for cert in certificates %}
                         <tr class="{{ 'superseded-row' if cert.superseded else '' }}">
-                            <td data-label="Status" style="text-align: center;">
+                            <td data-label="Status" class="cell-center">
                                 {% if cert.status == 'valid' %}
                                 <i data-lucide="check-circle"
-                                    style="color: var(--success-color); width: 1.2rem; height: 1.2rem;"
+                                    class="cert-status-icon icon-success"
                                     title="Valid"></i>
                                 {% elif cert.status == 'warning' %}
                                 <i data-lucide="alert-triangle"
-                                    style="color: var(--warning-color); width: 1.2rem; height: 1.2rem;"
+                                    class="cert-status-icon icon-warning"
                                     title="Expiring Soon"></i>
                                 {% else %}
                                 <i data-lucide="x-octagon"
-                                    style="color: var(--danger-color); width: 1.2rem; height: 1.2rem;"
+                                    class="cert-status-icon icon-danger"
                                     title="Expired/Invalid"></i>
                                 {% endif %}
                                 {% if cert.superseded %}
-                                <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">SUPERSEDED
+                                <div class="superseded-label">SUPERSEDED
                                 </div>
                                 {% endif %}
                             </td>
                             <td data-label="Root Domain" class="root-domain-cell">{{ cert.root }}</td>
-                            <td data-label="Main Domain" style="font-weight: 500; text-align: center;">
+                            <td data-label="Main Domain" class="cell-main-domain">
                                 {{ cert.main }}
                                 {% if cert.sans %}
-                                <span class="badge badge-info"
-                                    title="Total Domains: {{ cert.sans|length }} (Main + SANs)"
-                                    style="margin-left: 0.5rem; cursor: help; vertical-align: middle;">
+                                <span class="badge badge-info cert-badge-count"
+                                    title="Total Domains: {{ cert.sans|length }} (Main + SANs)">
                                     {{ cert.sans|length }}
                                 </span>
                                 {% endif %}
@@ -166,23 +153,21 @@
                                 {% for san in cert.sans %}
                                 <span class="badge badge-info">{{ san }}</span>
                                 {% else %}
-                                <span style="color: var(--text-muted); font-size: 0.8rem;">-</span>
+                                <span class="text-muted-sm">-</span>
                                 {% endfor %}
                             </td>
-                            <td data-label="Expiration" style="text-align: center;" data-sort-value="{{ cert.expiration_timestamp }}">
-                                <span
-                                    style="{{ 'color: var(--warning-color); font-weight: bold;' if cert.status == 'warning' else ('color: var(--danger-color); font-weight: bold;' if cert.status == 'expired' else '') }}">
+                            <td data-label="Expiration" class="cell-center" data-sort-value="{{ cert.expiration_timestamp }}">
+                                <span class="{{ 'cert-expiry-warning' if cert.status == 'warning' else ('cert-expiry-expired' if cert.status == 'expired' else '') }}">
                                     {{ cert.expiration }}
                                 </span>
                                 {% if cert.superseded %}
-                                <br><span class="badge badge-danger"
-                                    style="font-size: 0.85rem; margin-top: 4px; padding: 4px 6px;">NOT IN USE</span>
+                                <br><span class="badge badge-danger badge-not-in-use">NOT IN USE</span>
                                 {% endif %}
                             </td>
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted);">
+                            <td colspan="5" class="empty-table-cell">
                                 No certificates found in acme.json.
                             </td>
                         </tr>
@@ -196,72 +181,63 @@
 
     <!-- Help Modal -->
     <div id="help-modal" class="modal-overlay">
-        <div class="modal" style="max-width: 650px;">
+        <div class="modal modal-help-width">
             <div class="modal-header">
                 <h2>Certificates Console Commands</h2>
                 <button id="close-help-btn" class="toast-close">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="help-section">
-                    <p style="margin-bottom: 1rem; color: var(--text-muted);">
+                    <p class="help-intro-text">
                         The stack provides several Makefile commands to manage, inspect, and clean SSL/TLS certificates
                         directly from the console:
                     </p>
-                    <ul class="help-list" style="list-style: none; padding-left: 0;">
-                        <li
-                            style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.75rem;">
-                            <div
-                                style="flex-shrink: 0; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; font-weight: bold; color: var(--primary-color);">
+                    <ul class="help-list help-list-reset">
+                        <li class="help-item-flex-border">
+                            <div class="help-cmd-badge">
                                 make certs-info
                             </div>
-                            <div style="margin-top: 2px;">
+                            <div class="help-cmd-desc">
                                 <strong>Analyze Certificates (Summary):</strong> Compares active certificates in
                                 <code>acme.json</code> against the domains listed in <code>domains.csv</code> and prints
                                 a quick status summary.
                             </div>
                         </li>
-                        <li
-                            style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.75rem;">
-                            <div
-                                style="flex-shrink: 0; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; font-weight: bold; color: var(--primary-color);">
+                        <li class="help-item-flex-border">
+                            <div class="help-cmd-badge">
                                 make certs-inspect
                             </div>
-                            <div style="margin-top: 2px;">
+                            <div class="help-cmd-desc">
                                 <strong>Detailed Inspection:</strong> Performs a comprehensive comparison of
                                 certificates against <code>domains.csv</code>, listing all covered domains, SANs,
                                 status, and expiration dates.
                             </div>
                         </li>
-                        <li
-                            style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.75rem;">
-                            <div
-                                style="flex-shrink: 0; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; font-weight: bold; color: var(--primary-color);">
+                        <li class="help-item-flex-border">
+                            <div class="help-cmd-badge">
                                 make certs-watch
                             </div>
-                            <div style="margin-top: 2px;">
+                            <div class="help-cmd-desc">
                                 <strong>Monitor ACME Logs:</strong> Streams and filters Traefik container logs in
                                 real-time, focusing on ACME validation stages, challenge resolutions, and certification
                                 errors.
                             </div>
                         </li>
-                        <li
-                            style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 1rem; border-bottom: 1px solid #f1f5f9; padding-bottom: 0.75rem;">
-                            <div
-                                style="flex-shrink: 0; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; font-weight: bold; color: var(--primary-color);">
+                        <li class="help-item-flex-border">
+                            <div class="help-cmd-badge">
                                 make certs-prune
                             </div>
-                            <div style="margin-top: 2px;">
+                            <div class="help-cmd-desc">
                                 <strong>Prune Unused (Dry-Run):</strong> Identifies and lists certificates inside
                                 <code>acme.json</code> that belong to domains no longer defined in
                                 <code>domains.csv</code>. Does not modify the file.
                             </div>
                         </li>
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
-                            <div
-                                style="flex-shrink: 0; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; font-weight: bold; color: var(--primary-color);">
+                        <li class="help-item-flex-border">
+                            <div class="help-cmd-badge">
                                 make certs-prune-force
                             </div>
-                            <div style="margin-top: 2px;">
+                            <div class="help-cmd-desc">
                                 <strong>Force Prune (Destructive):</strong> Permanently removes old/unused certificates
                                 from <code>acme.json</code> and hot-reloads Traefik to apply changes. Creates a backup
                                 automatically.
@@ -275,141 +251,12 @@
             </div>
         </div>
     </div>
+{% endblock %}
 
+{% block scripts %}
+    <script src="{{ url_for('static', filename='utils.js') }}?v=1.1"></script>
+    <script src="{{ url_for('static', filename='scripts-certs.js') }}?v=1.1"></script>
     <script>
-        // Initialize Lucide icons
         lucide.createIcons();
-
-        document.addEventListener('DOMContentLoaded', () => {
-            // Header Sticky Logic
-            const header = document.querySelector('header');
-            let headerSpacer = document.createElement('div');
-            headerSpacer.className = 'header-spacer';
-            header.after(headerSpacer);
-
-            window.addEventListener('scroll', () => {
-                if (window.innerWidth > 768) { // Only on desktop
-                    const stickyThreshold = 50;
-                    if (window.scrollY > stickyThreshold) {
-                        header.classList.add('header-scrolled');
-                        headerSpacer.style.display = 'block';
-                        headerSpacer.style.height = header.offsetHeight + 'px';
-                    } else {
-                        header.classList.remove('header-scrolled');
-                        headerSpacer.style.display = 'none';
-                    }
-                } else {
-                    header.classList.remove('header-scrolled');
-                    headerSpacer.style.display = 'none';
-                }
-            });
-
-            // Help Modal Logic
-            const helpBtn = document.getElementById('help-btn');
-            const helpModal = document.getElementById('help-modal');
-            const closeHelpBtn = document.getElementById('close-help-btn');
-            const closeHelpFooterBtn = document.getElementById('close-help-footer-btn');
-
-            if (helpBtn && helpModal) {
-                helpBtn.addEventListener('click', () => {
-                    helpModal.classList.add('show');
-                });
-                const closeHelp = () => helpModal.classList.remove('show');
-                if (closeHelpBtn) closeHelpBtn.addEventListener('click', closeHelp);
-                if (closeHelpFooterBtn) closeHelpFooterBtn.addEventListener('click', closeHelp);
-            }
-
-            const tableBody = document.getElementById('certs-body');
-            const searchInput = document.getElementById('search-input');
-            const headers = document.querySelectorAll('.sortable');
-
-            // Collect rows for sorting/filtering
-            // We clone nodes or just reference them? Reference is fine.
-            let rows = Array.from(tableBody.querySelectorAll('tr'));
-
-            // Simple Client-side Search
-            searchInput.addEventListener('input', (e) => {
-                const term = e.target.value.toLowerCase();
-                rows.forEach(row => {
-                    const text = row.textContent.toLowerCase();
-                    row.style.display = text.includes(term) ? '' : 'none';
-                });
-            });
-
-            // Simple Client-side Sort
-            let currentSort = { column: null, direction: 'asc' };
-
-            headers.forEach(header => {
-                // Add sort icons if missing (since I didn't add them in HTML above to keep it clean)
-                if (!header.querySelector('.sort-icon')) {
-                    header.innerHTML += ' <i data-lucide="chevrons-up-down" class="sort-icon default" style="width:14px; height:14px; vertical-align:middle; opacity:0.5;"></i>';
-                    lucide.createIcons({ root: header });
-                }
-
-                header.addEventListener('click', () => {
-                    const column = header.dataset.sort;
-                    // Find index based on header index
-                    const headerRow = header.parentElement;
-                    const index = Array.from(headerRow.children).indexOf(header);
-
-                    // Reset icons
-                    document.querySelectorAll('.sort-icon').forEach(icon => {
-                        // Reset to default up-down icon
-                        icon.setAttribute('data-lucide', 'chevrons-up-down');
-                        icon.style.opacity = '0.5';
-                        icon.style.color = '';
-                    });
-                    lucide.createIcons(); // Refresh icons
-
-                    if (currentSort.column === column) {
-                        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
-                    } else {
-                        currentSort.column = column;
-                        currentSort.direction = 'asc';
-                    }
-
-                    // Update current icon
-                    const targetIcon = header.querySelector('.sort-icon');
-                    if (currentSort.direction === 'asc') {
-                        targetIcon.setAttribute('data-lucide', 'chevron-up');
-                    } else {
-                        targetIcon.setAttribute('data-lucide', 'chevron-down');
-                    }
-                    targetIcon.style.opacity = '1';
-                    targetIcon.style.color = 'var(--primary-color)';
-                    lucide.createIcons({ root: header });
-
-                    // Sort rows
-                    const sortedRows = rows.sort((a, b) => {
-                        const aCell = a.children[index];
-                        const bCell = b.children[index];
-                        const aSortVal = aCell.getAttribute('data-sort-value');
-                        const bSortVal = bCell.getAttribute('data-sort-value');
-
-                        if (aSortVal !== null && bSortVal !== null) {
-                            const aNum = parseFloat(aSortVal) || 0;
-                            const bNum = parseFloat(bSortVal) || 0;
-                            return currentSort.direction === 'asc' ? aNum - bNum : bNum - aNum;
-                        }
-
-                        const aVal = aCell.textContent.trim();
-                        const bVal = bCell.textContent.trim();
-
-                        // Basic string comparison
-                        return currentSort.direction === 'asc'
-                            ? aVal.localeCompare(bVal)
-                            : bVal.localeCompare(aVal);
-                    });
-
-                    // Re-append rows
-                    sortedRows.forEach(row => tableBody.appendChild(row));
-
-                    // Re-assign rows to keep current order for next ops
-                    rows = sortedRows;
-                });
-            });
-        });
     </script>
-</body>
-
-</html>
+{% endblock %}

@@ -87,7 +87,7 @@ else
     PYTHON_CMD="python3"
 fi
 
-$PYTHON_CMD scripts/generate-config.py | sed -u 's/^/   /'
+$PYTHON_CMD scripts/generate-config.py | sed 's/^/   /'
 
 # ─── Step 1b: Regenerate CrowdSec profiles.yaml ─────────────────
 # profiles.yaml depends on captcha_keys.csv (managed from the Captchas UI).

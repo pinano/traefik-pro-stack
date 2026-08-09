@@ -1,31 +1,19 @@
-<!DOCTYPE html>
-<html lang="en">
+{% extends "base.html" %}
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ domain }} - CAPTCHA Keys</title>
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
-    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
-    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
-    <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}" crossorigin="use-credentials">
-    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <link
-        href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,300;0,400;0,700;1,300&display=swap"
-        rel="stylesheet">
+{% block title %}{{ domain }} - CAPTCHA Keys{% endblock %}
+
+{% block head_extra %}
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="{{ url_for('static', filename='theme.js') }}?t={{ timestamp | default(0) }}"></script>
-</head>
+{% endblock %}
 
-<body>
+{% block content %}
     <div id="unsaved-notification" class="unsaved-changes-banner">
-        <i data-lucide="save" style="vertical-align: middle; margin-right: 0.5rem; width: 1.2rem; height: 1.2rem;"></i>
+        <i data-lucide="save" class="icon-inline"></i>
         Unsaved changes. Don't forget to save!
     </div>
     <div id="deploy-notification" class="deploy-needed-banner">
-        <i id="deploy-notification-icon" data-lucide="zap"
-            style="vertical-align: middle; margin-right: 0.5rem; width: 1.2rem; height: 1.2rem;"></i>
+        <i id="deploy-notification-icon" data-lucide="zap" class="icon-inline"></i>
         <span id="deploy-notification-text">Changes saved. Ready to deploy.</span>
     </div>
 
@@ -37,12 +25,12 @@
                         <a href="{{ url_for('views.dashboard') }}" class="back-link" title="Back to Dashboard">
                             <i data-lucide="arrow-left"></i>
                         </a>
-                        <h1 style="display: flex; align-items: baseline; gap: 0.5rem;">
+                        <h1 class="header-title-flex">
                             Traefik Pro Stack
-                            <span style="font-size: 1.1rem; color: var(--text-muted); font-weight: 400;">/ CAPTCHA Keys</span>
+                            <span class="header-title-sub">/ CAPTCHA Keys</span>
                         </h1>
                     </div>
-                    <div class="logo-subtitles" style="margin-top: 0.1rem;">
+                    <div class="logo-subtitles logo-subtitles-spacing">
                         <span>{{ domain }}</span>
                         <span class="subtitle-separator">|</span>
                     <button id="help-btn" class="subtitle-link help-link-btn" title="Usage Instructions">
@@ -61,7 +49,7 @@
                 <a href="#" id="theme-toggle" class="btn btn-secondary btn-icon-only" title="Toggle Theme">
                     <i id="theme-icon" data-lucide="moon"></i>
                 </a>
-                <form method="POST" action="{{ url_for('auth.logout') }}" style="display:inline;">
+                <form method="POST" action="{{ url_for('auth.logout') }}" class="form-inline">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-secondary" id="logout-btn">
                         <i data-lucide="log-out"></i> Logout
@@ -73,7 +61,7 @@
         {% include 'maintenance-banner.html' %}
 
         <main>
-            <div class="table-tools" style="justify-content: flex-end;">
+            <div class="table-tools table-tools-end">
                 <div class="search-wrapper">
                     <i data-lucide="search"></i>
                     <input type="text" id="search-input" placeholder="Search domains...">
@@ -114,7 +102,7 @@
         <div class="modal">
             <div class="modal-header">
                 <h2 id="restart-modal-title">Hot Reload Config Progress</h2>
-                <button id="close-modal-btn" class="btn btn-secondary btn-sm" style="display: none;">Close</button>
+                <button id="close-modal-btn" class="btn btn-secondary btn-sm display-none">Close</button>
             </div>
             <div class="modal-body modal-body-console">
                 <pre id="log-container">Initializing stream...</pre>
@@ -129,12 +117,12 @@
                 <h2 id="confirm-modal-title">Confirm Action</h2>
             </div>
             <div class="modal-body">
-                <p id="confirm-msg" style="color: var(--text-color);">Are you sure?</p>
+                <p id="confirm-msg" class="confirm-text-color">Are you sure?</p>
             </div>
             <div class="modal-footer">
                 <button id="cancel-confirm-btn" class="btn btn-secondary">Cancel</button>
                 <button id="confirm-delete-btn" class="btn btn-danger">Delete</button>
-                <button id="confirm-deploy-btn" class="btn btn-apply" style="display:none;">
+                <button id="confirm-deploy-btn" class="btn btn-apply display-none">
                     <i data-lucide="rocket"></i> Apply
                 </button>
             </div>
@@ -149,53 +137,50 @@
             </div>
             <div class="modal-body">
                 <div class="help-section">
-                    <h3
-                        style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; color: var(--primary-color);">
-                        <i data-lucide="shield-check" style="color: var(--success-color);"></i> Status Indicators
+                    <h3 class="help-title-flex">
+                        <i data-lucide="shield-check" class="help-icon-success"></i> Status Indicators
                     </h3>
-                    <p style="margin-bottom: 0.75rem;">The visual indicator shows if the root domain is protected by
+                    <p class="help-p-spacing">The visual indicator shows if the root domain is protected by
                         CAPTCHA:</p>
-                    <ul class="help-list" style="list-style: none; padding-left: 0;">
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
+                    <ul class="help-list help-list-reset">
+                        <li class="help-item-flex">
                             <i data-lucide="shield-check"
-                                style="color: var(--success-color); flex-shrink: 0; margin-top: 2px;"></i>
+                                class="help-icon-offset help-icon-success"></i>
                             <span><strong>Protected:</strong> Both Site Key and Secret Key are configured
                                 correctly.</span>
                         </li>
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
+                        <li class="help-item-flex">
                             <i data-lucide="shield-off"
-                                style="color: var(--danger-color); flex-shrink: 0; margin-top: 2px;"></i>
+                                class="help-icon-offset help-icon-danger"></i>
                             <span><strong>Unprotected:</strong> Keys are missing. The domain is not covered by CAPTCHA
                                 challenge rules.</span>
                         </li>
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
-                            <span
-                                style="color: var(--danger-color); font-size: 0.7rem; margin-top: 4px; font-weight: bold;">(Orphan)</span>
+                        <li class="help-item-flex">
+                            <span class="captcha-orphan-inline">(Orphan)</span>
                             <span><strong>Orphaned:</strong> The configuration exists in the database but the root
                                 domain is no longer active in the stack.</span>
                         </li>
                     </ul>
                 </div>
 
-                <div class="help-section" style="margin-top: 1.5rem;">
-                    <h3
-                        style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; color: var(--primary-color);">
+                <div class="help-section help-section-spacing">
+                    <h3 class="help-title-flex">
                         <i data-lucide="edit-3"></i> Editing & Actions
                     </h3>
-                    <ul class="help-list" style="list-style: none; padding-left: 0;">
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
+                    <ul class="help-list help-list-reset">
+                        <li class="help-item-flex">
                             <i data-lucide="x-circle"
-                                style="color: var(--danger-color); flex-shrink: 0; margin-top: 2px;"></i>
+                                class="help-icon-offset help-icon-danger"></i>
                             <span><strong>Clear Keys:</strong> Removes the keys for the domain. Upon saving, the
                                 configuration will be disabled.</span>
                         </li>
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
-                            <i data-lucide="info" style="color: #f97316; flex-shrink: 0; margin-top: 2px;"></i>
+                        <li class="help-item-flex">
+                            <i data-lucide="info" class="help-icon-offset help-icon-orange"></i>
                             <span><strong>Unsaved Changes:</strong> Rows with pending modifications are highlighted in
-                                <span style="color: #f97316; font-weight: bold;">orange</span>.</span>
+                                <span class="text-orange-bold">orange</span>.</span>
                         </li>
-                        <li style="display: flex; align-items: flex-start; gap: 0.75rem; margin-bottom: 0.5rem;">
-                            <i data-lucide="rocket" style="color: #0d9488; flex-shrink: 0; margin-top: 2px;"></i>
+                        <li class="help-item-flex">
+                            <i data-lucide="rocket" class="help-icon-offset help-icon-teal"></i>
                             <span><strong>Deploy Changes:</strong> Applies the configuration securely using a
                                 zero-downtime hot reload.</span>
                         </li>
@@ -212,7 +197,9 @@
 
     <!-- Global Domain Dropdown (attached to body to escape table overflow) -->
     <div id="global-domain-dropdown" class="dropdown-menu"></div>
+{% endblock %}
 
+{% block scripts %}
     <script src="{{ url_for('static', filename='utils.js') }}?v=1.1"></script>
     <script src="{{ url_for('static', filename='scripts-captcha.js') }}?v=1.1"></script>
     <script>
@@ -221,6 +208,4 @@
         // Initialize Lucide icons
         lucide.createIcons();
     </script>
-</body>
-
-</html>
+{% endblock %}
