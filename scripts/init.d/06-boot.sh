@@ -71,6 +71,16 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
             echo -n "."
             ((timeout-=2))
             if [ $timeout -le 0 ]; then
+                # Auto-recovery: Check if CrowdSec failed due to 401 watcher credentials mismatch against DB
+                if [ -n "$CROWDSEC_ID" ] && docker logs "$CROWDSEC_ID" 2>&1 | grep -q "authenticate watcher.*API error: incorrect Username or Password"; then
+                    echo ""
+                    echo "   ⚠️ CrowdSec watcher authentication mismatch detected. Auto-registering local machine in DB..."
+                    $COMPOSE_CMD --progress quiet $COMPOSE_FILES run --rm --no-deps crowdsec cscli machines add --auto -f /etc/crowdsec/local_api_credentials.yaml --force >/dev/null 2>&1 || true
+                    $COMPOSE_CMD --progress quiet $COMPOSE_FILES restart crowdsec >/dev/null 2>&1 || true
+                    CROWDSEC_ID=$(docker ps -aq --filter label=com.docker.compose.project=$PROJECT_NAME --filter label=com.docker.compose.service=crowdsec | head -n 1)
+                    timeout=30
+                    continue
+                fi
                 echo ""
                 echo "   ❌ Timeout waiting for CrowdSec to become healthy."
                 exit 1

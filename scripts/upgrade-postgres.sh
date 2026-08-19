@@ -69,10 +69,16 @@ with open(file_path, 'w') as f:
 " "$NEW_VERSION"
 echo "✅ Configuration updated."
 
-echo "🚀 Starting the stack to initialize the new database..."
-make start
+if docker compose version >/dev/null 2>&1; then
+    COMPOSE_CMD="docker compose"
+else
+    COMPOSE_CMD="docker-compose"
+fi
 
-echo "⏳ Waiting for the new database to become ready..."
+echo "🚀 Starting new PostgreSQL container to initialize database..."
+$COMPOSE_CMD -f docker-compose-security.yaml up -d crowdsec-db
+
+echo "⏳ Waiting for the new database container to become ready..."
 MAX_RETRIES=30
 RETRY_COUNT=0
 while ! docker inspect -f '{{.State.Health.Status}}' $DB_CONTAINER 2>/dev/null | grep -q "healthy"; do
@@ -86,8 +92,12 @@ done
 
 echo "📥 Importing data into the new PostgreSQL $NEW_VERSION database..."
 docker exec -i $DB_CONTAINER psql -U $DB_USER $DB_NAME < $DUMP_FILE
+echo "✅ Data restored successfully."
 
 echo "🧹 Cleaning up temporary dump file..."
 rm -f $DUMP_FILE
+
+echo "🚀 Starting the full stack..."
+make start
 
 echo "✅ PostgreSQL upgrade completed successfully!"
