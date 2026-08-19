@@ -4,7 +4,7 @@ set -e
 cd "$(dirname "$0")/.."
 
 echo "Fetching latest tags from remote repository..."
-git fetch --tags --quiet
+git fetch --tags --force --quiet
 
 echo "Recent versions:"
 TAGS=($(git tag -l --sort=-v:refname | head -n 10))

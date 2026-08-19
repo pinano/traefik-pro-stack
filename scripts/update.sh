@@ -7,7 +7,7 @@ cd "$(dirname "$0")/.."
 TARGET_TAG=$1
 
 echo "Fetching latest tags from remote repository..."
-git fetch --tags --quiet
+git fetch --tags --force --quiet
 
 if [ -n "$TARGET_TAG" ]; then
     # Add 'v' prefix if missing
@@ -29,10 +29,12 @@ if [ -z "$LATEST_TAG" ]; then
     exit 1
 fi
 
-# Find current checked out tag
+# Find current checked out tag and commit
 CURRENT_TAG=$(git describe --tags --exact-match 2>/dev/null || true)
+CURRENT_COMMIT=$(git rev-parse HEAD 2>/dev/null || true)
+TARGET_COMMIT=$(git rev-parse "refs/tags/$LATEST_TAG^{commit}" 2>/dev/null || true)
 
-if [ "$CURRENT_TAG" == "$LATEST_TAG" ]; then
+if [ "$CURRENT_TAG" == "$LATEST_TAG" ] && [ "$CURRENT_COMMIT" == "$TARGET_COMMIT" ]; then
     echo "Status: You are already running the latest release ($LATEST_TAG)."
     exit 0
 fi
