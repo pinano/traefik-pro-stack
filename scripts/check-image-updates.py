@@ -5,6 +5,7 @@ import re
 import urllib.request
 import urllib.error
 import json
+from concurrent.futures import ThreadPoolExecutor
 
 # Check for virtual environment redirection if dependencies are missing
 try:
@@ -88,16 +89,28 @@ def is_same_flavor(current_parsed, candidate_tag):
     
     return normalize_suffix(current_suffix) == normalize_suffix(candidate_suffix)
 
-def get_docker_hub_tags(namespace, image):
+def get_docker_hub_tags(namespace, image, current_parsed=None, max_pages=3):
+    tags = []
     url = f"https://registry.hub.docker.com/v2/repositories/{namespace}/{image}/tags?page_size=100"
-    try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=5) as response:
-            data = json.loads(response.read().decode())
-            return [tag['name'] for tag in data.get('results', [])]
-    except Exception as e:
-        # print(f"Error fetching Docker Hub tags: {e}", file=sys.stderr)
-        return []
+    for _ in range(max_pages):
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                data = json.loads(response.read().decode())
+                results = data.get('results', [])
+                page_tags = [tag['name'] for tag in results if 'name' in tag]
+                tags.extend(page_tags)
+                
+                # If we already found candidate tags matching the flavor on this page, stop early
+                if current_parsed and any(is_same_flavor(current_parsed, t) for t in page_tags):
+                    break
+                    
+                url = data.get('next')
+                if not url:
+                    break
+        except Exception:
+            break
+    return tags
 
 def get_ghcr_tags(image_name):
     # ghcr.io images can be fetched anonymously by acquiring a token first
@@ -166,7 +179,7 @@ def get_latest_version(image_str):
         
     tags = []
     if registry == "docker.io":
-        tags = get_docker_hub_tags(namespace, image)
+        tags = get_docker_hub_tags(namespace, image, current_parsed=current_parsed)
     elif registry == "ghcr.io":
         image_name = f"{namespace}/{image}" if namespace else image
         tags = get_ghcr_tags(image_name)
@@ -372,17 +385,21 @@ def main():
         print("❌ No images found in docker-compose files.")
         sys.exit(1)
         
-    print(f"📊 Found {len(images)} unique Docker images. Querying registries...")
+    print(f"📊 Found {len(images)} unique Docker images. Querying registries in parallel...")
     print("=" * 105)
     print(f"{'IMAGE':<45} | {'CURRENT':<15} | {'LATEST':<15} | {'STATUS':<20}")
     print("=" * 105)
     
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        image_results = list(executor.map(lambda item: (item[0], item[1], get_latest_version(item[0])), sorted(images.items())))
+        
     updates_available = 0
     errors = 0
     image_updates_dict = {}
     plugin_updates_dict = {}
+    postgres_updates = []
     
-    for img_str, locations in sorted(images.items()):
+    for img_str, locations, (latest_tag, error) in image_results:
         current_tag = img_str.split(':')[1]
         image_name = img_str.split(':')[0]
         
@@ -392,8 +409,6 @@ def main():
             
         print(f"{display_name:<45} | {current_tag:<15} | ", end="", flush=True)
         
-        latest_tag, error = get_latest_version(img_str)
-        
         if error:
             print(f"{'Unknown':<15} | ⚠️  {error}")
             errors += 1
@@ -401,7 +416,8 @@ def main():
             print(f"{latest_tag:<15} | 🟢 Up-to-date")
         else:
             if "postgres" in image_name:
-                print(f"{latest_tag:<15} | ⚠️  Update Available (Use 'make upgrade-postgres VERSION={latest_tag}')")
+                print(f"{latest_tag:<15} | ⚠️  Update Available (Migration required)")
+                postgres_updates.append((image_name, current_tag, latest_tag))
             else:
                 print(f"{latest_tag:<15} | 🔴 Update Available!")
                 updates_available += 1
@@ -413,18 +429,20 @@ def main():
     print("🔍 Scanning Traefik configuration templates for plugins...")
     plugins = scan_traefik_plugins()
     if plugins:
-        print(f"📊 Found {len(plugins)} Traefik plugin(s). Querying GitHub...")
+        print(f"📊 Found {len(plugins)} Traefik plugin(s). Querying GitHub in parallel...")
         print("=" * 105)
         print(f"{'PLUGIN':<45} | {'CURRENT':<15} | {'LATEST':<15} | {'STATUS':<20}")
         print("=" * 105)
-        for p in plugins:
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            plugin_results = list(executor.map(lambda p: (p, get_latest_plugin_version(p['module'], p['version'])), plugins))
+
+        for p, (latest_tag, error) in plugin_results:
             display_name = f"{p['name']} ({p['module']})"
             if len(display_name) > 43:
                 display_name = display_name[:40] + "..."
                 
             print(f"{display_name:<45} | {p['version']:<15} | ", end="", flush=True)
             
-            latest_tag, error = get_latest_plugin_version(p['module'], p['version'])
             if error:
                 print(f"{'Unknown':<15} | ⚠️  {error}")
                 errors += 1
@@ -449,6 +467,25 @@ def main():
                 print("Update cancelled.")
         except (KeyboardInterrupt, EOFError):
             print("\nUpdate cancelled.")
+
+    if postgres_updates:
+        print()
+        print("=" * 105)
+        print("🐘 POSTGRESQL UPGRADE INSTRUCTIONS:")
+        print("=" * 105)
+        for _, cur_t, new_t in postgres_updates:
+            print(f"  A new PostgreSQL version ({new_t}) is available (current: {cur_t}).")
+            print("  ⚠️  PostgreSQL was NOT modified automatically to prevent database corruption.")
+            print("  ℹ️  DO NOT manually edit docker-compose-security.yaml before upgrading.")
+            print("  ℹ️  The upgrade script must run while the CURRENT database is active; it will automatically:")
+            print("      1) Export data (pg_dump) from the running database")
+            print("      2) Stop the stack and backup ./data/crowdsec/postgres")
+            print("      3) Update docker-compose-security.yaml to the new version")
+            print("      4) Start the stack and restore data into the new container")
+            print()
+            print(f"  👉 To perform the upgrade safely, run:")
+            print(f"     make upgrade-postgres VERSION={new_t}")
+        print("=" * 105)
 
 if __name__ == "__main__":
     main()

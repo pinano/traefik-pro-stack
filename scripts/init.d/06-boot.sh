@@ -4,6 +4,36 @@ echo ""
 echo "── [5/6] 👮 Booting security layer ─────────────────────────────────────"
 
 if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
+    # PostgreSQL version compatibility pre-flight check
+    PG_VERSION_FILE=""
+    if [ -f "./data/crowdsec/postgres/pgdata/PG_VERSION" ]; then
+        PG_VERSION_FILE="./data/crowdsec/postgres/pgdata/PG_VERSION"
+    elif [ -f "./data/crowdsec/postgres/PG_VERSION" ]; then
+        PG_VERSION_FILE="./data/crowdsec/postgres/PG_VERSION"
+    fi
+
+    if [ -n "$PG_VERSION_FILE" ]; then
+        DISK_PG_VERSION=$(cat "$PG_VERSION_FILE" 2>/dev/null | tr -d '[:space:]')
+        COMPOSE_PG_IMG=$(grep -E '^\s*image:\s*postgres:' docker-compose-security.yaml 2>/dev/null | awk '{print $2}' | tr -d '"'"'" | head -n 1)
+        COMPOSE_PG_TAG="${COMPOSE_PG_IMG#postgres:}"
+        COMPOSE_PG_MAJOR=$(echo "$COMPOSE_PG_TAG" | sed -E 's/^([0-9]+).*/\1/')
+
+        if [ -n "$DISK_PG_VERSION" ] && [ -n "$COMPOSE_PG_MAJOR" ] && [ "$DISK_PG_VERSION" != "$COMPOSE_PG_MAJOR" ]; then
+            echo ""
+            echo "   ❌ FATAL: PostgreSQL version mismatch detected!"
+            echo "      • Existing data directory version : PostgreSQL $DISK_PG_VERSION"
+            echo "      • Configured Docker image version : PostgreSQL $COMPOSE_PG_MAJOR ($COMPOSE_PG_TAG)"
+            echo ""
+            echo "      PostgreSQL cannot start with data from a different major version."
+            echo "      👉 To resolve this safely:"
+            echo "         1. Temporarily revert 'image: postgres:...' in docker-compose-security.yaml to version $DISK_PG_VERSION"
+            echo "         2. Start the stack: make start"
+            echo "         3. Run the automated migration: make upgrade-postgres VERSION=$COMPOSE_PG_TAG"
+            echo ""
+            exit 1
+        fi
+    fi
+
     # Smart check: Is it already running and healthy?
     CROWDSEC_ID=$(docker ps -aq --filter label=com.docker.compose.project=$PROJECT_NAME --filter label=com.docker.compose.service=crowdsec | head -n 1)
     CS_STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$CROWDSEC_ID" 2>/dev/null || echo "none")
