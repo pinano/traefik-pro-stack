@@ -1,5 +1,6 @@
 ## v2026.08.19 (2026-08-19)
 
+- fix: update postgres upgrade script with cross-compatible docker commands and implement auto-recovery for crowdsec watcher authentication failures (8ddac13)
 - feat: implement automated PostgreSQL upgrade detection and migration logic with enhanced concurrent image scanning. (c57f502)
 
 ## v2026.08.09 (2026-08-09)
