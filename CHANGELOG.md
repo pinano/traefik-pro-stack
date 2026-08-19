@@ -1,3 +1,7 @@
+## v2026.08.19 (2026-08-19)
+
+- feat: implement automated PostgreSQL upgrade detection and migration logic with enhanced concurrent image scanning. (c57f502)
+
 ## v2026.08.09 (2026-08-09)
 
 - Merge branch 'main' of github.com:pinano/traefik-crowdsec-anubis-grafana (9fbb8d3)
