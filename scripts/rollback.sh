@@ -56,8 +56,8 @@ fi
 # ==============================================================================
 # POSTGRESQL UPGRADE/DOWNGRADE DETECTION & MIGRATION
 # ==============================================================================
-CUR_PG_IMG=$(grep -E '^\s*image:\s*postgres:' docker-compose-security.yaml 2>/dev/null | awk '{print $2}' | tr -d "'"'" | head -n 1 || true)
-NEW_PG_IMG=$(git show "$SELECTED_TAG:docker-compose-security.yaml" 2>/dev/null | grep -E '^\s*image:\s*postgres:' | awk '{print $2}' | tr -d "'"'" | head -n 1 || true)
+CUR_PG_IMG=$(grep -E '^\s*image:\s*postgres:' docker-compose-security.yaml 2>/dev/null | awk '{print $2}' | tr -d "'\"" | head -n 1 || true)
+NEW_PG_IMG=$(git show "$SELECTED_TAG:docker-compose-security.yaml" 2>/dev/null | grep -E '^\s*image:\s*postgres:' | awk '{print $2}' | tr -d "'\"" | head -n 1 || true)
 
 CUR_PG_TAG="${CUR_PG_IMG#postgres:}"
 NEW_PG_TAG="${NEW_PG_IMG#postgres:}"

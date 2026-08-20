@@ -14,7 +14,7 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
 
     if [ -n "$PG_VERSION_FILE" ]; then
         DISK_PG_VERSION=$(cat "$PG_VERSION_FILE" 2>/dev/null | tr -d '[:space:]')
-        COMPOSE_PG_IMG=$(grep -E '^\s*image:\s*postgres:' docker-compose-security.yaml 2>/dev/null | awk '{print $2}' | tr -d '"'"'" | head -n 1)
+        COMPOSE_PG_IMG=$(grep -E '^\s*image:\s*postgres:' docker-compose-security.yaml 2>/dev/null | awk '{print $2}' | tr -d "'\"" | head -n 1)
         COMPOSE_PG_TAG="${COMPOSE_PG_IMG#postgres:}"
         COMPOSE_PG_MAJOR=$(echo "$COMPOSE_PG_TAG" | sed -E 's/^([0-9]+).*/\1/')
 
