@@ -94,22 +94,10 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
     # PHASE 5: Register Bouncer API Key
     # =============================================================================
     # Re-register the Traefik Bouncer key on each start to ensure consistency.
-    #
-    # Strategy to avoid the delete→add race condition:
-    #   1. Try to ADD first — succeeds immediately on a fresh CrowdSec database.
-    #   2. If the bouncer already exists (exit ≠ 0), THEN delete and re-add.
-    #      The window where no bouncer exists is reduced to a single docker exec
-    #      round-trip (~100ms) rather than two sequential calls.
+    docker exec "$CROWDSEC_ID" cscli bouncers delete traefik-bouncer > /dev/null 2>&1 || true
 
     ADD_EXIT=0
     ADD_OUTPUT=$(echo "${CROWDSEC_LAPI_KEY}" | docker exec -i "$CROWDSEC_ID" sh -c 'read -r KEY && cscli bouncers add traefik-bouncer --key "$KEY"' 2>&1) || ADD_EXIT=$?
-
-    if [ $ADD_EXIT -ne 0 ]; then
-        # Bouncer already registered — delete it and immediately re-add with the current key.
-        docker exec "$CROWDSEC_ID" cscli bouncers delete traefik-bouncer > /dev/null 2>&1 || true
-        ADD_EXIT=0
-        ADD_OUTPUT=$(echo "${CROWDSEC_LAPI_KEY}" | docker exec -i "$CROWDSEC_ID" sh -c 'read -r KEY && cscli bouncers add traefik-bouncer --key "$KEY"' 2>&1) || ADD_EXIT=$?
-    fi
 
     if [ $ADD_EXIT -ne 0 ]; then
         echo "❌ Error registering bouncer key: $ADD_OUTPUT"
