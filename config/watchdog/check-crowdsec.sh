@@ -179,6 +179,22 @@ LAPI_STATUS=$(docker exec "$CROWDSEC_CONTAINER" cscli lapi status 2>&1)
 LAPI_EXIT_CODE=$?
 
 if [ $LAPI_EXIT_CODE -ne 0 ]; then
+    # Auto-recovery: Check if this is a machine authentication error and try to self-heal
+    if echo "$LAPI_STATUS" | grep -qiE "machine not found|unauthorized|401|incorrect username or password|failed to authenticate"; then
+        printf '%b\n' "${YELLOW}🔧 Self-healing: CrowdSec machine credentials mismatch. Re-registering...${NC}"
+        docker exec "$CROWDSEC_CONTAINER" cscli machines add --auto -f /etc/crowdsec/local_api_credentials.yaml --force >/dev/null 2>&1 || true
+        docker restart "$CROWDSEC_CONTAINER" >/dev/null 2>&1 || true
+        sleep 5
+        LAPI_STATUS=$(docker exec "$CROWDSEC_CONTAINER" cscli lapi status 2>&1)
+        LAPI_EXIT_CODE=$?
+        if [ $LAPI_EXIT_CODE -eq 0 ]; then
+            printf '%b\n' "${GREEN}✅ Self-healing succeeded: CrowdSec machine registered and healthy.${NC}"
+            send_telegram "Self-healing triggered: CrowdSec machine credentials were desynchronized and have been successfully re-registered in the database."
+        fi
+    fi
+fi
+
+if [ $LAPI_EXIT_CODE -ne 0 ]; then
     printf '%b\n' "${RED}❌ CrowdSec LAPI is not healthy!${NC}"
     echo "$LAPI_STATUS"
     # Strip HTML special characters from LAPI output before embedding in the alert

@@ -71,8 +71,8 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
             echo -n "."
             ((timeout-=2))
             if [ $timeout -le 0 ]; then
-                # Auto-recovery: Check if CrowdSec failed due to 401 watcher credentials mismatch against DB
-                if [ -n "$CROWDSEC_ID" ] && docker logs "$CROWDSEC_ID" 2>&1 | grep -q "authenticate watcher.*API error: incorrect Username or Password"; then
+                # Auto-recovery: Check if CrowdSec failed due to 401 watcher credentials mismatch against DB or missing machine
+                if [ -n "$CROWDSEC_ID" ] && docker logs "$CROWDSEC_ID" 2>&1 | grep -qiE "authenticate watcher.*API error: incorrect Username or Password|ent: machine not found|Error machine login|POST /v1/watchers/login.*401"; then
                     echo ""
                     echo "   ⚠️ CrowdSec watcher authentication mismatch detected. Auto-registering local machine in DB..."
                     $COMPOSE_CMD --progress quiet $COMPOSE_FILES run --rm --no-deps crowdsec cscli machines add --auto -f /etc/crowdsec/local_api_credentials.yaml --force >/dev/null 2>&1 || true
@@ -91,8 +91,18 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
     fi
 
     # =============================================================================
-    # PHASE 5: Register Bouncer API Key
+    # PHASE 5: Validate Machine Registration & Register Bouncer API Key
     # =============================================================================
+    # Validate local machine registration with LAPI / PostgreSQL DB. If desynced, auto-heal.
+    if ! docker exec "$CROWDSEC_ID" cscli machines list >/dev/null 2>&1; then
+        echo -n "   🔧 Auto-healing: registering local machine credentials in database..."
+        docker exec "$CROWDSEC_ID" cscli machines add --auto -f /etc/crowdsec/local_api_credentials.yaml --force >/dev/null 2>&1 || true
+        docker restart "$CROWDSEC_ID" >/dev/null 2>&1 || true
+        sleep 3
+        CROWDSEC_ID=$(docker ps -aq --filter label=com.docker.compose.project=$PROJECT_NAME --filter label=com.docker.compose.service=crowdsec | head -n 1)
+        echo " done!"
+    fi
+
     # Re-register the Traefik Bouncer key on each start to ensure consistency.
     docker exec "$CROWDSEC_ID" cscli bouncers delete traefik-bouncer > /dev/null 2>&1 || true
 
