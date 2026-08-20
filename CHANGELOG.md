@@ -1,3 +1,7 @@
+## v2026.08.20 (2026-08-20)
+
+- feat: implement auto-recovery logic for CrowdSec machine credential synchronization during boot and watchdog checks (58262e9)
+
 ## v2026.08.19 (2026-08-19)
 
 - fix: update postgres upgrade script with cross-compatible docker commands and implement auto-recovery for crowdsec watcher authentication failures (8ddac13)
