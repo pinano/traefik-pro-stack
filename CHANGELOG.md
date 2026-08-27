@@ -1,5 +1,12 @@
 ## v2026.08.27 (2026-08-27)
 
+- chore: suppress stdout for docker network creation commands in init script (92efea4)
+- refactor: use chr(34) instead of literal double quotes for CrowdSec database configuration string replacement (d93ae8e)
+- feat: implement Docker Socket Proxy isolation to replace direct socket exposure and optimize Traefik routing middleware configuration. (a6b821c)
+- fix: correct shell quoting for character removal in PostgreSQL image tag extraction scripts (3559d32)
+
+## v2026.08.27 (2026-08-27)
+
 - sec: implement Docker Socket Proxy isolation to eliminate raw docker.sock exposure from Traefik, CrowdSec, Alloy, and Dozzle
 - perf: optimize redirection middleware order in Traefik dynamic router generation for instant sub-millisecond 301/302 responses
 - fix: support internal ping@internal fallback for redirection-only domains to eliminate false positive watchdog warnings
