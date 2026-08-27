@@ -137,7 +137,7 @@ The core mission: protect multiple Docker-based web applications (and optionally
 │
 └── Docker Compose Files:
     ├── docker-compose-edge.yaml              # Edge: Traefik (TLS termination, routing)
-    ├── docker-compose-security.yaml          # Security: CrowdSec, PostgreSQL, Redis, Redis Exporter, CrowdSec Web UI
+    ├── docker-compose-security.yaml          # Security: CrowdSec, PostgreSQL, Redis, Redis Exporter, CrowdSec Web UI, Docker Socket Proxy
     ├── docker-compose-observability.yaml     # Observability: Grafana, Loki, Alloy, Prometheus
     ├── docker-compose-dashboard.yaml         # Dashboard: Dashboard, Dozzle, Watchdog
     ├── docker-compose-anubis.yaml            # Bot Defense: Anubis base template + Assets server

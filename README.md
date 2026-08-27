@@ -53,6 +53,7 @@ Instead of relying on basic reverse proxies that require manually maintained con
 *   **Behavioral Intrusion Prevention and WAF**: Powered by CrowdSec IPS and CrowdSec AppSec. The security engine continuously analyzes logs from all services to identify and block scanning tools, brute-force attempts, and anomalous behavior. The Layer-7 AppSec engine acts as an inline WAF, intercepting payloads to block common web application attacks such as SQL injection (SQLi), Cross-Site Scripting (XSS), and Remote Code Execution (RCE) using standard OWASP Rulesets.
 *   **Cryptographic Challenge Mitigation**: Integrating the Anubis Proof-of-Work engine. When a domain is protected, unauthenticated web browsers are presented with a lightweight cryptographic puzzle. Resolving this puzzle requires a brief computing effort on the client-side (typically 1 to 3 seconds), verifying that the user is operating a standard browser rather than a scraper or headless bot. Successful verification issues a token signed with an Ed25519 private key, granting access for a configurable timeframe.
 *   **Single Sign-On and Access Control**: A centralized Python/Flask administrative dashboard allows you to manage routing settings, inspect certificate health, and oversee captcha keys. This dashboard integrates directly into Traefik using its ForwardAuth middleware to serve as a Single Sign-On (SSO) gateway, protecting administrative interfaces (Dozzle logs, Traefik's internal API dashboard, Grafana, and the CrowdSec LAPI console) behind a unified, session-secured portal.
+*   **Docker Daemon Isolation (Least Privilege)**: Direct access to the host's `/var/run/docker.sock` is strictly isolated. Services that require Docker metadata or log streaming (`Traefik`, `CrowdSec`, `Grafana Alloy`, `Dozzle`) connect through an internal `docker-socket-proxy` container running an HAProxy firewall that enforces strict read-only access (`GET /containers`, `GET /events`, `GET /logs`) and permanently blocks container-breakout commands (`POST`, `DELETE`, `EXEC`).
 *   **Observability Pipeline**: Telemetry is structured via Grafana Alloy, Loki, Prometheus, and Grafana. Alloy discovers running containers, parses access logs, and scrapes Prometheus endpoints. Logs are shipped to Loki and metrics to Prometheus, feeding pre-configured Grafana dashboards that display security statistics, system resources, and request routing anomalies.
 *   **System Watchdog**: An isolated background daemon monitors certificate lifetimes, domain DNS resolutions, host hardware metrics (CPU, memory, disk, and IO), and Traefik dynamic configuration drift. Any anomalies trigger notifications dispatched directly to a Telegram group.
 *   **Automated Backups**: An optional Backrest service (Restic + Rclone) provides encrypted, deduplicated backups to cloud storage (Dropbox, Google Drive, S3, etc.). A two-layer strategy separates database dump generation (LXC cron) from backup orchestration (Backrest scheduler), keeping the backup container isolated with read-only access to project files.
@@ -179,6 +180,7 @@ To ensure network isolation and avoid socket binding conflicts, the stack maps s
 | `crowdsec-appsec` | `7422` | None | `traefik` | Inline AppSec WAF payload inspection |
 | `crowdsec-db` | `5432` | None | `traefik` | PostgreSQL database for CrowdSec LAPI backend |
 | `crowdsec-web-ui` | `3000` | None | `traefik` | Management dashboard UI for CrowdSec |
+| `docker-socket-proxy` | `2375` | None | `socket-proxy` | Least-privilege read-only Docker Engine API gateway |
 | `redis` (Cache) | `6379` | None | `traefik` & `anubis-backend` | Valkey cache server (DB 0: Bans, DB 1: PoW sessions) |
 | `redis-exporter` | `9121` | None | `traefik` | Metric exporter for Prometheus scraping |
 | `anubis-base` | `8080` | None | `traefik` & `anubis-backend` | Proof-of-Work challenge verification instances |
@@ -366,7 +368,15 @@ This section details the layout of the project, including configuration files, t
 │   ├── backrest/                         # Backrest state: config, data, rclone credentials (git-ignored)
 │   └── watchdog/                         # Watchdog monitor scripts
 │
-└── docker-compose-*.yaml                  # Modular Compose files divided by service areas
+├── docker-compose-edge.yaml              # Edge: Traefik (TLS termination, routing)
+├── docker-compose-security.yaml          # Security: CrowdSec, PostgreSQL, Redis, Redis Exporter, CrowdSec Web UI, Docker Socket Proxy
+├── docker-compose-observability.yaml     # Observability: Grafana, Loki, Alloy, Prometheus
+├── docker-compose-dashboard.yaml         # Dashboard: Dashboard (Flask), Dozzle, Watchdog
+├── docker-compose-anubis.yaml            # Bot Defense: Anubis base template + Assets server
+├── docker-compose-anubis-generated.yaml  # Auto-generated Anubis instances (per TLD, do not edit)
+├── docker-compose-backrest.yaml          # Backups: Backrest (Restic + Rclone)
+├── docker-compose-maintenance.yaml       # Maintenance: Global 503 fallback container
+└── docker-compose-apache-logs.yaml       # Apache log extension (auto-included if Apache detected)
 ```
 
 > [!IMPORTANT]
@@ -399,11 +409,11 @@ flowchart TD
     PathRoute -->|Use block-unwanted-paths middleware| Drop403
     
     %% Bypass route execution
-    GoodUARoute -->|Skip CrowdSec IPS check| MW_Chain_Bypass["Middleware Chain:<br>Slowloris Buffer -> Security Headers -> Rate Limiter -> Concurrency -> Anubis PoW -> Gzip"]
+    GoodUARoute -->|Skip CrowdSec IPS check| MW_Chain_Bypass["Middleware Chain:<br>Redirect Regex (Index 0) -> Slowloris Buffer -> Security Headers -> Rate Limiter -> Concurrency -> Anubis PoW -> Gzip"]
     MW_Chain_Bypass --> TargetService["Routed Backend (Container / Legacy Host)"]
     
     %% Standard route execution
-    MainRoute -->|Include CrowdSec IPS check| MW_Chain_Full["Middleware Chain:<br>CrowdSec -> Slowloris Buffer -> Security Headers -> Rate Limiter -> Concurrency -> Anubis PoW -> Gzip"]
+    MainRoute -->|Include CrowdSec IPS check| MW_Chain_Full["Middleware Chain:<br>Redirect Regex (Index 0) -> CrowdSec -> Slowloris Buffer -> Security Headers -> Rate Limiter -> Concurrency -> Anubis PoW -> Gzip"]
     MW_Chain_Full --> TargetService
 ```
 
