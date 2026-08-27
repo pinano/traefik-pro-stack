@@ -134,7 +134,7 @@ services:
   #  REDIS EXPORTER (Metrics for Prometheus)
   # ===========================
   redis-exporter:
-    image: oliver006/redis_exporter:v1.89.0
+    image: oliver006/redis_exporter:v1.90.0
     restart: unless-stopped
     environment:
       - REDIS_ADDR=redis:6379
@@ -208,7 +208,7 @@ services:
   #  DOCKER SOCKET PROXY (Security Hardening)
   # ===========================
   docker-socket-proxy:
-    image: tecnativa/docker-socket-proxy:0.3
+    image: tecnativa/docker-socket-proxy:v0.5.0
     restart: unless-stopped
     environment:
       - LOG_LEVEL=warning
