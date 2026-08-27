@@ -301,6 +301,29 @@ def process_router(entry, http_section, domain_to_cert_def):
     router_name = f"router-{safe_domain}"
 
     mw_list = []
+
+    # -------------------------------------------------------------------------
+    # Redirection Middleware (Evaluated FIRST so 301s return immediately)
+    # -------------------------------------------------------------------------
+    redirection = entry.get('redirection')
+    if redirection:
+        redirect_mw_name = f"redirect-{safe_domain}"
+        
+        # Normalize target to have protocol
+        target = redirection
+        if not target.startswith("http"):
+            target = f"https://{target}"
+            
+        escaped_domain = re.escape(domain)
+        http_section['middlewares'][redirect_mw_name] = {
+            'redirectRegex': {
+                'regex': f"^https?://{escaped_domain}/(.*)",
+                'replacement': f"{target}/${{1}}",
+                'permanent': True
+            }
+        }
+        mw_list.append(redirect_mw_name)
+
     if CROWDSEC_ENABLE:
         if root in captcha_registry:
             safe_root = sanitize_name(root)
@@ -342,31 +365,11 @@ def process_router(entry, http_section, domain_to_cert_def):
     # Compression and Protocol headers last
     mw_list.append('global-compress')
 
-    # -------------------------------------------------------------------------
-    # Redirection Middleware
-    # -------------------------------------------------------------------------
-    redirection = entry.get('redirection')
-    if redirection:
-        redirect_mw_name = f"redirect-{safe_domain}"
-        
-        # Normalize target to have protocol
-        target = redirection
-        if not target.startswith("http"):
-            target = f"https://{target}"
-            
-        escaped_domain = re.escape(domain)
-        http_section['middlewares'][redirect_mw_name] = {
-            'redirectRegex': {
-                'regex': f"^https?://{escaped_domain}/(.*)",
-                'replacement': f"{target}/${{1}}",
-                'permanent': True
-            }
-        }
-        mw_list.append(redirect_mw_name)
-
     if service == 'apache-host':
         mw_list.append('apache-forward-headers')
         target_service = APACHE_SVC_NAME
+    elif service in ('noop', 'none', 'redirect', 'ping') or (not service and redirection):
+        target_service = "ping@internal"
     else:
         target_service = f"{service}@docker"
 

@@ -171,9 +171,9 @@ import os, sys
 with open("./config/crowdsec/config.yaml.local.template", "r", encoding="utf-8") as f:
     content = f.read()
 replacements = {
-    "CROWDSEC_DB_USER_PLACEHOLDER": os.getenv("CROWDSEC_DB_USER", "crowdsec"),
-    "CROWDSEC_DB_PASSWORD_PLACEHOLDER": os.getenv("CROWDSEC_DB_PASSWORD", ""),
-    "CROWDSEC_DB_NAME_PLACEHOLDER": os.getenv("CROWDSEC_DB_NAME", "crowdsec")
+    "CROWDSEC_DB_USER_PLACEHOLDER": os.getenv("CROWDSEC_DB_USER", "crowdsec").replace('"', '\\"'),
+    "CROWDSEC_DB_PASSWORD_PLACEHOLDER": os.getenv("CROWDSEC_DB_PASSWORD", "").replace('"', '\\"'),
+    "CROWDSEC_DB_NAME_PLACEHOLDER": os.getenv("CROWDSEC_DB_NAME", "crowdsec").replace('"', '\\"')
 }
 for placeholder, value in replacements.items():
     content = content.replace(placeholder, value)

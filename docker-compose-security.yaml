@@ -32,13 +32,12 @@ services:
       - ./config/crowdsec/parsers:/etc/crowdsec/parsers/s02-enrich/custom:ro
       # Custom scenarios (e.g. 429 flood detection)
       - ./config/crowdsec/scenarios:/etc/crowdsec/scenarios/custom:ro
-      # Add the socket to read Traefik logs directly from Docker
-      - /var/run/docker.sock:/var/run/docker.sock:ro
     expose:
       - "7422" # AppSec WAF listener (internal, traefik network only)
       - "6060" # Prometheus metrics (internal, traefik network only)
     networks:
       - traefik
+      - socket-proxy
     security_opt:
       - no-new-privileges=true
     deploy:
@@ -205,9 +204,68 @@ services:
         limits:
           memory: 768M
 
+  # ===========================
+  #  DOCKER SOCKET PROXY (Security Hardening)
+  # ===========================
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.3
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=warning
+      - CONTAINERS=1
+      - EVENTS=1
+      - INFO=1
+      - LOGS=1
+      - NETWORKS=1
+      - PING=1
+      - SERVICES=1
+      - TASKS=1
+      - VERSION=1
+      # Explicitly disallow dangerous/write operations
+      - POST=0
+      - DELETE=0
+      - BUILD=0
+      - COMMIT=0
+      - CONFIGS=0
+      - DISTRIBUTION=0
+      - EXEC=0
+      - IMAGES=0
+      - NODES=0
+      - PLUGINS=0
+      - SECRETS=0
+      - SESSION=0
+      - SWARM=0
+      - SYSTEM=0
+      - VOLUMES=0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - socket-proxy
+    security_opt:
+      - no-new-privileges=true
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 2375 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
 networks:
   traefik:
     name: traefik
     external: true
   anubis-backend:
+    external: true
+  socket-proxy:
+    name: socket-proxy
     external: true

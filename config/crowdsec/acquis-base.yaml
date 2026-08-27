@@ -1,6 +1,7 @@
 # --- Docker Containers Surveillance (stdout) ---
 # Block 1: Traefik
 source: docker
+docker_host: "tcp://docker-socket-proxy:2375"
 container_name_regexp:
  - ".*traefik.*"
 labels:
@@ -11,6 +12,7 @@ labels:
 # --- SFTP Container Surveillance (stdout) ---
 # Block 2: SFTP (Sidecar)
 source: docker
+docker_host: "tcp://docker-socket-proxy:2375"
 container_name_regexp:
  - ".*sftp.*"
 labels:

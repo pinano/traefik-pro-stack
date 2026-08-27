@@ -26,7 +26,7 @@
 # containers on every restart from the UI.
 # =============================================================================
 
-set -e
+set -eo pipefail
 
 # Suppress LibreSSL warnings on macOS (urllib3 v2 compatibility)
 export PYTHONWARNINGS="ignore:urllib3 v2 only supports"

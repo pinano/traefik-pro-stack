@@ -3,7 +3,7 @@
 # --- Critical Webs, with Anubis (restrictive traefik limits) ---
 
 # =============================
-# domain-1.com
+# domain-1.com (Standard App)
 # =============================
 domain-1.com,           ,                  domain-1-com,      anubis,              50,   100,   20
 www.domain-1.com,       domain-1.com,      domain-1-com,      anubis,              50,   100,   20
@@ -22,8 +22,13 @@ www.domain-2.com,       ,                  domain-2-com,      auth,             
 domain-3.com,           ,                  domain-3-com,      ,                    ,     ,
 www.domain-3.com,       ,                  domain-3-com,      ,                    ,     , 
 
+# --- Pure Redirections (No backend container needed) ---
+# NOTE: Set docker_service to 'noop', 'redirect', or 'ping' when a domain only redirects
+# and does not have an active Docker backend container. Traefik will attach the internal
+# ping@internal service, avoiding false watchdog warnings.
+
 # =============================
-# domain-4.com
+# domain-4.com (Redirect only)
 # =============================
-domain-4.com,           ,                  domain-4-com,      ,                    ,     , 
-www.domain-4.com,       ,                  domain-4-com,      ,                    ,     , 
+domain-4.com,           domain-3.com,      noop,              ,                    ,     ,
+www.domain-4.com,       domain-3.com,      noop,              ,                    ,     ,

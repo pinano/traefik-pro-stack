@@ -92,13 +92,14 @@ services:
     restart: always
     networks:
       - traefik
+      - socket-proxy
     environment:
+      - DOCKER_HOST=tcp://docker-socket-proxy:2375
       - DOZZLE_BASE=/dozzle
       - DOZZLE_HOSTNAME=${DOMAIN}
       - TZ=${TZ}
     volumes:
       - /etc/localtime:/etc/localtime:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
     security_opt:
       - no-new-privileges=true
     deploy:
@@ -178,4 +179,7 @@ services:
 networks:
   traefik:
     name: traefik
+    external: true
+  socket-proxy:
+    name: socket-proxy
     external: true

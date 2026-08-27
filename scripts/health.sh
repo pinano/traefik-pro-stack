@@ -52,6 +52,7 @@ check_perms "config/traefik/acme.json"
 
 echo ""
 echo "--- Infrastructure ---"
+check_container "docker-socket-proxy" "nc -z 127.0.0.1 2375"
 check_container "traefik" "traefik healthcheck"
 if [ "$CROWDSEC_ENABLE" != "false" ]; then
     check_container "crowdsec" "cscli lapi status"

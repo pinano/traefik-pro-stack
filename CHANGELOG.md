@@ -1,3 +1,12 @@
+## v2026.08.27 (2026-08-27)
+
+- sec: implement Docker Socket Proxy isolation to eliminate raw docker.sock exposure from Traefik, CrowdSec, Alloy, and Dozzle
+- perf: optimize redirection middleware order in Traefik dynamic router generation for instant sub-millisecond 301/302 responses
+- fix: support internal ping@internal fallback for redirection-only domains to eliminate false positive watchdog warnings
+- fix: enforce strict pipefail in startup and internal reload scripts to prevent silent pipeline errors
+- sec: enforce deterministic 32-character hexadecimal generation for Redis credentials
+- fix: quote and escape PostgreSQL credentials in CrowdSec local override configuration template
+
 ## v2026.08.20 (2026-08-20)
 
 - feat: implement auto-recovery logic for CrowdSec machine credential synchronization during boot and watchdog checks (58262e9)

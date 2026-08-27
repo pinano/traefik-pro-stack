@@ -39,7 +39,7 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
     CS_STATUS=$(docker inspect --format='{{.State.Health.Status}}' "$CROWDSEC_ID" 2>/dev/null || echo "none")
 
     if [ "$CS_STATUS" == "healthy" ]; then
-        $COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d crowdsec > /dev/null
+        $COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d docker-socket-proxy crowdsec > /dev/null
         sleep 1 # Allow time for recreation if compose detected a change
 
         # Refresh ID — container may have been recreated due to config changes
@@ -57,8 +57,8 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
             CROWDSEC_ID=$(docker ps -aq --filter label=com.docker.compose.project=$PROJECT_NAME --filter label=com.docker.compose.service=crowdsec | head -n 1)
         done
     else
-        echo -n "   ⏳ Starting security services (CrowdSec, PostgreSQL & Redis)..."
-        $COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d crowdsec-db crowdsec redis > /dev/null
+        echo -n "   ⏳ Starting security services (Socket Proxy, CrowdSec, PostgreSQL & Redis)..."
+        $COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d docker-socket-proxy crowdsec-db crowdsec redis > /dev/null
         sleep 1 # Allow terminal to settle
 
         # Wait for CrowdSec to be healthy
@@ -136,18 +136,18 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
         docker exec "$CROWDSEC_ID" cscli console enroll "$CROWDSEC_ENROLLMENT_KEY" --name "$(hostname)" >/dev/null 2>&1 || true
     fi
 
-    echo "   ✅ CrowdSec & Redis operational."
+    echo "   ✅ Docker Socket Proxy, CrowdSec & Redis operational."
 else
     REDIS_ID=$(docker ps -aq --filter label=com.docker.compose.project=$PROJECT_NAME --filter label=com.docker.compose.service=redis | head -n 1)
     if [ -n "$REDIS_ID" ] && [ "$(docker inspect --format='{{.State.Running}}' $REDIS_ID 2>/dev/null)" == "true" ]; then
         :
     else
-        echo -n "   ⏳ Starting Redis..."
-        $COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d redis > /dev/null
+        echo -n "   ⏳ Starting Socket Proxy & Redis..."
+        $COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d docker-socket-proxy redis > /dev/null
         sleep 1
         echo " ready!"
     fi
-    echo "   ✅ Redis operational."
+    echo "   ✅ Docker Socket Proxy & Redis operational."
 fi
 
 # =============================================================================

@@ -28,6 +28,7 @@ The core mission: protect multiple Docker-based web applications (and optionally
 | **Visualization** | Grafana | Dashboards + Managed Alerting |
 | **Admin UI** | Dashboard | Flask/Python UI to manage `domains.csv` + SSO provider |
 | **Security UI** | CrowdSec Web UI | Web interface for LAPI alert management and decision overview |
+| **Docker Isolation** | Docker Socket Proxy | Least-privilege read-only Docker API gateway (HAProxy) |
 | **Monitor** | Watchdog | Checks SSL expiry, DNS records, CrowdSec health → Telegram |
 | **Backups** | Backrest (Restic + Rclone) | Encrypted, deduplicated backups to cloud storage |
 | **Orchestration** | Docker Compose | Modular multi-file compose structure |
@@ -155,8 +156,8 @@ Understanding the startup sequence is critical before suggesting any changes:
 1. **Env sync**: Merges `.env.dist` structure with existing `.env` values; backs up `.env` to `.env.bak`. Never destructive.
 2. **Credential sync**: Auto-generates `DASHBOARD_SECRET_KEY`, `CROWDSEC_DB_PASSWORD`, `CROWDSEC_WEB_UI_PASSWORD`, `REDIS_PASSWORD` if missing. Detects and regenerates changed admin passwords into bcrypt hashes. Updates `TRAEFIK_CERT_RESOLVER` based on `TRAEFIK_ACME_ENV_TYPE`.
 3. **Asset prep**: Copies `.dist` Anubis assets if no custom overrides exist. Generates `traefik-generated.yaml` from `traefik.yaml.template` via `sed` substitution. Runs `generate-config.py` to produce all dynamic Traefik config.
-4. **Network + security prep**: Creates Docker networks (`traefik`, `anubis-backend`). Generates CrowdSec IP whitelist file. Probes for host Apache via TCP socket.
-5. **Security-first boot**: CrowdSec, PostgreSQL DB, and Redis boot first. Health check loop (60s timeout). Traefik is not started until CrowdSec health check passes. Bouncer key is registered/re-registered every time.
+4. **Network + security prep**: Creates Docker networks (`traefik`, `socket-proxy`, `anubis-backend`). Generates CrowdSec IP whitelist file. Probes for host Apache via TCP socket.
+5. **Security-first boot**: Docker Socket Proxy, CrowdSec, PostgreSQL DB, and Redis boot first. Health check loop (60s timeout). Traefik is not started until CrowdSec health check passes. Bouncer key is registered/re-registered every time.
 
 6. **Full stack start**: All remaining services launch. `grafana-setup-telegram` is called automatically.
 
@@ -187,6 +188,8 @@ If you need to add a Traefik middleware, router, or service that isn't driven by
 - As a Docker label on the relevant container, or
 - As a new template/logic in `generate-config.py`.
 
+*Note on Redirections*: For redirect-only domains without a backend container, specify `noop`, `redirect`, `ping` (or leave blank with redirection) in `domains.csv`. `generate-config.py` automatically binds the router to `ping@internal`, avoiding missing-container warnings in Traefik and Watchdog.
+
 **Do not** create static YAML files in `dynamic-config/` by hand — they will be overwritten or conflicted by the next `make start`.
 
 ### Compose File Modularity
@@ -196,7 +199,7 @@ The stack uses multiple compose files to keep concerns separated:
 | File | Contents |
 |------|----------|
 | `docker-compose-edge.yaml` | Traefik |
-| `docker-compose-security.yaml` | CrowdSec, Redis, Redis Exporter, CrowdSec Web UI |
+| `docker-compose-security.yaml` | CrowdSec, PostgreSQL, Redis, Redis Exporter, CrowdSec Web UI, Docker Socket Proxy |
 | `docker-compose-observability.yaml` | Grafana, Loki, Alloy, Prometheus |
 | `docker-compose-dashboard.yaml` | Dashboard (Flask), Dozzle, Watchdog |
 | `docker-compose-anubis.yaml` | Anubis base template + Anubis Assets server |
@@ -221,7 +224,8 @@ Do not edit `acquis.yaml` or `profiles.yaml` directly — edit their respective 
 ### Middleware Chain Order
 
 ```
-Request → [UA Blacklist Router] → (if matched: 403)
+Request → [Redirect Regex (Index 0)] → (if matched: 301/302 immediate return)
+       → [UA Blacklist Router] → (if matched: 403)
        → [CrowdSec Bouncer] → (if banned IP or bad payload: 403; if captcha: present challenge)
        → [Slowloris Buffer]
        → [Security Headers]
@@ -236,8 +240,9 @@ The **UA Blacklist** is a separate high-priority router, not part of the middlew
 
 ### Network Isolation
 
-Two Docker networks:
+Three Docker networks:
 - **`traefik`** (external, bridged): All services that need Traefik to route to them.
+- **`socket-proxy`** (internal, no egress): Isolated proxy providing read-only Docker Engine API access (`tcp://docker-socket-proxy:2375`) to Traefik, CrowdSec, Alloy, and Dozzle.
 - **`anubis-backend`** (internal, no egress): Only Redis and Anubis instances. Anubis can talk to Redis but cannot make outbound internet connections.
 
 ### Fail-Open by Design

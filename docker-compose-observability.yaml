@@ -110,7 +110,6 @@ services:
       - TZ=${TZ}
       - DOMAIN=${DOMAIN}
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - ./config/alloy/config.alloy:/etc/alloy/config.alloy:ro
       - ./data/alloy:/var/lib/alloy
@@ -123,6 +122,7 @@ services:
     command: run --server.http.listen-addr=127.0.0.1:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
     networks:
       - traefik
+      - socket-proxy
     deploy:
       resources:
         limits:
@@ -177,4 +177,7 @@ services:
 networks:
   traefik:
     name: traefik
+    external: true
+  socket-proxy:
+    name: socket-proxy
     external: true

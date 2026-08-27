@@ -7,7 +7,7 @@
 # ensuring security components (CrowdSec/Redis) are operational first.
 # =============================================================================
 
-set -e  # Exit on any error
+set -eo pipefail  # Exit on any error or pipeline failure
 
 # Suppress LibreSSL warnings on macOS (urllib3 v2 compatibility)
 export PYTHONWARNINGS="ignore:urllib3 v2 only supports"

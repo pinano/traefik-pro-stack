@@ -69,11 +69,11 @@ if [ -z "$CROWDSEC_DB_PASSWORD" ] || [ "$CROWDSEC_DB_PASSWORD" == "REPLACE_ME" ]
 fi
 
 # Redis Password (auto-generate on first run or if too short)
-# Alphanumeric-only to avoid URL-encoding issues in redis:// connection strings.
-# Minimum 20 characters enforced (119 bits of entropy from the base64 source).
+# Alphanumeric-only (hex) to avoid URL-encoding issues in redis:// connection strings.
+# Minimum 20 characters enforced (32 hex characters = 128 bits of entropy).
 if [ -z "$REDIS_PASSWORD" ] || [ "$REDIS_PASSWORD" == "REPLACE_ME" ] || [ ${#REDIS_PASSWORD} -lt 20 ]; then
     echo "   🔄 Generating secure random Redis password..."
-    NEW_REDIS_PASS=$(openssl rand -base64 20 | tr -dc 'a-zA-Z0-9' | head -c 20)
+    NEW_REDIS_PASS=$(openssl rand -hex 16)
     update_env_var "REDIS_PASSWORD" "$NEW_REDIS_PASS"
     export REDIS_PASSWORD="$NEW_REDIS_PASS"
 fi

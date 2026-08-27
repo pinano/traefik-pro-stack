@@ -124,3 +124,34 @@ def test_generate_config_bad_user_agents(tmp_path):
     assert 'MJ12bot' in routers['bad-user-agents-example-com']['rule']
     assert routers['bad-user-agents-example-com']['priority'] == 12000
 
+
+def test_generate_config_redirection_middleware_order(tmp_path):
+    """
+    Tests that redirect middleware is placed at index 0 and noop service maps to ping@internal.
+    """
+    (tmp_path / 'config' / 'traefik' / 'dynamic-config').mkdir(parents=True)
+    (tmp_path / 'config' / 'crowdsec' / 'parsers').mkdir(parents=True)
+    
+    domains_csv = tmp_path / 'domains.csv'
+    domains_csv.write_text("domain, redirection, docker_service, anubis_subdomain\nredir.example.com, target.example.com, noop, auth\n")
+
+    env = os.environ.copy()
+    env['CROWDSEC_LAPI_KEY'] = 'test-key'
+    env['REDIS_PASSWORD'] = 'test-pass'
+    
+    subprocess.run(['python3', SCRIPT_PATH], cwd=str(tmp_path), env=env, capture_output=True)
+    
+    routers_yaml = tmp_path / 'config' / 'traefik' / 'dynamic-config' / 'routers-generated.yaml'
+    with open(routers_yaml, 'r') as f:
+        config = yaml.safe_load(f)
+        
+    routers = config['http']['routers']
+    assert 'router-redir-example-com' in routers
+    mw_list = routers['router-redir-example-com']['middlewares']
+    
+    # Redirection middleware must be first
+    assert mw_list[0] == 'redirect-redir-example-com', f"Expected redirect middleware at index 0, got {mw_list}"
+    # Target service must be ping@internal for noop
+    assert routers['router-redir-example-com']['service'] == "ping@internal"
+
+

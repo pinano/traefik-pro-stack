@@ -67,7 +67,8 @@ The stack relies on network segregation and credential isolation. Containers are
 ### Network Topologies
 
 1.  **The traefik Network (External/Bridged)**: This is the primary edge routing network. It connects the Traefik proxy container to all backend applications that require public routing. It also contains the admin dashboard, the observability suite (Alloy, Prometheus, Loki, Grafana), and the CrowdSec firewall agent.
-2.  **The anubis-backend Network (Internal/No Egress)**: This is a hardened, isolated network. It connects Anubis challenge verification servers to a dedicated Redis/Valkey cache database. To limit the attack surface, this network is completely internal, meaning no container attached to it can initiate outbound connections to the host or the public internet. It exists solely to perform session cache lookups and validate proof-of-work challenges.
+2.  **The socket-proxy Network (Internal/No Egress)**: This is a dedicated security isolation network. `docker-socket-proxy` filters all Docker Engine API calls with strict read-only access (`GET /containers`, `GET /events`, `GET /logs`), protecting the host from container breakout attacks from internet-facing services (`Traefik`, `CrowdSec`, `Alloy`, `Dozzle`).
+3.  **The anubis-backend Network (Internal/No Egress)**: This is a hardened, isolated network. It connects Anubis challenge verification servers to a dedicated Redis/Valkey cache database. To limit the attack surface, this network is completely internal, meaning no container attached to it can initiate outbound connections to the host or the public internet. It exists solely to perform session cache lookups and validate proof-of-work challenges.
 
 ### Component Inter-Connectivity Model
 
@@ -81,6 +82,10 @@ flowchart TD
         DockerLogs["/var/lib/docker/containers/* (JSON Logs)"]
     end
 
+    subgraph socket_proxy_network ["Docker Isolated Network: socket-proxy"]
+        SocketProxy["docker-socket-proxy (Read-Only Filter :2375)"]
+    end
+
     subgraph traefik_network ["Docker Bridged Network: traefik"]
         Traefik["Traefik v3.7.1 (Ports 80 & 443)"]
         Dashboard["Flask Admin Dashboard (Port 5000)"]
@@ -91,6 +96,7 @@ flowchart TD
         Loki["Loki Log Database (Port 3100)"]
         Prometheus["Prometheus TSDB (Port 9090)"]
         Grafana["Grafana Dashboards (Port 3000)"]
+        Dozzle["Dozzle Log Viewer (Port 8080)"]
         Watchdog["Watchdog Health Checker Container"]
     end
 
@@ -119,12 +125,16 @@ flowchart TD
     Traefik -->|Proxy requests| Grafana
     Traefik -->|Proxy requests| ApacheHost
     
-    %% Telemetry Gathering
-    DockerSock -.->|ReadOnly Mount| Traefik
-    DockerSock -.->|ReadOnly Mount| Alloy
-    DockerSock -.->|ReadOnly Mount| Watchdog
-    DockerSock -.->|ReadOnly Mount| CrowdSec
+    %% Docker Socket Protection Layer
+    DockerSock -.->|Exclusive Host Mount| SocketProxy
+    DockerSock -.->|Orchestration Mount| Dashboard
+    DockerSock -.->|ReadOnly Diagnostics| Watchdog
     DockerLogs -.->|ReadOnly Mount| Alloy
+
+    SocketProxy -->|Read-only API| Traefik
+    SocketProxy -->|Read-only API| Alloy
+    SocketProxy -->|Read-only API| CrowdSec
+    SocketProxy -->|Read-only API| Dozzle
     
     Alloy -->|Push metrics| Prometheus
     Alloy -->|Push log streams| Loki
@@ -230,14 +240,15 @@ Open the `domains.csv` file. This inventory file acts as the single source of tr
 ```csv
 # domain, redirection, docker_service, anubis_subdomain, rate, burst, concurrency
 company.com, , landing-web, , , ,
-www.company.com, company.com, landing-web, , , ,
+www.company.com, company.com, noop, , , ,
 crm.company.com, , crm-app, auth, 40, 80, 20
+old-brand.com, https://company.com, noop, , , ,
 ```
 
 For each domain:
 *   Define the FQDN (`domain`).
 *   Configure optional redirect rules (`redirection`).
-*   Set the backend Docker container name (`docker_service`).
+*   Set the backend Docker container name (`docker_service`). **For pure redirection domains** (where no backend container exists), set this to `noop` (or `redirect` or `ping`). Traefik will automatically bind to its internal `ping@internal` service, serving the 301 redirect immediately without triggering missing-container router errors or Watchdog alerts.
 *   Configure the Anubis PoW subdomain (`anubis_subdomain`) to enable cryptographic challenge protection on that route.
 *   Define custom rate-limiting rules (`rate`, `burst`, `concurrency`) if the global defaults are not appropriate.
 

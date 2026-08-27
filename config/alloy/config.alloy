@@ -8,7 +8,7 @@ logging {
 
 // 2. Docker Container Discovery
 discovery.docker "containers" {
-    host = "unix:///var/run/docker.sock"
+    host = "tcp://docker-socket-proxy:2375"
 }
 
 // 3. Relabeling to clean container names
@@ -31,7 +31,7 @@ discovery.relabel "docker_logs" {
 
 // 4. Log Ingestion (Input)
 loki.source.docker "default" {
-    host       = "unix:///var/run/docker.sock"
+    host       = "tcp://docker-socket-proxy:2375"
     targets    = discovery.relabel.docker_logs.output
     forward_to = [loki.process.pipelines.receiver]
 }
