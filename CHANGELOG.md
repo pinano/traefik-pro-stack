@@ -1,3 +1,9 @@
+## v2026.09.02 (2026-09-02)
+
+- Version bumps (09a014d)
+- feat: implement docker-socket-proxy for least-privilege access and update service documentation (5d8893e)
+- chore: upgrade container image versions across observability, security, and infrastructure services (d3ea8a7)
+
 ## v2026.08.27 (2026-08-27)
 
 - chore: suppress stdout for docker network creation commands in init script (92efea4)
