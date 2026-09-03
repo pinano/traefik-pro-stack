@@ -586,7 +586,7 @@ These variables control system behaviors, resource limits, timeouts, and notific
 | `TRAEFIK_TIMEOUT_IDLE` | Traefik | `90` | HTTP keep-alive connection timeout in seconds. Must be larger than `TRAEFIK_TIMEOUT_ACTIVE`. |
 | `TRAEFIK_BLOCKED_PATHS` | Traefik | (blank) | Comma-separated path suffixes blocked immediately at the proxy perimiter. |
 | `TRAEFIK_BAD_USER_AGENTS` | Traefik | (blank) | Comma-separated User-Agent regex patterns to drop immediately (e.g. `(?i).*curl.*`). |
-| `TRAEFIK_GOOD_USER_AGENTS` | Traefik | (blank) | Comma-separated User-Agent regex patterns allowed to bypass bouncer stream bans. |
+| `TRAEFIK_TRUSTED_IPS` | Traefik | (blank) | Comma-separated trusted reverse proxy/CDN IPs or CIDRs for `forwardedHeaders` (e.g. Cloudflare). |
 | `TRAEFIK_ACCESS_LOG_BUFFER` | Traefik | `1000` | Number of log entries buffered in RAM before committing disk write actions. |
 | `TRAEFIK_LOG_LEVEL` | Traefik | `INFO` | Traefik internal verbosity logging level (`DEBUG`, `INFO`, `WARN`, `ERROR`). |
 | `TRAEFIK_HSTS_MAX_AGE` | Traefik | `31536000` | HSTS header lifetime in seconds. |
@@ -603,6 +603,7 @@ These variables control system behaviors, resource limits, timeouts, and notific
 | `WATCHDOG_TRAEFIK_CHECK_INTERVAL` | Watchdog | `300` | Config file scanning drift checks in seconds. |
 | `PROMETHEUS_RETENTION_DAYS` | Telemetry | `15` | Storage retention duration for metrics on disk. |
 | `PROMETHEUS_MEM_LIMIT` | Telemetry | `512M` | Memory threshold limit for Prometheus. |
+| `GRAFANA_AUTH_PROXY_WHITELIST` | Telemetry | (blank) | Comma-separated IP/CIDRs allowed to use Auth Proxy (defaults to private Docker subnets). |
 | `DASHBOARD_SUBDOMAIN` | Dashboard | `dashboard` | Subdomain for accessing the admin UI. |
 | `DASHBOARD_ANUBIS_SUBDOMAIN` | Dashboard | (blank) | Subdomain prefix for protecting Flask panel via PoW challenges (leave blank to disable). |
 | `DASHBOARD_ADMIN_USER` | Dashboard | `admin` | SSO and portal master admin username. |

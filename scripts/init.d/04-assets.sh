@@ -117,13 +117,26 @@ import os, sys
 template_path = "./config/traefik/traefik.yaml.template"
 with open(template_path, "r", encoding="utf-8") as f:
     content = f.read()
+
+trusted_ips_raw = os.getenv("TRAEFIK_TRUSTED_IPS", "").strip()
+forwarded_block = ""
+if trusted_ips_raw:
+    ips = [ip.strip().strip("\"'") for ip in trusted_ips_raw.split(',') if ip.strip().strip("\"'")]
+    if ips:
+        lines = ["    forwardedHeaders:", "      trustedIPs:"]
+        for ip in ips:
+            lines.append(f'        - "{ip}"')
+        forwarded_block = "\n".join(lines)
+
 replacements = {
     "TRAEFIK_ACME_EMAIL_PLACEHOLDER": os.getenv("TRAEFIK_ACME_EMAIL", ""),
     "TRAEFIK_ACME_CASERVER_PLACEHOLDER": os.getenv("TRAEFIK_ACME_CA_SERVER", ""),
     "TRAEFIK_TIMEOUT_ACTIVE_PLACEHOLDER": os.getenv("TRAEFIK_TIMEOUT_ACTIVE", "60") + "s",
     "TRAEFIK_TIMEOUT_IDLE_PLACEHOLDER": os.getenv("TRAEFIK_TIMEOUT_IDLE", "90") + "s",
     "TRAEFIK_ACCESS_LOG_BUFFER_PLACEHOLDER": os.getenv("TRAEFIK_ACCESS_LOG_BUFFER", "1000"),
-    "TRAEFIK_LOG_LEVEL_PLACEHOLDER": os.getenv("TRAEFIK_LOG_LEVEL", "INFO")
+    "TRAEFIK_LOG_LEVEL_PLACEHOLDER": os.getenv("TRAEFIK_LOG_LEVEL", "INFO"),
+    "TRAEFIK_FORWARDED_HEADERS_WEB_PLACEHOLDER": forwarded_block,
+    "TRAEFIK_FORWARDED_HEADERS_WEBSECURE_PLACEHOLDER": forwarded_block
 }
 for placeholder, value in replacements.items():
     content = content.replace(placeholder, value)

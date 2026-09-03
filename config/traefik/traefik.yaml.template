@@ -23,6 +23,7 @@ entryPoints:
         readTimeout: "TRAEFIK_TIMEOUT_ACTIVE_PLACEHOLDER"
         writeTimeout: 0s
         idleTimeout: "TRAEFIK_TIMEOUT_IDLE_PLACEHOLDER"
+TRAEFIK_FORWARDED_HEADERS_WEB_PLACEHOLDER
 
   websecure:
     address: ":443"
@@ -33,6 +34,7 @@ entryPoints:
         readTimeout: "TRAEFIK_TIMEOUT_ACTIVE_PLACEHOLDER"
         writeTimeout: 0s
         idleTimeout: "TRAEFIK_TIMEOUT_IDLE_PLACEHOLDER"
+TRAEFIK_FORWARDED_HEADERS_WEBSECURE_PLACEHOLDER
 
   # NOTE: Add TCP entrypoints here if needed (e.g. mariadb: ":3306")
   # and expose the port in docker-compose-traefik-crowdsec-redis.yaml.

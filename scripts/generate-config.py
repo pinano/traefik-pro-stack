@@ -114,9 +114,6 @@ BLOCKED_PATHS_STR = get_env_safe('TRAEFIK_BLOCKED_PATHS', '')
 # Bad User Agents (Comma-separated list of regex patterns)
 BAD_USER_AGENTS_STR = get_env_safe('TRAEFIK_BAD_USER_AGENTS', '')
 
-# Good User Agents (Comma-separated list of regex patterns)
-GOOD_USER_AGENTS_STR = get_env_safe('TRAEFIK_GOOD_USER_AGENTS', '')
-
 # Frame Ancestors (for iframes)
 FRAME_ANCESTORS = get_env_safe('TRAEFIK_FRAME_ANCESTORS', '')
 
@@ -130,15 +127,18 @@ CROWDSEC_WHITELIST_IPS_STR = get_env_safe('CROWDSEC_WHITELIST_IPS', '')
 DEFAULT_TRUSTED_IPS = ['127.0.0.1/32', '172.16.0.0/12', '10.0.0.0/8', '192.168.0.0/16']
 TRUSTED_IPS = list(DEFAULT_TRUSTED_IPS)
 
-if CROWDSEC_WHITELIST_IPS_STR:
-    for entry in CROWDSEC_WHITELIST_IPS_STR.split(','):
-        entry = entry.strip().strip('"').strip("'")
-        if not entry: continue
-        # Normalize to CIDR if it's a single IP
-        if '/' not in entry:
-            entry = f"{entry}/32"
-        if entry not in TRUSTED_IPS:
-            TRUSTED_IPS.append(entry)
+TRAEFIK_TRUSTED_IPS_STR = get_env_safe('TRAEFIK_TRUSTED_IPS', '')
+
+for ips_str in (CROWDSEC_WHITELIST_IPS_STR, TRAEFIK_TRUSTED_IPS_STR):
+    if ips_str:
+        for entry in ips_str.split(','):
+            entry = entry.strip().strip('"').strip("'")
+            if not entry: continue
+            # Normalize to CIDR if it's a single IP
+            if '/' not in entry:
+                entry = f"{entry}/32"
+            if entry not in TRUSTED_IPS:
+                TRUSTED_IPS.append(entry)
 
 
 # Robust stripping of surrounding quotes (kept for extra safety)
@@ -150,14 +150,9 @@ if (BAD_USER_AGENTS_STR.startswith('"') and BAD_USER_AGENTS_STR.endswith('"')) o
    (BAD_USER_AGENTS_STR.startswith("'") and BAD_USER_AGENTS_STR.endswith("'")):
     BAD_USER_AGENTS_STR = BAD_USER_AGENTS_STR[1:-1]
 
-if (GOOD_USER_AGENTS_STR.startswith('"') and GOOD_USER_AGENTS_STR.endswith('"')) or \
-   (GOOD_USER_AGENTS_STR.startswith("'") and GOOD_USER_AGENTS_STR.endswith("'")):
-    GOOD_USER_AGENTS_STR = GOOD_USER_AGENTS_STR[1:-1]
-
 BLOCKED_PATHS = [p.strip().strip('"').strip("'") for p in BLOCKED_PATHS_STR.split(',') if p.strip()]
 
 BAD_USER_AGENTS = [p.strip().strip('"').strip("'") for p in BAD_USER_AGENTS_STR.split(',') if p.strip()]
-GOOD_USER_AGENTS = [p.strip().strip('"').strip("'") for p in GOOD_USER_AGENTS_STR.split(',') if p.strip()]
 
 # TLS Chunking Limit (Let's Encrypt max is 100)
 TRAEFIK_TLS_BATCH_SIZE = int(get_env_safe('TRAEFIK_TLS_BATCH_SIZE', 30))
@@ -386,28 +381,7 @@ def process_router(entry, http_section, domain_to_cert_def):
     apply_tls_config(router_conf, domain, domain_to_cert_def)
 
     # -------------------------------------------------------------------------
-    # 1. Bypass Router (Good User Agents - No CrowdSec) - Priority 15000
-    # -------------------------------------------------------------------------
-    if GOOD_USER_AGENTS:
-        bypass_router_name = f"good-user-agents-{safe_domain}"
-        
-        # Create a copy of the middleware list MINUS crowdsec-check (including any root-domain specific ones)
-        bypass_mw_list = [mw for mw in mw_list if not mw.startswith('crowdsec-check')]
-        
-        allowed_ua_rule = " || ".join([f"HeaderRegexp(`User-Agent`, `{p}`)" for p in GOOD_USER_AGENTS])
-        
-        bypass_conf = {
-            'rule': f"Host(`{domain}`) && ({allowed_ua_rule})",
-            'entryPoints': ["websecure"],
-            'service': target_service,
-            'priority': 15000, 
-            'tls': router_conf['tls'], # Reuse TLS config
-            'middlewares': bypass_mw_list
-        }
-        http_section['routers'][bypass_router_name] = bypass_conf
-
-    # -------------------------------------------------------------------------
-    # 2. User-Agent Blocking Router (Per-Domain) - Priority 12000
+    # 1. User-Agent Blocking Router (Per-Domain) - Priority 12000
     # -------------------------------------------------------------------------
     if BAD_USER_AGENTS:
         ua_block_router_name = f"bad-user-agents-{safe_domain}"
@@ -415,21 +389,18 @@ def process_router(entry, http_section, domain_to_cert_def):
         ua_rules = " || ".join([f"HeaderRegexp(`User-Agent`, `{p}`)" for p in BAD_USER_AGENTS])
         
         final_ua_rule = f"({ua_rules})"
-        if GOOD_USER_AGENTS:
-            allowed_ua_rules = " || ".join([f"HeaderRegexp(`User-Agent`, `{p}`)" for p in GOOD_USER_AGENTS])
-            final_ua_rule = f"({ua_rules}) && !({allowed_ua_rules})"
 
         http_section['routers'][ua_block_router_name] = {
             'rule': f"Host(`{domain}`) && {final_ua_rule}",
             'entryPoints': ["websecure"],
-            'service': "api@internal",
+            'service': "ping@internal",
             'priority': 12000, 
             'tls': router_conf['tls'],
             'middlewares': ["block-unwanted-user-agents"]
         }
 
     # -------------------------------------------------------------------------
-    # 3. Path Blocking Router (Per-Domain) - Priority 11000
+    # 2. Path Blocking Router (Per-Domain) - Priority 11000
     # -------------------------------------------------------------------------
     # Creates a higher priority router to intercept blocked paths
     if BLOCKED_PATHS:
@@ -438,7 +409,7 @@ def process_router(entry, http_section, domain_to_cert_def):
         http_section['routers'][path_block_router_name] = {
             'rule': f"Host(`{domain}`) && ({paths_rule})",
             'entryPoints': ["websecure"],
-            'service': "api@internal",
+            'service': "ping@internal",
             'priority': 11000,
             'tls': router_conf['tls'],
             'middlewares': ["block-unwanted-paths"]

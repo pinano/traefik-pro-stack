@@ -156,7 +156,7 @@ Understanding the startup sequence is critical before suggesting any changes:
 1. **Env sync**: Merges `.env.dist` structure with existing `.env` values; backs up `.env` to `.env.bak`. Never destructive.
 2. **Credential sync**: Auto-generates `DASHBOARD_SECRET_KEY`, `CROWDSEC_DB_PASSWORD`, `CROWDSEC_WEB_UI_PASSWORD`, `REDIS_PASSWORD` if missing. Detects and regenerates changed admin passwords into bcrypt hashes. Updates `TRAEFIK_CERT_RESOLVER` based on `TRAEFIK_ACME_ENV_TYPE`.
 3. **Asset prep**: Copies `.dist` Anubis assets if no custom overrides exist. Generates `traefik-generated.yaml` from `traefik.yaml.template` via `sed` substitution. Runs `generate-config.py` to produce all dynamic Traefik config.
-4. **Network + security prep**: Creates Docker networks (`traefik`, `socket-proxy`, `anubis-backend`). Generates CrowdSec IP whitelist file. Probes for host Apache via TCP socket.
+4. **Network + security prep**: Creates Docker networks (`traefik`, `socket-proxy`, `anubis-backend`, `crowdsec-backend`). Generates CrowdSec IP whitelist file. Probes for host Apache via TCP socket.
 5. **Security-first boot**: Docker Socket Proxy, CrowdSec, PostgreSQL DB, and Redis boot first. Health check loop (60s timeout). Traefik is not started until CrowdSec health check passes. Bouncer key is registered/re-registered every time.
 
 6. **Full stack start**: All remaining services launch. `grafana-setup-telegram` is called automatically.
@@ -240,10 +240,11 @@ The **UA Blacklist** is a separate high-priority router, not part of the middlew
 
 ### Network Isolation
 
-Three Docker networks:
+Four Docker networks:
 - **`traefik`** (external, bridged): All services that need Traefik to route to them.
 - **`socket-proxy`** (internal, no egress): Isolated proxy providing read-only Docker Engine API access (`tcp://docker-socket-proxy:2375`) to Traefik, CrowdSec, Alloy, and Dozzle.
 - **`anubis-backend`** (internal, no egress): Only Redis and Anubis instances. Anubis can talk to Redis but cannot make outbound internet connections.
+- **`crowdsec-backend`** (internal, no egress): Only CrowdSec and PostgreSQL (`crowdsec-db`). Isolates the IPS database completely from web-facing containers.
 
 ### Fail-Open by Design
 

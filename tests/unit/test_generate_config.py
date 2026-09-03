@@ -123,6 +123,37 @@ def test_generate_config_bad_user_agents(tmp_path):
     assert 'bad-user-agents-example-com' in routers
     assert 'MJ12bot' in routers['bad-user-agents-example-com']['rule']
     assert routers['bad-user-agents-example-com']['priority'] == 12000
+    assert routers['bad-user-agents-example-com']['service'] == "ping@internal"
+
+
+def test_generate_config_blocked_paths(tmp_path):
+    """
+    Tests that blocked paths create a dedicated blocking router targeting ping@internal.
+    """
+    (tmp_path / 'config' / 'traefik' / 'dynamic-config').mkdir(parents=True)
+    (tmp_path / 'config' / 'crowdsec' / 'parsers').mkdir(parents=True)
+    
+    domains_csv = tmp_path / 'domains.csv'
+    domains_csv.write_text("domain, redirection, docker_service\nexample.com, , web-app\n")
+
+    env = os.environ.copy()
+    env['CROWDSEC_LAPI_KEY'] = 'test-key'
+    env['REDIS_PASSWORD'] = 'test-pass'
+    env['TRAEFIK_BLOCKED_PATHS'] = '/wp-admin,/xmlrpc.php'
+    
+    subprocess.run(['python3', SCRIPT_PATH], cwd=str(tmp_path), env=env, capture_output=True)
+    
+    routers_yaml = tmp_path / 'config' / 'traefik' / 'dynamic-config' / 'routers-generated.yaml'
+    with open(routers_yaml, 'r') as f:
+        config = yaml.safe_load(f)
+        
+    routers = config['http']['routers']
+    assert 'path-blocker-example-com' in routers
+    rule = routers['path-blocker-example-com']['rule']
+    assert 'wp' in rule and 'admin' in rule
+    assert 'xmlrpc' in rule
+    assert routers['path-blocker-example-com']['priority'] == 11000
+    assert routers['path-blocker-example-com']['service'] == "ping@internal"
 
 
 def test_generate_config_redirection_middleware_order(tmp_path):
@@ -153,5 +184,100 @@ def test_generate_config_redirection_middleware_order(tmp_path):
     assert mw_list[0] == 'redirect-redir-example-com', f"Expected redirect middleware at index 0, got {mw_list}"
     # Target service must be ping@internal for noop
     assert routers['router-redir-example-com']['service'] == "ping@internal"
+
+
+def test_generate_config_trusted_proxies(tmp_path):
+    """
+    Tests that TRAEFIK_TRUSTED_IPS entries are added to CrowdSec forwardedHeadersTrustedIPs.
+    """
+    (tmp_path / 'config' / 'traefik' / 'dynamic-config').mkdir(parents=True)
+    (tmp_path / 'config' / 'crowdsec' / 'parsers').mkdir(parents=True)
+    
+    domains_csv = tmp_path / 'domains.csv'
+    domains_csv.write_text("domain, redirection, docker_service\nexample.com, , web-app\n")
+
+    env = os.environ.copy()
+    env['CROWDSEC_LAPI_KEY'] = 'test-key'
+    env['REDIS_PASSWORD'] = 'test-pass'
+    env['TRAEFIK_TRUSTED_IPS'] = '173.245.48.0/20, 1.2.3.4'
+    
+    subprocess.run(['python3', SCRIPT_PATH], cwd=str(tmp_path), env=env, capture_output=True)
+    
+    routers_yaml = tmp_path / 'config' / 'traefik' / 'dynamic-config' / 'routers-generated.yaml'
+    with open(routers_yaml, 'r') as f:
+        config = yaml.safe_load(f)
+        
+    crowdsec_plugin = config['http']['middlewares']['crowdsec-check']['plugin']['crowdsec']
+    trusted_ips = crowdsec_plugin['forwardedHeadersTrustedIPs']
+    assert '173.245.48.0/20' in trusted_ips
+    assert '1.2.3.4/32' in trusted_ips
+
+
+def test_generate_config_no_optional_routers(tmp_path):
+    """
+    Tests that when TRAEFIK_BAD_USER_AGENTS and TRAEFIK_BLOCKED_PATHS are empty,
+    no blocking routers are generated.
+    """
+    (tmp_path / 'config' / 'traefik' / 'dynamic-config').mkdir(parents=True)
+    (tmp_path / 'config' / 'crowdsec' / 'parsers').mkdir(parents=True)
+    
+    domains_csv = tmp_path / 'domains.csv'
+    domains_csv.write_text("domain, redirection, docker_service\nclean.example.com, , web-app\n")
+
+    env = os.environ.copy()
+    env['CROWDSEC_LAPI_KEY'] = 'test-key'
+    env['REDIS_PASSWORD'] = 'test-pass'
+    env['TRAEFIK_BAD_USER_AGENTS'] = ''
+    env['TRAEFIK_BLOCKED_PATHS'] = ''
+    
+    subprocess.run(['python3', SCRIPT_PATH], cwd=str(tmp_path), env=env, capture_output=True)
+    
+    routers_yaml = tmp_path / 'config' / 'traefik' / 'dynamic-config' / 'routers-generated.yaml'
+    with open(routers_yaml, 'r') as f:
+        config = yaml.safe_load(f)
+        
+    routers = config['http']['routers']
+    assert 'router-clean-example-com' in routers
+    assert 'bad-user-agents-clean-example-com' not in routers
+    assert 'path-blocker-clean-example-com' not in routers
+
+
+def test_generate_config_custom_limits(tmp_path):
+    """
+    Tests that custom rate, burst, and concurrency parameters in domains.csv
+    generate dedicated per-domain middlewares.
+    """
+    (tmp_path / 'config' / 'traefik' / 'dynamic-config').mkdir(parents=True)
+    (tmp_path / 'config' / 'crowdsec' / 'parsers').mkdir(parents=True)
+    
+    domains_csv = tmp_path / 'domains.csv'
+    domains_csv.write_text("domain, redirection, docker_service, anubis_subdomain, rate, burst, concurrency\ncustom.example.com, , web-app, , 15, 30, 5\n")
+
+    env = os.environ.copy()
+    env['CROWDSEC_LAPI_KEY'] = 'test-key'
+    env['REDIS_PASSWORD'] = 'test-pass'
+    
+    subprocess.run(['python3', SCRIPT_PATH], cwd=str(tmp_path), env=env, capture_output=True)
+    
+    routers_yaml = tmp_path / 'config' / 'traefik' / 'dynamic-config' / 'routers-generated.yaml'
+    with open(routers_yaml, 'r') as f:
+        config = yaml.safe_load(f)
+        
+    middlewares = config['http']['middlewares']
+    assert 'rl-custom-example-com' in middlewares
+    rate_cfg = middlewares['rl-custom-example-com']['rateLimit']
+    assert rate_cfg['average'] == 15
+    assert rate_cfg['burst'] == 30
+    
+    assert 'conc-custom-example-com' in middlewares
+    conn_cfg = middlewares['conc-custom-example-com']['inFlightReq']
+    assert conn_cfg['amount'] == 5
+    
+    # Check that the router uses these custom middlewares
+    router_mw = config['http']['routers']['router-custom-example-com']['middlewares']
+    assert 'rl-custom-example-com' in router_mw
+    assert 'conc-custom-example-com' in router_mw
+
+
 
 

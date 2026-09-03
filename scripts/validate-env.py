@@ -71,6 +71,10 @@ def sync_env(dist_file, env_file):
     # Create a backup
     if os.path.exists(env_file):
         shutil.copy(env_file, f"{env_file}.bak")
+        try:
+            os.chmod(f"{env_file}.bak", 0o600)
+        except OSError:
+            pass
         print(f"📦 Backup created at {env_file}.bak")
 
     new_lines = []
@@ -114,6 +118,11 @@ def sync_env(dist_file, env_file):
                 prefix, value = current_values[key]
                 f.write(f"{prefix}{key}={value}\n")
             print(f"ℹ️  Preserved {len(extra_keys)} custom variables.")
+
+    try:
+        os.chmod(env_file, 0o600)
+    except OSError:
+        pass
 
     return True
 

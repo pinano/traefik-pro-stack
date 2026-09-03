@@ -38,6 +38,7 @@ services:
     networks:
       - traefik
       - socket-proxy
+      - crowdsec-backend
     security_opt:
       - no-new-privileges=true
     deploy:
@@ -67,7 +68,7 @@ services:
     restart: unless-stopped
     profiles:
       - crowdsec
-    command: postgres -c shared_buffers=128MB -c work_mem=16MB -c effective_cache_size=384MB -c maintenance_work_mem=64MB
+    command: postgres -c shared_buffers=128MB -c work_mem=16MB -c effective_cache_size=384MB -c maintenance_work_mem=64MB -c synchronous_commit=off
     environment:
       POSTGRES_USER: ${CROWDSEC_DB_USER:-crowdsec}
       POSTGRES_PASSWORD: ${CROWDSEC_DB_PASSWORD:-}
@@ -78,7 +79,7 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - ./data/crowdsec/postgres:/var/lib/postgresql/data
     networks:
-      - traefik
+      - crowdsec-backend
     security_opt:
       - no-new-privileges=true
     deploy:
@@ -268,4 +269,7 @@ networks:
     external: true
   socket-proxy:
     name: socket-proxy
+    external: true
+  crowdsec-backend:
+    name: crowdsec-backend
     external: true

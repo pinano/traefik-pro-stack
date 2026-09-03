@@ -51,9 +51,11 @@ def test_validate_env_sync(tmp_path):
     # Custom variable should be preserved
     assert "CUSTOM_VAR=my_custom_value" in content
     
-    # Backup should be created
+    # Backup should be created with 0600 permissions
     backup_file = tmp_path / '.env.bak'
     assert backup_file.exists()
+    assert (backup_file.stat().st_mode & 0o777) == 0o600
+    assert (env_file.stat().st_mode & 0o777) == 0o600
 
 
 def test_validate_env_missing_keys(tmp_path):

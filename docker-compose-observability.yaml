@@ -25,6 +25,8 @@ services:
       - GF_AUTH_PROXY_HEADERS=Role:X-Webauth-Role
       # Grafana's login form is still available for direct admin access if needed
       - GF_AUTH_DISABLE_LOGIN_FORM=false
+      # Restrict Auth Proxy to requests coming from private Docker networks (Traefik gateway)
+      - GF_AUTH_PROXY_WHITELIST=${GRAFANA_AUTH_PROXY_WHITELIST:-172.16.0.0/12,10.0.0.0/8,192.168.0.0/16,127.0.0.1/32}
       - GF_UNIFIED_ALERTING_ENABLED=true
       - GF_ALERTING_ENABLED=false
       - TZ=${TZ}

@@ -9,6 +9,7 @@ import datetime
 import requests
 import ssl
 import time
+from urllib.parse import urlparse
 from config import BASE_DIR, ENV, TRAEFIK_ACME_ENV_TYPE, ACME_FILE, read_dotenv
 
 log = logging.getLogger(__name__)
@@ -317,13 +318,30 @@ def build_compose_env():
              f"PROJECT_NAME={env.get('PROJECT_NAME', '?')}")
     return env
 
+def _extract_hostname(val):
+    if not val:
+        return ""
+    val = val.strip()
+    if '://' in val:
+        return urlparse(val).hostname or val
+    if '/' in val:
+        to_parse = val if val.startswith('//') else f'//{val}'
+        return urlparse(to_parse).hostname or val
+    return val
+
 def resolve_domain(domain):
+    domain = _extract_hostname(domain)
+    if not domain:
+        return None
     try:
         return socket.gethostbyname(domain)
-    except socket.gaierror:
+    except (socket.gaierror, ValueError):
         return None
 
 def check_host_file(domain):
+    domain = _extract_hostname(domain)
+    if not domain:
+        return False
     hosts_paths = ['/etc/hosts-host', '/etc/hosts']
     for path in hosts_paths:
         if not os.path.exists(path):

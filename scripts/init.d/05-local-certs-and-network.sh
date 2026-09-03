@@ -152,6 +152,11 @@ if ! docker network inspect anubis-backend >/dev/null 2>&1; then
     echo "   ✅ Created anubis-backend network (internal)."
 fi
 
+if ! docker network inspect crowdsec-backend >/dev/null 2>&1; then
+    docker network create --internal crowdsec-backend >/dev/null
+    echo "   ✅ Created crowdsec-backend network (internal)."
+fi
+
 if ! docker network inspect socket-proxy >/dev/null 2>&1; then
     docker network create --internal socket-proxy >/dev/null
     echo "   ✅ Created socket-proxy network (internal)."
