@@ -121,11 +121,12 @@ with open(template_path, "r", encoding="utf-8") as f:
 trusted_ips_raw = os.getenv("TRAEFIK_TRUSTED_IPS", "").strip()
 forwarded_block = ""
 if trusted_ips_raw:
-    ips = [ip.strip().strip("\"'") for ip in trusted_ips_raw.split(',') if ip.strip().strip("\"'")]
+    quote_chars = chr(34) + chr(39)
+    ips = [ip.strip().strip(quote_chars) for ip in trusted_ips_raw.split(",") if ip.strip().strip(quote_chars)]
     if ips:
         lines = ["    forwardedHeaders:", "      trustedIPs:"]
         for ip in ips:
-            lines.append(f'        - "{ip}"')
+            lines.append("        - \"" + ip + "\"")
         forwarded_block = "\n".join(lines)
 
 replacements = {
