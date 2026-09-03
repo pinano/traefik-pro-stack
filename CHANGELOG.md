@@ -1,3 +1,8 @@
+## v2026.09.03 (2026-09-03)
+
+- refactor: improve trusted IP parsing by explicitly defining quote characters for stripping (300119d)
+- feat: implement dynamic configuration for rate limits, blocked paths, and trusted IPs while isolating CrowdSec components on a dedicated backend network. (ad876f7)
+
 ## v2026.09.02 (2026-09-02)
 
 - Version bumps (09a014d)
