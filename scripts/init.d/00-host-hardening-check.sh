@@ -107,13 +107,40 @@ fi
 CSFWB_INSTALLED=false
 CSFWB_ACTIVE=false
 
-if command -v cs-firewall-bouncer >/dev/null 2>&1; then
-    CSFWB_INSTALLED=true
+# Check multiple possible binary names and common paths
+for cmd in cs-firewall-bouncer crowdsec-firewall-bouncer; do
+    if command -v "$cmd" >/dev/null 2>&1; then
+        CSFWB_INSTALLED=true
+        break
+    fi
+    # Also check common absolute paths in case PATH is incomplete
+    for prefix in /usr/bin /usr/sbin /usr/local/bin /usr/local/sbin; do
+        if [ -x "$prefix/$cmd" ]; then
+            CSFWB_INSTALLED=true
+            break 2
+        fi
+    done
+done
+
+# Fallback: verify the package is installed via dpkg
+if [ "$CSFWB_INSTALLED" = false ] && command -v dpkg >/dev/null 2>&1; then
+    if dpkg -l | grep -qE "crowdsec-firewall-bouncer|cs-firewall-bouncer"; then
+        CSFWB_INSTALLED=true
+    fi
 fi
 
-if systemctl is-active --quiet cs-firewall-bouncer 2>/dev/null; then
-    CSFWB_ACTIVE=true
-fi
+# Check service status using multiple possible service names
+CSFWB_SERVICE=""
+for svc in cs-firewall-bouncer crowdsec-firewall-bouncer; do
+    if systemctl is-active --quiet "$svc" 2>/dev/null; then
+        CSFWB_ACTIVE=true
+        CSFWB_SERVICE="$svc"
+        break
+    fi
+    if systemctl list-unit-files --type=service 2>/dev/null | grep -q "^${svc}.service"; then
+        CSFWB_SERVICE="$svc"
+    fi
+done
 
 if [ "$CSFWB_INSTALLED" = false ]; then
     echo "   ⚠️  CrowdSec Firewall Bouncer is NOT installed on the host."
@@ -124,7 +151,11 @@ if [ "$CSFWB_INSTALLED" = false ]; then
     WARNINGS=$((WARNINGS + 1))
 elif [ "$CSFWB_INSTALLED" = true ] && [ "$CSFWB_ACTIVE" = false ]; then
     echo "   ⚠️  CrowdSec Firewall Bouncer is installed but NOT running."
-    echo "      Start it with: systemctl start cs-firewall-bouncer"
+    if [ -n "$CSFWB_SERVICE" ]; then
+        echo "      Start it with: sudo systemctl start $CSFWB_SERVICE"
+    else
+        echo "      Start it with: sudo systemctl start cs-firewall-bouncer"
+    fi
     WARNINGS=$((WARNINGS + 1))
 else
     echo "   ✅ CrowdSec Firewall Bouncer is installed and active."
