@@ -242,8 +242,9 @@ fi
 SWAP_TOTAL=$(awk '/^SwapTotal:/{print $2}' /proc/meminfo 2>/dev/null || echo "0")
 if [ -n "$SWAP_TOTAL" ] && [ "$SWAP_TOTAL" -gt 0 ] 2>/dev/null; then
     echo "   ⚠️  Swap is enabled on this host (${SWAP_TOTAL} kB)."
-    echo "      For consistent latency, disable swap: 'swapoff -a' and"
-    echo "      comment out the swap line in /etc/fstab."
+    echo "      Disable it now and persist the change:"
+    echo "        sudo swapoff -a"
+    echo "        sudo sed -i '/^[^#].*swap/s/^/# /' /etc/fstab"
     WARNINGS=$((WARNINGS + 1))
 else
     echo "   ✅ Swap is disabled (optimal for network containers)."
@@ -260,8 +261,12 @@ if [ -f /etc/docker/daemon.json ]; then
         LIVE_RESTORE=$(jq -r '."live-restore" // false' /etc/docker/daemon.json 2>/dev/null)
         if [ "$LIVE_RESTORE" != "true" ]; then
             echo "   ⚠️  Docker live-restore is NOT enabled."
-            echo "      Add '{\"live-restore\": true}' to /etc/docker/daemon.json"
-            echo "      and restart the Docker daemon to survive daemon upgrades."
+            echo "      Run these commands to enable it (containers will survive daemon restarts):"
+            echo ""
+            echo '      sudo tee /etc/docker/daemon.json > /dev/null <<EOF'
+            echo '      {"live-restore": true}'
+            echo '      EOF'
+            echo "      sudo systemctl restart docker"
             WARNINGS=$((WARNINGS + 1))
         else
             echo "   ✅ Docker live-restore is enabled."
@@ -270,7 +275,12 @@ if [ -f /etc/docker/daemon.json ]; then
         # jq not installed — do a simple grep
         if ! grep -q '"live-restore".*true' /etc/docker/daemon.json 2>/dev/null; then
             echo "   ⚠️  Docker live-restore status could not be verified (jq not installed)."
-            echo "      Ensure /etc/docker/daemon.json contains {\"live-restore\": true}."
+            echo "      Run these commands to ensure it is enabled:"
+            echo ""
+            echo '      sudo tee /etc/docker/daemon.json > /dev/null <<EOF'
+            echo '      {"live-restore": true}'
+            echo '      EOF'
+            echo "      sudo systemctl restart docker"
             WARNINGS=$((WARNINGS + 1))
         else
             echo "   ✅ Docker live-restore appears enabled."
@@ -278,7 +288,12 @@ if [ -f /etc/docker/daemon.json ]; then
     fi
 else
     echo "   ⚠️  /etc/docker/daemon.json not found. Docker live-restore is likely disabled."
-    echo "      Create it with '{\"live-restore\": true}' and restart the Docker daemon."
+    echo "      Run these commands to create it and enable live-restore:"
+    echo ""
+    echo '      sudo tee /etc/docker/daemon.json > /dev/null <<EOF'
+    echo '      {"live-restore": true}'
+    echo '      EOF'
+    echo "      sudo systemctl restart docker"
     WARNINGS=$((WARNINGS + 1))
 fi
 
@@ -292,8 +307,8 @@ if command -v sysctl >/dev/null 2>&1; then
     OVERCOMMIT=$(sysctl -n vm.overcommit_memory 2>/dev/null)
     if [ -n "$OVERCOMMIT" ] && [ "$OVERCOMMIT" -ne 1 ] 2>/dev/null; then
         echo "   ⚠️  vm.overcommit_memory = $OVERCOMMIT (recommended: 1)."
-        echo "      Set it with: sysctl -w vm.overcommit_memory=1"
-        echo "      Or persist it in /etc/sysctl.d/99-traefik-anti-ddos.conf"
+        echo "      Run: sudo sysctl -w vm.overcommit_memory=1"
+        echo "      (Already included in the sysctl block above if you applied it.)"
         WARNINGS=$((WARNINGS + 1))
     else
         echo "   ✅ vm.overcommit_memory is correctly set to 1."
