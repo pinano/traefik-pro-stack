@@ -196,8 +196,8 @@ elif [ "$CSFWB_INSTALLED" = true ] && [ "$CSFWB_ACTIVE" = false ]; then
         fi
         echo ""
         echo "      3. If it still fails, generate a bouncer API key inside the CrowdSec container:"
-        echo "           CROWDSEC=\\$(docker ps --filter name=crowdsec --format '{{.Names}}' | head -n1)"
-        echo "           docker exec \\"\\$CROWDSEC\\" cscli bouncers add firewall-bouncer -o raw"
+        echo '           CROWDSEC=$(docker ps --filter name=crowdsec --format "{{.Names}}" | head -n1)'
+        echo '           docker exec "$CROWDSEC" cscli bouncers add firewall-bouncer -o raw'
         echo ""
         echo "         Then paste the key into /etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml"
         echo "         under 'api_key', ensure 'api_url: http://127.0.0.1:8090', and restart the service."
