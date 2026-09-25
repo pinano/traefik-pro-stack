@@ -373,7 +373,7 @@ After installation, configure the bouncer to connect to the CrowdSec LAPI runnin
 
 ```bash
 # 1. Find your CrowdSec container name (it follows the pattern <PROJECT_NAME>-crowdsec-1)
-CROWDSEC_CONTAINER=$(docker ps --filter name=crowdsec --format '{{.Names}}' | head -n1)
+CROWDSEC_CONTAINER=$(docker ps --filter "label=com.docker.compose.service=crowdsec" --format '{{.Names}}' | head -n1)
 
 # 2. Generate a bouncer API key inside the CrowdSec container
 API_KEY=$(docker exec "$CROWDSEC_CONTAINER" cscli bouncers add firewall-bouncer -o raw)
