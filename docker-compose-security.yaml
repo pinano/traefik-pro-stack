@@ -36,7 +36,7 @@ services:
       - "7422" # AppSec WAF listener (internal, traefik network only)
       - "6060" # Prometheus metrics (internal, traefik network only)
     ports:
-      - "127.0.0.1:8080:8080" # CrowdSec LAPI — exposed to host for firewall bouncer
+      - "127.0.0.1:8090:8080" # CrowdSec LAPI — exposed to host for firewall bouncer
     networks:
       - traefik
       - socket-proxy

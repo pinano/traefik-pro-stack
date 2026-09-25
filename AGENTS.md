@@ -383,7 +383,7 @@ sudo apt update
 sudo apt install crowdsec-firewall-bouncer-nftables
 
 # Configure to use the same LAPI
-CSCLI_API_URL=http://127.0.0.1:8080  # or CrowdSec container IP if LAPI is exposed
+CSCLI_API_URL=http://127.0.0.1:8090  # or CrowdSec container IP if LAPI is exposed
 ```
 
 This drops packets at **netfilter** (nftables/iptables) *before* they ever touch Docker or Traefik. The container-based plugin remains as a fallback.
