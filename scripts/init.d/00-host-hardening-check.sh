@@ -232,18 +232,21 @@ FD_LIMIT=$(ulimit -n 2>/dev/null || echo "1024")
 if [ -n "$FD_LIMIT" ] && [ "$FD_LIMIT" -lt 65536 ] 2>/dev/null; then
     echo "   ⚠️  Open file descriptor limit is $FD_LIMIT (recommended: ≥ 65536)."
     if [ "$IS_LXC" = true ]; then
-        echo "      This appears to be an LXC container. systemd limits do not apply here."
-        echo "      Run these commands inside the container:"
+        echo "      This is an LXC container. systemd limits do not apply here."
+        echo "      The fix depends on whether the Proxmox host already allows a high limit."
         echo ""
+        echo "      Step 1 — configure PAM inside the container:"
         echo '        echo "session required pam_limits.so" | sudo tee -a /etc/pam.d/sshd'
         echo '        echo "* soft nofile 65536" | sudo tee /etc/security/limits.d/99-nofile.conf'
         echo '        echo "* hard nofile 65536" | sudo tee -a /etc/security/limits.d/99-nofile.conf'
         echo ""
-        echo "      Then close ALL SSH sessions (including multiplexed connections)"
+        echo "      Step 2 — close ALL SSH sessions (including multiplexed connections)"
         echo "      and reconnect. Verify with: ulimit -n"
         echo ""
-        echo "      If it still shows 1024, the limit is enforced by the Proxmox host."
-        echo "      Check the host with: systemctl show <lxc-id> | grep LimitNOFILE"
+        echo "      If it still shows 1024, the Proxmox host is capping the container."
+        echo "      From the Proxmox node, edit /etc/pve/lxc/<id>.conf and add:"
+        echo "        lxc.prlimit.nofile: 65536"
+        echo "      Then restart the container from Proxmox: pct reboot <id>"
     else
         echo "      To apply the fix immediately:"
         echo ""
