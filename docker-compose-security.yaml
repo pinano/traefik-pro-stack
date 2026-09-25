@@ -136,7 +136,7 @@ services:
   #  REDIS EXPORTER (Metrics for Prometheus)
   # ===========================
   redis-exporter:
-    image: oliver006/redis_exporter:v1.92.0
+    image: oliver006/redis_exporter:v1.92.0-alpine
     restart: unless-stopped
     environment:
       - REDIS_ADDR=redis:6379
@@ -166,7 +166,7 @@ services:
   #  CROWDSEC WEB UI (Management interface for CrowdSec LAPI)
   # ===========================
   crowdsec-web-ui:
-    image: ghcr.io/theduffman85/crowdsec-web-ui:2026.9.1
+    image: ghcr.io/theduffman85/crowdsec-web-ui:2026.9.2
     restart: unless-stopped
     profiles:
       - crowdsec

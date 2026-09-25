@@ -5,6 +5,7 @@ import socket
 import http.client
 from collections import defaultdict
 from flask import Blueprint, render_template, current_app, jsonify
+from extensions import limiter
 from blueprints.auth import login_required
 from config import DOMAIN, TRAEFIK_RATE_AVG, TRAEFIK_RATE_BURST, TRAEFIK_CONCURRENCY, ACME_FILE, BASE_DIR
 from utils.csv_manager import read_csv, get_root_domain
@@ -13,6 +14,7 @@ from utils.certs_manager import parse_certificate_data
 views_bp = Blueprint('views', __name__)
 
 @views_bp.route('/healthz')
+@limiter.exempt
 def healthz():
     """Liveness/readiness probe for container orchestration."""
     checks = {}

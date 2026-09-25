@@ -105,7 +105,7 @@ services:
   #  ALLOY (Log & metrics collector)
   # ===========================
   alloy:
-    image: grafana/alloy:v1.19.2
+    image: grafana/alloy:v1.20.0
     restart: unless-stopped
     user: "root" # Alloy needs root to read logs from other containers in /var/lib/docker
     security_opt:
@@ -132,7 +132,7 @@ services:
         limits:
           memory: 1G
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:12345/-/healthy || exit 1"]
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/12345 && echo -e 'GET /-/healthy HTTP/1.1\\r\\nHost: 127.0.0.1\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '200 OK' <&3"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -147,7 +147,7 @@ services:
   #  PROMETHEUS (Metrics storage)
   # ===========================
   prometheus:
-    image: prom/prometheus:v3.14.0
+    image: prom/prometheus:v3.15.0
     restart: unless-stopped
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
