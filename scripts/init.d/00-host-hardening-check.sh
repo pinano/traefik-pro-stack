@@ -267,14 +267,20 @@ fi
 # Valkey/Redis recommend overcommit_memory=1 to prevent the OOM killer
 # from triggering during fork() operations (even with persistence disabled).
 
-OVERCOMMIT=$(sysctl -n vm.overcommit_memory 2>/dev/null)
-if [ -n "$OVERCOMMIT" ] && [ "$OVERCOMMIT" -ne 1 ] 2>/dev/null; then
-    echo "   ⚠️  vm.overcommit_memory = $OVERCOMMIT (recommended: 1)."
-    echo "      Set it with: sysctl -w vm.overcommit_memory=1"
-    echo "      Or persist it in /etc/sysctl.d/99-traefik-anti-ddos.conf"
-    WARNINGS=$((WARNINGS + 1))
+if command -v sysctl >/dev/null 2>&1; then
+    OVERCOMMIT=$(sysctl -n vm.overcommit_memory 2>/dev/null)
+    if [ -n "$OVERCOMMIT" ] && [ "$OVERCOMMIT" -ne 1 ] 2>/dev/null; then
+        echo "   ⚠️  vm.overcommit_memory = $OVERCOMMIT (recommended: 1)."
+        echo "      Set it with: sysctl -w vm.overcommit_memory=1"
+        echo "      Or persist it in /etc/sysctl.d/99-traefik-anti-ddos.conf"
+        WARNINGS=$((WARNINGS + 1))
+    else
+        echo "   ✅ vm.overcommit_memory is correctly set to 1."
+    fi
 else
-    echo "   ✅ vm.overcommit_memory is correctly set to 1."
+    echo "   ⚠️  Cannot check vm.overcommit_memory (sysctl not found)."
+    echo "      Install procps: sudo apt install procps"
+    WARNINGS=$((WARNINGS + 1))
 fi
 
 # ---------------------------------------------------------------------------
