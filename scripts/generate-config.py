@@ -186,7 +186,6 @@ try:
     # Request/response body size limits to prevent disk exhaustion from oversized payloads
     MAX_REQ_BODY = int(get_env_safe('TRAEFIK_MAX_REQUEST_BODY_BYTES', 52428800))   # 50 MB
     MAX_RES_BODY = int(get_env_safe('TRAEFIK_MAX_RESPONSE_BODY_BYTES', 52428800))  # 50 MB
-    MAX_CONNS_PER_HOST = int(get_env_safe('TRAEFIK_MAX_CONNS_PER_HOST', 500))
 except ValueError:
     # Fallback defaults if parsing fails
     CS_UPDATE_INTERVAL = 60
@@ -198,7 +197,6 @@ except ValueError:
     HSTS_SECONDS = 31536000
     MAX_REQ_BODY = 52428800
     MAX_RES_BODY = 52428800
-    MAX_CONNS_PER_HOST = 500
 
 # Regex for validating Docker/Traefik service names
 VALID_SERVICE_NAME_REGEX = re.compile(r'^[a-z0-9-]+$')
@@ -630,7 +628,6 @@ def generate_configs():
             'serversTransports': {
                 'default': {
                     'maxIdleConnsPerHost': 200,
-                    'maxConnsPerHost': MAX_CONNS_PER_HOST,
                     'forwardingTimeouts': {
                         'responseHeaderTimeout': f"{T_ACTIVE}s",
                         'idleConnTimeout': f"{T_IDLE}s"
