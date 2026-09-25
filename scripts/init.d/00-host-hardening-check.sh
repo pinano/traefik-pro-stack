@@ -151,10 +151,23 @@ if [ "$CSFWB_INSTALLED" = false ]; then
     WARNINGS=$((WARNINGS + 1))
 elif [ "$CSFWB_INSTALLED" = true ] && [ "$CSFWB_ACTIVE" = false ]; then
     echo "   ⚠️  CrowdSec Firewall Bouncer is installed but NOT running."
+    echo "      Common causes and fixes:"
+    echo ""
+    echo "      1. CrowdSec LAPI is not reachable from the host."
+    echo "         Ensure docker-compose-security.yaml exposes the LAPI:"
+    echo "           ports:"
+    echo "             - \"127.0.0.1:8080:8080\""
+    echo "         Then restart the stack: make restart"
+    echo ""
+    echo "      2. The bouncer's API key is missing or invalid."
+    echo "         Generate a key inside the CrowdSec container:"
+    echo "           docker exec crowdsec cscli bouncers add firewall-bouncer -o raw"
+    echo "         Then paste it into /etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml"
+    echo "         under the 'api_key' field, and restart the bouncer:"
     if [ -n "$CSFWB_SERVICE" ]; then
-        echo "      Start it with: sudo systemctl start $CSFWB_SERVICE"
+        echo "           sudo systemctl restart $CSFWB_SERVICE"
     else
-        echo "      Start it with: sudo systemctl start cs-firewall-bouncer"
+        echo "           sudo systemctl restart crowdsec-firewall-bouncer"
     fi
     WARNINGS=$((WARNINGS + 1))
 else
