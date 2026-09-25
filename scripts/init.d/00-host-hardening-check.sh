@@ -217,9 +217,9 @@ fi
 IS_LXC=false
 if [ -d /dev/lxc ] || [ -n "${container:-}" ]; then
     IS_LXC=true
-elif tr '\0' '\n' < /proc/1/environ 2>/dev/null | grep -q '^container=lxc'; then
-    IS_LXC=true
 elif grep -q 'lxc' /proc/1/cgroup 2>/dev/null; then
+    IS_LXC=true
+elif cat /proc/1/environ 2>/dev/null | tr '\0' '\n' | grep -q '^container=lxc'; then
     IS_LXC=true
 fi
 
@@ -328,8 +328,8 @@ fi
 # Valkey/Redis recommend overcommit_memory=1 to prevent the OOM killer
 # from triggering during fork() operations (even with persistence disabled).
 
-if command -v sysctl >/dev/null 2>&1; then
-    OVERCOMMIT=$(sysctl -n vm.overcommit_memory 2>/dev/null)
+if command -v sysctl >/dev/null 2>&1 || [ -x /usr/sbin/sysctl ] || [ -x /sbin/sysctl ] || [ -x /bin/sysctl ]; then
+    OVERCOMMIT=$(/usr/sbin/sysctl -n vm.overcommit_memory 2>/dev/null || /sbin/sysctl -n vm.overcommit_memory 2>/dev/null || /bin/sysctl -n vm.overcommit_memory 2>/dev/null || sysctl -n vm.overcommit_memory 2>/dev/null)
     if [ -n "$OVERCOMMIT" ] && [ "$OVERCOMMIT" -ne 1 ] 2>/dev/null; then
         echo "   ⚠️  vm.overcommit_memory = $OVERCOMMIT (recommended: 1)."
         echo "      Run: sudo sysctl -w vm.overcommit_memory=1"
@@ -339,8 +339,9 @@ if command -v sysctl >/dev/null 2>&1; then
         echo "   ✅ vm.overcommit_memory is correctly set to 1."
     fi
 else
-    echo "   ⚠️  Cannot check vm.overcommit_memory (sysctl not found)."
-    echo "      Install procps: sudo apt install procps"
+    echo "   ⚠️  Cannot check vm.overcommit_memory (sysctl not found in PATH)."
+    echo "      It may be installed but not in your PATH. Run: sudo /usr/sbin/sysctl -w vm.overcommit_memory=1"
+    echo "      (Already included in the sysctl block above if you applied it.)"
     WARNINGS=$((WARNINGS + 1))
 fi
 
