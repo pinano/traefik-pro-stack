@@ -19,7 +19,7 @@ services:
     security_opt:
       - no-new-privileges=true
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://127.0.0.1:80/" ]
+      test: [ "CMD", "curl", "-f", "http://127.0.0.1:80/index.php" ]
       interval: 30s
       timeout: 5s
       retries: 3
