@@ -369,6 +369,30 @@ sudo apt update
 sudo apt install crowdsec-firewall-bouncer-nftables
 ```
 
+After installation, configure the bouncer to connect to the CrowdSec LAPI running inside Docker. The LAPI is exposed on `127.0.0.1:8080` for this purpose:
+
+```bash
+# 1. Generate a bouncer API key inside the CrowdSec container
+API_KEY=$(docker exec crowdsec cscli bouncers add firewall-bouncer -o raw)
+
+# 2. Update the bouncer configuration
+sudo tee /etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml > /dev/null <<EOF
+mode: nftables
+pid_dir: /var/run/
+update_frequency: 10s
+daemonize: true
+log_mode: file
+log_dir: /var/log/
+log_level: info
+api_url: http://127.0.0.1:8080
+api_key: ${API_KEY}
+EOF
+
+# 3. Enable and start the service
+sudo systemctl enable crowdsec-firewall-bouncer
+sudo systemctl start crowdsec-firewall-bouncer
+```
+
 ### Automated Hardening Check
 
 `make start` runs a pre-flight check on Linux hosts that verifies sysctls, the firewall bouncer, file descriptor limits, swap, Docker live-restore, and `vm.overcommit_memory`. It warns if anything is missing but **never blocks** startup.
@@ -503,7 +527,7 @@ Never edit these manually in `.env`:
 | `traefik` | `80`, `443` | `80`, `443` (TCP/UDP) | `traefik` / Host | Public HTTP/HTTPS/HTTP-3 boundary |
 | `traefik-api` | `8080` | None | `traefik` | Internal API & dashboard |
 | `dashboard` | `5000` | None | `traefik` | Flask admin + SSO auth-check |
-| `crowdsec-lapi` | `8080` | None | `traefik` | CrowdSec Local API |
+| `crowdsec-lapi` | `8080` | `127.0.0.1:8080` | `traefik` | CrowdSec Local API (host-accessible for firewall bouncer) |
 | `crowdsec-appsec` | `7422` | None | `traefik` | Inline WAF listener |
 | `crowdsec-db` | `5432` | None | `crowdsec-backend` (internal) | PostgreSQL backend |
 | `docker-socket-proxy` | `2375` | None | `socket-proxy` | Read-only Docker API gateway |
