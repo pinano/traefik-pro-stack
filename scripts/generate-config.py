@@ -117,6 +117,23 @@ BAD_USER_AGENTS_STR = get_env_safe('TRAEFIK_BAD_USER_AGENTS', '')
 # Frame Ancestors (for iframes)
 FRAME_ANCESTORS = get_env_safe('TRAEFIK_FRAME_ANCESTORS', '')
 
+def sanitize_regex_pattern(pattern, label="pattern"):
+    """
+    Sanitizes a user-supplied regex pattern for safe interpolation into Traefik rules.
+    - Strips backticks (they break Traefik's rule syntax).
+    - Validates the pattern is a compilable regex.
+    Returns the cleaned pattern or None if invalid.
+    """
+    if not pattern:
+        return None
+    cleaned = pattern.replace('`', '')
+    try:
+        re.compile(cleaned)
+        return cleaned
+    except re.error as e:
+        print(f"    ⚠️ Warning: Invalid regex {label} '{pattern}' ignored: {e}")
+        return None
+
 # Apache Host IP and Port (docker0 bridge on Linux = 172.17.0.1:8080)
 APACHE_HOST_IP   = get_env_safe('APACHE_HOST_IP',   '172.17.0.1')
 APACHE_HOST_PORT = get_env_safe('APACHE_HOST_PORT',  '8080')
@@ -185,23 +202,6 @@ except ValueError:
 
 # Regex for validating Docker/Traefik service names
 VALID_SERVICE_NAME_REGEX = re.compile(r'^[a-z0-9-]+$')
-
-def sanitize_regex_pattern(pattern, label="pattern"):
-    """
-    Sanitizes a user-supplied regex pattern for safe interpolation into Traefik rules.
-    - Strips backticks (they break Traefik's rule syntax).
-    - Validates the pattern is a compilable regex.
-    Returns the cleaned pattern or None if invalid.
-    """
-    if not pattern:
-        return None
-    cleaned = pattern.replace('`', '')
-    try:
-        re.compile(cleaned)
-        return cleaned
-    except re.error as e:
-        print(f"    ⚠️ Warning: Invalid regex {label} '{pattern}' ignored: {e}")
-        return None
 
 # ------------------------------------------------------------------------------
 # Validation
