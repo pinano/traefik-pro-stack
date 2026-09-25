@@ -260,11 +260,18 @@ FD_LIMIT=$(ulimit -n 2>/dev/null || echo "1024")
 
         if [ "$PAM_CONFIGURED" = true ] && [ "$LIMITS_CONFIGURED" = true ]; then
             echo "      ✅ PAM and limits files are already configured inside the container."
-            echo "      If ulimit -n is still 1024 after reconnecting, the container must be"
-            echo "      rebooted from Proxmox for lxc.prlimit.nofile to take effect:"
-            echo "        pct reboot <id>"
+            echo "      If ulimit -n is still 1024 via SSH, PAM is not being invoked by sshd."
+            echo "      Diagnose with:"
+            echo "        grep -i 'UsePAM' /etc/ssh/sshd_config     # must say 'yes'"
+            echo "        grep 'pam_limits' /etc/pam.d/common-session"
+            echo "        grep 'pam_limits' /etc/pam.d/sshd"
             echo ""
-            echo "      After reboot, verify with: ulimit -n"
+            echo "      If UsePAM=yes and pam_limits is present, restart sshd:"
+            echo "        sudo systemctl restart sshd"
+            echo "      Then open a NEW SSH session (do not reuse existing multiplexed connections)."
+            echo ""
+            echo "      If 'pct attach <id>' already shows 65536 but SSH shows 1024,"
+            echo "      the container does NOT need a Proxmox reboot — only sshd restart."
         else
             echo "      Step 1 — configure PAM inside the container:"
             echo '        echo "session required pam_limits.so" | sudo tee -a /etc/pam.d/sshd'
