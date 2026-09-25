@@ -131,6 +131,7 @@ fi
 
 # Check service status using multiple possible service names
 CSFWB_SERVICE=""
+CSFWB_ENABLED=false
 for svc in cs-firewall-bouncer crowdsec-firewall-bouncer; do
     if systemctl is-active --quiet "$svc" 2>/dev/null; then
         CSFWB_ACTIVE=true
@@ -139,6 +140,9 @@ for svc in cs-firewall-bouncer crowdsec-firewall-bouncer; do
     fi
     if systemctl list-unit-files --type=service 2>/dev/null | grep -q "^${svc}.service"; then
         CSFWB_SERVICE="$svc"
+    fi
+    if systemctl is-enabled --quiet "$svc" 2>/dev/null; then
+        CSFWB_ENABLED=true
     fi
 done
 
@@ -168,28 +172,35 @@ elif [ "$CSFWB_INSTALLED" = true ] && [ "$CSFWB_ACTIVE" = false ]; then
         WARNINGS=$((WARNINGS + 1))
     else
         # Port is either free or owned by docker-proxy (expected). The issue is config.
-        echo "      To fix:"
+        echo "      The bouncer is installed but the systemd service is not active."
+        if [ "$CSFWB_ENABLED" = false ]; then
+            echo "      It is also not enabled to start on boot."
+        fi
         echo ""
         if [ "$PORT_OWNER" = "docker-proxy" ]; then
             echo "      ✅ CrowdSec LAPI is already exposed on port 8090."
-            echo "         The bouncer is likely failing because of a missing or invalid API key."
+            echo "         Most likely causes: the service was never enabled, or it lacks a valid API key."
             echo ""
         else
             echo "      1. Restart the stack so CrowdSec exposes the LAPI on port 8090:"
             echo "           make restart"
             echo ""
         fi
-        echo "      2. Generate a bouncer API key inside the CrowdSec container:"
+        echo "      2. Enable and start the service:"
+        if [ -n "$CSFWB_SERVICE" ]; then
+            echo "           sudo systemctl enable $CSFWB_SERVICE"
+            echo "           sudo systemctl start  $CSFWB_SERVICE"
+        else
+            echo "           sudo systemctl enable crowdsec-firewall-bouncer"
+            echo "           sudo systemctl start  crowdsec-firewall-bouncer"
+        fi
+        echo ""
+        echo "      3. If it still fails, generate a bouncer API key inside the CrowdSec container:"
         echo "           CROWDSEC=\\$(docker ps --filter name=crowdsec --format '{{.Names}}' | head -n1)"
         echo "           docker exec \\"\\$CROWDSEC\\" cscli bouncers add firewall-bouncer -o raw"
         echo ""
-        echo "      3. Paste the key into /etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml"
-        echo "         under 'api_key', ensure 'api_url: http://127.0.0.1:8090', then run:"
-        if [ -n "$CSFWB_SERVICE" ]; then
-            echo "           sudo systemctl restart $CSFWB_SERVICE"
-        else
-            echo "           sudo systemctl restart crowdsec-firewall-bouncer"
-        fi
+        echo "         Then paste the key into /etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml"
+        echo "         under 'api_key', ensure 'api_url: http://127.0.0.1:8090', and restart the service."
         WARNINGS=$((WARNINGS + 1))
     fi
 else
