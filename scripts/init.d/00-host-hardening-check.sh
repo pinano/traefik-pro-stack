@@ -154,21 +154,31 @@ if [ "$CSFWB_INSTALLED" = false ]; then
 elif [ "$CSFWB_INSTALLED" = true ] && [ "$CSFWB_ACTIVE" = false ]; then
     echo "   ⚠️  CrowdSec Firewall Bouncer is installed but NOT running."
 
-    # Check if the LAPI port (8090) is available on the host
-    if command -v ss >/dev/null 2>&1 && ss -tln | grep -q ':8090 '; then
-        echo "      Port 8090 is already in use on the host — CrowdSec LAPI cannot bind."
-        echo "      Free the port or change the mapping in docker-compose-security.yaml."
-        WARNINGS=$((WARNINGS + 1))
-    elif command -v netstat >/dev/null 2>&1 && netstat -tln 2>/dev/null | grep -q ':8090 '; then
-        echo "      Port 8090 is already in use on the host — CrowdSec LAPI cannot bind."
+    # Check who owns port 8090 on the host
+    PORT_OWNER=""
+    if command -v ss >/dev/null 2>&1; then
+        PORT_OWNER=$(ss -tlnp 2>/dev/null | awk '/:8090 / {for(i=1;i<=NF;i++) if($i ~ /users:/) print $i}' | sed 's/.*"\([^"]*\)".*/\1/')
+    elif command -v lsof >/dev/null 2>&1; then
+        PORT_OWNER=$(lsof -i :8090 -sTCP:LISTEN 2>/dev/null | awk 'NR==2 {print $1}')
+    fi
+
+    if [ -n "$PORT_OWNER" ] && [ "$PORT_OWNER" != "docker-proxy" ]; then
+        echo "      Port 8090 is occupied by '$PORT_OWNER' — CrowdSec LAPI cannot bind."
         echo "      Free the port or change the mapping in docker-compose-security.yaml."
         WARNINGS=$((WARNINGS + 1))
     else
+        # Port is either free or owned by docker-proxy (expected). The issue is config.
         echo "      To fix:"
         echo ""
-        echo "      1. Restart the stack so CrowdSec exposes the LAPI on port 8090:"
-        echo "           make restart"
-        echo ""
+        if [ "$PORT_OWNER" = "docker-proxy" ]; then
+            echo "      ✅ CrowdSec LAPI is already exposed on port 8090."
+            echo "         The bouncer is likely failing because of a missing or invalid API key."
+            echo ""
+        else
+            echo "      1. Restart the stack so CrowdSec exposes the LAPI on port 8090:"
+            echo "           make restart"
+            echo ""
+        fi
         echo "      2. Generate a bouncer API key inside the CrowdSec container:"
         echo "           CROWDSEC=\\$(docker ps --filter name=crowdsec --format '{{.Names}}' | head -n1)"
         echo "           docker exec \\"\\$CROWDSEC\\" cscli bouncers add firewall-bouncer -o raw"
