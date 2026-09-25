@@ -163,3 +163,33 @@ groups:
         annotations:
           summary: "Redis is rejecting connections"
           description: "Redis has rejected {{ $value }} connections in the last 5 minutes. May indicate maxclients limit hit."
+
+  # ============================================
+  # DDOS DETECTION
+  # ============================================
+  - name: ddos_detection
+    rules:
+
+      - alert: DDoSHighRequestRate
+        expr: |
+          (sum(rate(traefik_entrypoint_requests_total[2m])) or on() vector(0)) > 500
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Possible DDoS attack — high request rate"
+          description: "Traefik is receiving more than 500 req/s sustained for 2 minutes. Current: {{ $value | humanize }} req/s."
+
+      - alert: DDoSHighBlockedTraffic
+        expr: |
+          (
+            sum(rate(traefik_service_requests_total{code=~"429|403"}[5m]))
+            /
+            sum(rate(traefik_service_requests_total[5m]))
+          ) or on() vector(0) > 0.30
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High ratio of blocked/rejected requests"
+          description: "More than 30% of traffic is being blocked (403/429) for 5 minutes. CrowdSec or rate limiting is heavily active. Current ratio: {{ $value | humanizePercentage }}."

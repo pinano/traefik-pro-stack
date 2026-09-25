@@ -39,10 +39,10 @@ querier:
 # --- COMPACTOR (The Janitor) ---
 compactor:
   working_directory: /loki/compactor
-  compaction_interval: 30m
+  compaction_interval: 1h
   retention_enabled: true
   retention_delete_delay: 2h
-  retention_delete_worker_count: 50
+  retention_delete_worker_count: 10
   delete_request_store: filesystem
 
 # --- LIMITS & RETENTION (7 DAYS) ---
