@@ -215,7 +215,12 @@ fi
 
 # Detect LXC container — systemd limits do not apply there
 IS_LXC=false
-if [ -d /dev/lxc ] || [ -n "${container:-}" ]; then
+if command -v systemd-detect-virt >/dev/null 2>&1; then
+    VIRT_TYPE=$(systemd-detect-virt --container 2>/dev/null || systemd-detect-virt 2>/dev/null)
+    if [ "$VIRT_TYPE" = "lxc" ]; then
+        IS_LXC=true
+    fi
+elif [ -d /dev/lxc ] || [ -n "${container:-}" ]; then
     IS_LXC=true
 elif grep -q 'lxc' /proc/1/cgroup 2>/dev/null; then
     IS_LXC=true
