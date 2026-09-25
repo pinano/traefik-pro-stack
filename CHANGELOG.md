@@ -1,3 +1,8 @@
+## v2026.09.25.1 (2026-09-25)
+
+- fix: resolve static asset routing conflicts for dashboard sub-services and fix traefik url (eb4e0d6)
+- Fix multiple healthcheck issues (e98c770)
+
 ## v2026.09.25 (2026-09-25)
 
 - sec: add host hardening pre-flight check script (a3395e2)
