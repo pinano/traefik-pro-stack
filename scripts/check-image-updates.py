@@ -303,7 +303,11 @@ def scan_traefik_plugins():
     
     try:
         with open(template_path, 'r', encoding='utf-8') as f:
-            content = yaml.safe_load(f)
+            raw_content = f.read()
+            # Replace bare placeholder lines (no colon) with comments so YAML parser
+            # does not fail on generated templates.
+            cleaned = re.sub(r'^[A-Z_]+_PLACEHOLDER$', r'# \g<0>', raw_content, flags=re.MULTILINE)
+            content = yaml.safe_load(cleaned)
             if content and 'experimental' in content:
                 exp = content['experimental']
                 if exp and 'plugins' in exp:
