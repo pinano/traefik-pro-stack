@@ -894,17 +894,25 @@ def generate_configs():
     
     # --- Traefik API Router ---
     api_mw = base_middlewares.copy()
-    # Insert SSO and strip middlewares right before global-compress (which is the last one)
-    for mw in ["traefik-strip"] + sso_middlewares:
+    # Insert redirects, strip and SSO middlewares right before global-compress (which is the last one)
+    for mw in ["traefik-redirect", "traefik-strip"] + sso_middlewares:
         api_mw.insert(-1, mw)
         
     traefik_dynamic_conf['http']['routers']['traefik-dashboard'] = {
         'rule': f"Host(`{dashboard_domain}`) && (PathPrefix(`/traefik`) || PathPrefix(`/api`) || PathPrefix(`/dashboard`))",
         'entryPoints': ["websecure"],
         'service': "api@internal",
-        'priority': 100,
+        'priority': 1000,
         'tls': traefik_dynamic_conf['http']['routers'][base_router_name]['tls'],
         'middlewares': api_mw
+    }
+
+    traefik_dynamic_conf['http']['middlewares']['traefik-redirect'] = {
+        'redirectRegex': {
+            'regex': '^https?://([^/]+)/(?:traefik/?|dashboard)$',
+            'replacement': 'https://${1}/dashboard/',
+            'permanent': True
+        }
     }
 
     traefik_dynamic_conf['http']['middlewares']['traefik-strip'] = {
@@ -925,7 +933,7 @@ def generate_configs():
         'rule': f"Host(`{dashboard_domain}`) && PathPrefix(`/dozzle`)",
         'entryPoints': ["websecure"],
         'service': "dozzle@docker",
-        'priority': 100,
+        'priority': 1000,
         'tls': traefik_dynamic_conf['http']['routers'][base_router_name]['tls'],
         'middlewares': dozzle_mw
     }
@@ -939,7 +947,7 @@ def generate_configs():
         'rule': f"Host(`{dashboard_domain}`) && PathPrefix(`/grafana`)",
         'entryPoints': ["websecure"],
         'service': "grafana-frontend@docker",
-        'priority': 100,
+        'priority': 1000,
         'tls': traefik_dynamic_conf['http']['routers'][base_router_name]['tls'],
         'middlewares': grafana_mw
     }
@@ -954,7 +962,7 @@ def generate_configs():
             'rule': f"Host(`{dashboard_domain}`) && PathPrefix(`/crowdsec`)",
             'entryPoints': ["websecure"],
             'service': "crowdsec-web-ui@docker",
-            'priority': 100,
+            'priority': 1000,
             'tls': traefik_dynamic_conf['http']['routers'][base_router_name]['tls'],
             'middlewares': cswebui_mw
         }
@@ -974,7 +982,7 @@ def generate_configs():
             'rule': f"Host(`{dashboard_domain}`) && PathPrefix(`/backrest`)",
             'entryPoints': ["websecure"],
             'service': "backrest@docker",
-            'priority': 100,
+            'priority': 1000,
             'tls': traefik_dynamic_conf['http']['routers'][base_router_name]['tls'],
             'middlewares': backrest_mw
         }
@@ -1005,7 +1013,7 @@ def generate_configs():
             'rule': f"Host(`{dashboard_domain}`) && PathPrefix(`/phpmyadmin`)",
             'entryPoints': ["websecure"],
             'service': "phpmyadmin@docker",
-            'priority': 100,
+            'priority': 1000,
             'tls': traefik_dynamic_conf['http']['routers'][base_router_name]['tls'],
             'middlewares': phpmyadmin_mw
         }
@@ -1036,7 +1044,7 @@ def generate_configs():
             'rule': f"Host(`{dashboard_domain}`) && PathPrefix(`/filebrowser`)",
             'entryPoints': ["websecure"],
             'service': "filebrowser@docker",
-            'priority': 100,
+            'priority': 1000,
             'tls': traefik_dynamic_conf['http']['routers'][base_router_name]['tls'],
             'middlewares': filebrowser_mw
         }
