@@ -9,6 +9,18 @@
 
 set -eo pipefail  # Exit on any error or pipeline failure
 
+# Error handler: print the failing command and line number for easier debugging
+error_handler() {
+    local line_no=$1
+    local exit_code=$2
+    echo ""
+    echo "❌ Error on line $line_no (exit code $exit_code)."
+    echo "   Command: ${BASH_COMMAND}"
+    echo "   If this is a 'command not found' error, ensure the required tool is installed."
+    exit $exit_code
+}
+trap 'error_handler ${LINENO} $?' ERR
+
 # Suppress LibreSSL warnings on macOS (urllib3 v2 compatibility)
 export PYTHONWARNINGS="ignore:urllib3 v2 only supports"
 
