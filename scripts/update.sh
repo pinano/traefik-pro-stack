@@ -74,6 +74,22 @@ fi
 
 git checkout "$LATEST_TAG" --quiet
 echo "Success: Codebase updated to $LATEST_TAG."
+
+# Ensure all external networks exist before rebuild.
+# New releases may introduce new networks; docker compose up fails
+# if an external network is referenced but not present.
+echo "Ensuring Docker networks exist..."
+for net in traefik socket-proxy socket-proxy-dashboard anubis-backend crowdsec-backend; do
+    if ! docker network inspect "$net" >/dev/null 2>&1; then
+        if [ "$net" == "traefik" ]; then
+            docker network create "$net" >/dev/null
+        else
+            docker network create --internal "$net" >/dev/null
+        fi
+        echo "   ✅ Created $net network."
+    fi
+done
+
 echo ""
 read -p "Do you want to apply these changes now? [y/N] " -n 1 -r
 echo
