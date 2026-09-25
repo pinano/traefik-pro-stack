@@ -139,13 +139,18 @@ fi
 FD_LIMIT=$(ulimit -n 2>/dev/null || echo "1024")
 if [ -n "$FD_LIMIT" ] && [ "$FD_LIMIT" -lt 65536 ] 2>/dev/null; then
     echo "   ⚠️  Open file descriptor limit is $FD_LIMIT (recommended: ≥ 65536)."
-    echo "      Run these commands to raise the limit permanently:"
+    echo "      To apply the fix immediately:"
     echo ""
-    echo "      echo 'DefaultLimitNOFILE=65536' | sudo tee -a /etc/systemd/system.conf /etc/systemd/user.conf"
-    echo "      sudo systemctl daemon-reexec"
+    echo "      1. echo 'DefaultLimitNOFILE=65536' | sudo tee -a /etc/systemd/system.conf /etc/systemd/user.conf"
+    echo "      2. sudo systemctl daemon-reexec"
+    echo "      3. exit    # close your current SSH session"
+    echo "      4. Reconnect via SSH and verify with: ulimit -n"
     echo ""
-    echo "      Then log out and log back in for the change to take effect."
-    echo "      Verify with: ulimit -n"
+    echo "      If you still see 1024 after reconnecting, a PAM limit may be overriding it."
+    echo "      In that case, also run:"
+    echo "        echo '* soft nofile 65536' | sudo tee /etc/security/limits.d/99-nofile.conf"
+    echo "        echo '* hard nofile 65536' | sudo tee -a /etc/security/limits.d/99-nofile.conf"
+    echo "      Then exit and reconnect again."
     WARNINGS=$((WARNINGS + 1))
 else
     echo "   ✅ File descriptor limit looks good ($FD_LIMIT)."
