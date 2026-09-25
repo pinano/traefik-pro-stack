@@ -147,6 +147,8 @@ if [ "$CSFWB_INSTALLED" = false ]; then
     echo "      Without it, malicious traffic still reaches Traefik before being blocked."
     echo "      Add the CrowdSec APT repository, then install:"
     echo "        curl -s https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh | sudo bash"
+    echo "        # If the script fails on Debian 13 (Trixie), force the Bookworm codename:"
+    echo "        #   sudo sed -i 's/trixie/bookworm/g' /etc/apt/sources.list.d/crowdsec_crowdsec.list"
     echo "        sudo apt update && sudo apt install crowdsec-firewall-bouncer-nftables"
     WARNINGS=$((WARNINGS + 1))
 elif [ "$CSFWB_INSTALLED" = true ] && [ "$CSFWB_ACTIVE" = false ]; then
