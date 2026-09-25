@@ -229,36 +229,36 @@ elif cat /proc/1/environ 2>/dev/null | tr '\0' '\n' | grep -q '^container=lxc'; 
 fi
 
 FD_LIMIT=$(ulimit -n 2>/dev/null || echo "1024")
-if [ -n "$FD_LIMIT" ] && [ "$FD_LIMIT" -lt 65536 ] 2>/dev/null; then
-    echo "   ⚠️  Open file descriptor limit is $FD_LIMIT (recommended: ≥ 65536)."
+    if [ -n "$FD_LIMIT" ] && [ "$FD_LIMIT" -lt 65535 ] 2>/dev/null; then
+    echo "   ⚠️  Open file descriptor limit is $FD_LIMIT (recommended: ≥ 65535)."
     if [ "$IS_LXC" = true ]; then
         echo "      This is an LXC container. systemd limits do not apply here."
         echo "      The fix depends on whether the Proxmox host already allows a high limit."
         echo ""
         echo "      Step 1 — configure PAM inside the container:"
         echo '        echo "session required pam_limits.so" | sudo tee -a /etc/pam.d/sshd'
-        echo '        echo "* soft nofile 65536" | sudo tee /etc/security/limits.d/99-nofile.conf'
-        echo '        echo "* hard nofile 65536" | sudo tee -a /etc/security/limits.d/99-nofile.conf'
+        echo '        echo "* soft nofile 65535" | sudo tee /etc/security/limits.d/99-nofile.conf'
+        echo '        echo "* hard nofile 65535" | sudo tee -a /etc/security/limits.d/99-nofile.conf'
         echo ""
         echo "      Step 2 — close ALL SSH sessions (including multiplexed connections)"
         echo "      and reconnect. Verify with: ulimit -n"
         echo ""
         echo "      If it still shows 1024, the Proxmox host is capping the container."
         echo "      From the Proxmox node, edit /etc/pve/lxc/<id>.conf and add:"
-        echo "        lxc.prlimit.nofile: 65536"
+        echo "        lxc.prlimit.nofile: 65535"
         echo "      Then restart the container from Proxmox: pct reboot <id>"
     else
         echo "      To apply the fix immediately:"
         echo ""
-        echo "      1. echo 'DefaultLimitNOFILE=65536' | sudo tee -a /etc/systemd/system.conf /etc/systemd/user.conf"
+        echo "      1. echo 'DefaultLimitNOFILE=65535' | sudo tee -a /etc/systemd/system.conf /etc/systemd/user.conf"
         echo "      2. sudo systemctl daemon-reexec"
         echo "      3. exit    # close your current SSH session"
         echo "      4. Reconnect via SSH and verify with: ulimit -n"
         echo ""
         echo "      If you still see 1024 after reconnecting, a PAM limit may be overriding it."
         echo "      In that case, also run:"
-        echo "        echo '* soft nofile 65536' | sudo tee /etc/security/limits.d/99-nofile.conf"
-        echo "        echo '* hard nofile 65536' | sudo tee -a /etc/security/limits.d/99-nofile.conf"
+        echo "        echo '* soft nofile 65535' | sudo tee /etc/security/limits.d/99-nofile.conf"
+        echo "        echo '* hard nofile 65535' | sudo tee -a /etc/security/limits.d/99-nofile.conf"
         echo "      Then exit and reconnect again."
     fi
     WARNINGS=$((WARNINGS + 1))
