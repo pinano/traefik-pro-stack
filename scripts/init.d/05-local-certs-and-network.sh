@@ -147,30 +147,8 @@ if [ -n "$TRAEFIK_BAD_USER_AGENTS" ]; then
 fi
 
 
-if ! docker network inspect anubis-backend >/dev/null 2>&1; then
-    docker network create --internal anubis-backend >/dev/null
-    echo "   ✅ Created anubis-backend network (internal)."
-fi
-
-if ! docker network inspect crowdsec-backend >/dev/null 2>&1; then
-    docker network create --internal crowdsec-backend >/dev/null
-    echo "   ✅ Created crowdsec-backend network (internal)."
-fi
-
-if ! docker network inspect socket-proxy >/dev/null 2>&1; then
-    docker network create --internal socket-proxy >/dev/null
-    echo "   ✅ Created socket-proxy network (internal)."
-fi
-
-if ! docker network inspect socket-proxy-dashboard >/dev/null 2>&1; then
-    docker network create --internal socket-proxy-dashboard >/dev/null
-    echo "   ✅ Created socket-proxy-dashboard network (internal)."
-fi
-
-if ! docker network inspect traefik >/dev/null 2>&1; then
-    docker network create traefik >/dev/null
-    echo "   ✅ Created traefik network."
-fi
+# Ensure all external Docker networks exist
+./scripts/ensure-networks.sh
 
 # =============================================================================
 # PHASE 4: Build Compose File List

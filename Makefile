@@ -262,12 +262,16 @@ else
 	@./scripts/start.sh
 endif
 
+.PHONY: ensure-networks
+ensure-networks: ## Create external Docker networks if they do not exist
+	@./scripts/ensure-networks.sh
+
 ##@help rebuild
 ## Rebuilds custom images from their Dockerfiles.
 ## - By default, rebuilds the 'dashboard' and 'watchdog' images.
 ## - Can rebuild specific services: make rebuild traefik
 .PHONY: rebuild
-rebuild: ## Rebuild services from Dockerfile (default: dashboard watchdog)
+rebuild: ensure-networks ## Rebuild services from Dockerfile (default: dashboard watchdog)
 ifneq ($(strip $(SERVICE_ARGS)),)
 	@echo "Rebuilding service(s): $(SERVICE_ARGS)..."
 	@$(DOCKER_COMPOSE) up -d --build --force-recreate $(SERVICE_ARGS)
