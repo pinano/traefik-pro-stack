@@ -143,7 +143,9 @@ if [ -n "$FD_LIMIT" ] && [ "$FD_LIMIT" -lt 65536 ] 2>/dev/null; then
     echo ""
     echo "      echo 'DefaultLimitNOFILE=65536' | sudo tee -a /etc/systemd/system.conf /etc/systemd/user.conf"
     echo "      sudo systemctl daemon-reexec"
-    echo "      # Verify with: ulimit -n"
+    echo ""
+    echo "      Then log out and log back in for the change to take effect."
+    echo "      Verify with: ulimit -n"
     WARNINGS=$((WARNINGS + 1))
 else
     echo "   ✅ File descriptor limit looks good ($FD_LIMIT)."
