@@ -186,30 +186,38 @@ def get_traefik_acme_log_errors():
     errors = {}
     log_text = ""
 
-    # Attempt 1: Direct Unix Socket connection to Docker Daemon (discovers exact Traefik container ID)
+    # Attempt 1: Connect via DOCKER_HOST (TCP proxy) or fallback to Unix Socket
+    docker_host = os.environ.get('DOCKER_HOST', '')
     try:
-        if os.path.exists('/var/run/docker.sock'):
+        if docker_host.startswith('tcp://'):
+            host_port = docker_host[6:]
+            host, port_str = host_port.rsplit(':', 1)
+            conn = http.client.HTTPConnection(host, int(port_str))
+        elif os.path.exists('/var/run/docker.sock'):
             conn = UnixHTTPConnection('/var/run/docker.sock')
-            container_id = None
-            try:
-                conn.request('GET', '/containers/json')
-                res = conn.getresponse()
-                if res.status == 200:
-                    containers = json.loads(res.read().decode('utf-8'))
-                    for c in containers:
-                        names = [n.lstrip('/') for n in c.get('Names', [])]
-                        image = c.get('Image', '').lower()
-                        if 'traefik' in image or any('traefik' in n for n in names):
-                            container_id = c.get('Id') or names[0]
-                            break
-            except Exception:
-                pass
+        else:
+            raise RuntimeError("No Docker host available")
 
-            target = container_id or 'traefik'
-            conn.request('GET', f'/containers/{target}/logs?stdout=1&stderr=1&tail=2000')
+        container_id = None
+        try:
+            conn.request('GET', '/containers/json')
             res = conn.getresponse()
             if res.status == 200:
-                log_text = res.read().decode('utf-8', errors='ignore')
+                containers = json.loads(res.read().decode('utf-8'))
+                for c in containers:
+                    names = [n.lstrip('/') for n in c.get('Names', [])]
+                    image = c.get('Image', '').lower()
+                    if 'traefik' in image or any('traefik' in n for n in names):
+                        container_id = c.get('Id') or names[0]
+                        break
+        except Exception:
+            pass
+
+        target = container_id or 'traefik'
+        conn.request('GET', f'/containers/{target}/logs?stdout=1&stderr=1&tail=2000')
+        res = conn.getresponse()
+        if res.status == 200:
+            log_text = res.read().decode('utf-8', errors='ignore')
     except Exception:
         pass
 
@@ -299,6 +307,9 @@ def build_compose_env():
             env[key] = os.environ[key]
 
     env.update(read_dotenv())
+
+    # Force Docker to use the dedicated dashboard socket proxy instead of the host socket
+    env['DOCKER_HOST'] = 'tcp://docker-socket-proxy-dashboard:2375'
 
     if 'TRAEFIK_CERT_RESOLVER' not in env:
         acme_type = env.get('TRAEFIK_ACME_ENV_TYPE', 'staging').lower()

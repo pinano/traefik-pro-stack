@@ -162,6 +162,11 @@ if ! docker network inspect socket-proxy >/dev/null 2>&1; then
     echo "   ✅ Created socket-proxy network (internal)."
 fi
 
+if ! docker network inspect socket-proxy-dashboard >/dev/null 2>&1; then
+    docker network create --internal socket-proxy-dashboard >/dev/null
+    echo "   ✅ Created socket-proxy-dashboard network (internal)."
+fi
+
 if ! docker network inspect traefik >/dev/null 2>&1; then
     docker network create traefik >/dev/null
     echo "   ✅ Created traefik network."

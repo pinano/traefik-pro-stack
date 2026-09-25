@@ -8,6 +8,14 @@ services:
       - ./config/maintenance/default.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - traefik
+    security_opt:
+      - no-new-privileges=true
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider --quiet http://localhost/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     labels:
       - "traefik.enable=true"
       # Match all domains except the admin DOMAIN

@@ -1,6 +1,69 @@
 services:
 
   # ===========================
+  #  DOCKER SOCKET PROXY (Dashboard — Read/Write subset)
+  # ===========================
+  # Dedicated, least-privilege proxy for the Dashboard container.
+  # Unlike the global socket-proxy (read-only), this allows the
+  # operations needed for soft-restarts: container listing, exec,
+  # creation, and deletion (orphan removal).
+  # It does NOT allow image builds, volume management, or swarm ops.
+  # ===========================
+  docker-socket-proxy-dashboard:
+    image: tecnativa/docker-socket-proxy:v0.5.0
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=warning
+      - CONTAINERS=1
+      - EVENTS=1
+      - INFO=1
+      - LOGS=1
+      - NETWORKS=1
+      - PING=1
+      - SERVICES=1
+      - TASKS=1
+      - VERSION=1
+      # Required for docker compose up / docker exec / orphan removal
+      - POST=1
+      - DELETE=1
+      - EXEC=1
+      # Explicitly disallow dangerous ops
+      - BUILD=0
+      - IMAGES=0
+      - VOLUMES=0
+      - SWARM=0
+      - SECRETS=0
+      - CONFIGS=0
+      - NODES=0
+      - PLUGINS=0
+      - DISTRIBUTION=0
+      - COMMIT=0
+      - SESSION=0
+      - SYSTEM=0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - socket-proxy-dashboard
+    security_opt:
+      - no-new-privileges=true
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: [ "CMD-SHELL", "nc -z 127.0.0.1 2375 || exit 1" ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  # ===========================
   #  DASHBOARD (SSO + Admin UI)
   # ===========================
   dashboard:
@@ -8,6 +71,7 @@ services:
     restart: unless-stopped
     networks:
       - traefik
+      - socket-proxy-dashboard
     environment:
       - DASHBOARD_ADMIN_USER=${DASHBOARD_ADMIN_USER}
       - DASHBOARD_ADMIN_PASSWORD=${DASHBOARD_ADMIN_PASSWORD}
@@ -17,6 +81,7 @@ services:
       - DASHBOARD_APP_PATH_HOST=${DASHBOARD_APP_PATH_HOST}
       - TZ=${TZ}
       - DASHBOARD_INTERNAL=true
+      - DOCKER_HOST=tcp://docker-socket-proxy-dashboard:2375
       - TRAEFIK_ACME_ENV_TYPE=${TRAEFIK_ACME_ENV_TYPE}
       - DASHBOARD_SUBDOMAIN=${DASHBOARD_SUBDOMAIN}
       - DASHBOARD_ANUBIS_SUBDOMAIN=${DASHBOARD_ANUBIS_SUBDOMAIN:-}
@@ -48,7 +113,6 @@ services:
       - ./docker-compose-filebrowser.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-filebrowser.yaml:ro
       - ./docker-compose-maintenance.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-maintenance.yaml:ro
       - ./config:${DASHBOARD_APP_PATH_HOST}/config
-      - /var/run/docker.sock:/var/run/docker.sock
       - /etc/hosts:/etc/hosts-host:ro
     labels:
       - "traefik.enable=true"
@@ -68,7 +132,7 @@ services:
     security_opt:
       - no-new-privileges=true
     healthcheck:
-      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:5000/login"]
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:5000/healthz"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -102,6 +166,12 @@ services:
       - /etc/localtime:/etc/localtime:ro
     security_opt:
       - no-new-privileges=true
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider --quiet http://localhost:8080/healthcheck || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     deploy:
       resources:
         limits:
@@ -124,6 +194,7 @@ services:
   watchdog:
     build: ./config/watchdog
     restart: unless-stopped
+    init: true
     networks:
       - traefik
     # Run all check scripts in parallel with independent intervals
@@ -163,6 +234,12 @@ services:
       - TRAEFIK_ACME_ENV_TYPE=${TRAEFIK_ACME_ENV_TYPE}
     security_opt:
       - no-new-privileges=true
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep crond > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     deploy:
       resources:
         limits:
@@ -174,12 +251,13 @@ services:
         max-size: "10m"
         max-file: "3"
 
-
-
 networks:
   traefik:
     name: traefik
     external: true
   socket-proxy:
     name: socket-proxy
+    external: true
+  socket-proxy-dashboard:
+    name: socket-proxy-dashboard
     external: true

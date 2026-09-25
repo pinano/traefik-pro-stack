@@ -154,8 +154,8 @@ FALLBACK_EOF
         rm "$TMP_PROFILES"
         echo "   ✔ profiles.yaml unchanged — no CrowdSec reload needed."
     else
-        cat "$TMP_PROFILES" > "$PROFILES_OUT"
-        rm "$TMP_PROFILES"
+        # Atomic replacement: mv is atomic on the same filesystem
+        mv "$TMP_PROFILES" "$PROFILES_OUT"
         echo "   🔄 profiles.yaml updated."
 
         # Reload CrowdSec if it's running (SIGHUP reloads profiles without restart)
