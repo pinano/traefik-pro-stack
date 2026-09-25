@@ -708,3 +708,102 @@ groups:
         noDataState: OK
         execErrState: Error
         isPaused: false
+
+  # ============================================
+  # DDOS DETECTION
+  # ============================================
+  - orgId: 1
+    name: DDoS Detection
+    folder: Stack Alerts
+    interval: 1m
+    rules:
+
+      - uid: alert-ddos-high-request-rate
+        title: DDoSHighRequestRate
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 120
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: |
+                sum(rate(traefik_entrypoint_requests_total[2m])) or on() vector(0)
+              instant: true
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: "__expr__"
+            model:
+              conditions:
+                - evaluator:
+                    params: [500]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                  type: query
+              refId: C
+              type: classic_conditions
+        for: 2m
+        labels:
+          severity: critical
+          host: "${DOMAIN}"
+        annotations:
+          summary: "Possible DDoS attack — high request rate"
+          description: "Traefik is receiving more than 500 req/s sustained for 2 minutes."
+        noDataState: OK
+        execErrState: Alerting
+        isPaused: false
+
+      - uid: alert-ddos-high-blocked-traffic
+        title: DDoSHighBlockedTraffic
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: |
+                (sum(rate(traefik_service_requests_total{code=~"429|403"}[5m]))
+                /
+                sum(rate(traefik_service_requests_total[5m]))) or on() vector(0)
+              instant: true
+              refId: A
+          - refId: C
+            relativeTimeRange:
+              from: 0
+              to: 0
+            datasourceUid: "__expr__"
+            model:
+              conditions:
+                - evaluator:
+                    params: [0.30]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                  type: query
+              refId: C
+              type: classic_conditions
+        for: 5m
+        labels:
+          severity: warning
+          host: "${DOMAIN}"
+        annotations:
+          summary: "High ratio of blocked/rejected requests"
+          description: "More than 30% of traffic is being blocked (403/429) for 5 minutes. CrowdSec or rate limiting is heavily active."
+        noDataState: OK
+        execErrState: Alerting
+        isPaused: false
