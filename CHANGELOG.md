@@ -1,3 +1,11 @@
+## v2026.09.25 (2026-09-25)
+
+- sec: add host hardening pre-flight check script (a3395e2)
+- docs: rewrite docs in English and translate all Spanish UI strings (dbc0e19)
+- feat: harden resilience — circuit breaker, retry, CSV robustness, resource limits (b4eb693)
+- sec: harden network isolation, atomic ops, and input sanitization (0e965f9)
+- chore: increase memory limit for security container to 128M (2b0e286)
+
 ## v2026.09.03 (2026-09-03)
 
 - refactor: improve trusted IP parsing by explicitly defining quote characters for stripping (300119d)
