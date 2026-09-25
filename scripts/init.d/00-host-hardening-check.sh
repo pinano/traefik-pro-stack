@@ -92,6 +92,16 @@ if [ $SYSCTL_ISSUES -gt 0 ]; then
     echo "vm.overcommit_memory = 1"
     echo "EOF"
     echo "sudo sysctl --system"
+    if [ "$IS_LXC" = true ]; then
+        echo ""
+        echo "   ⚠️  In LXC unprivileged containers, some parameters (net.core.*, vm.overcommit_memory)"
+        echo "      cannot be modified from inside the container. If they fail with 'Operation not permitted',"
+        echo "      apply them on the Proxmox host (node) instead:"
+        echo "        echo 'net.core.rmem_max = 7500000' | sudo tee -a /etc/sysctl.conf"
+        echo "        echo 'net.core.wmem_max = 7500000' | sudo tee -a /etc/sysctl.conf"
+        echo "        echo 'vm.overcommit_memory = 1' | sudo tee -a /etc/sysctl.conf"
+        echo "        sudo sysctl -p"
+    fi
     WARNINGS=$((WARNINGS + 1))
 else
     echo "   ✅ Anti-DDoS sysctl parameters look good."
