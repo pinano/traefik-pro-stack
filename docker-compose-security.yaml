@@ -112,7 +112,6 @@ services:
       - ./config/valkey/valkey-generated.conf:/valkey.conf:ro
     networks:
       - anubis-backend
-      - traefik
     deploy:
       resources:
         limits:
@@ -142,8 +141,15 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
     networks:
       - traefik
+      - anubis-backend
     security_opt:
       - no-new-privileges=true
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider --quiet http://localhost:9121/metrics || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     deploy:
       resources:
         limits:

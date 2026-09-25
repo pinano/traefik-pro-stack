@@ -157,6 +157,23 @@ else
     exit 1
 fi
 
+# Generate Prometheus web.config.yaml for remote_write auth (idempotent write)
+if [ -n "$PROMETHEUS_REMOTE_WRITE_TOKEN" ]; then
+    WEB_CONFIG="./config/prometheus/web.config.yaml"
+    TMP_WEB=$(mktemp)
+    cat > "$TMP_WEB" << EOF
+authorization:
+  type: Bearer
+  credentials: ${PROMETHEUS_REMOTE_WRITE_TOKEN}
+EOF
+    if [ -f "$WEB_CONFIG" ] && cmp -s "$TMP_WEB" "$WEB_CONFIG"; then
+        rm "$TMP_WEB"
+    else
+        cat "$TMP_WEB" > "$WEB_CONFIG"
+        rm "$TMP_WEB"
+    fi
+fi
+
 # Generate valkey-generated.conf from template (idempotent write)
 if [ -f "./config/valkey/valkey.conf" ]; then
     TMP_VALKEY=$(mktemp)

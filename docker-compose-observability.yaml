@@ -108,6 +108,8 @@ services:
     image: grafana/alloy:v1.19.2
     restart: unless-stopped
     user: "root" # Alloy needs root to read logs from other containers in /var/lib/docker
+    security_opt:
+      - no-new-privileges=true
     environment:
       - TZ=${TZ}
       - DOMAIN=${DOMAIN}
@@ -129,6 +131,12 @@ services:
       resources:
         limits:
           memory: 1G
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:12345/-/healthy || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     logging:
       driver: "json-file"
       options:
@@ -149,10 +157,12 @@ services:
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
       - '--web.enable-remote-write-receiver'
+      - '--web.config.file=/etc/prometheus/web.config.yaml'
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./config/prometheus/rules.yml:/etc/prometheus/rules.yml:ro
+      - ./config/prometheus/web.config.yaml:/etc/prometheus/web.config.yaml:ro
       - ./data/prometheus:/prometheus
     networks:
       - traefik

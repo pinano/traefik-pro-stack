@@ -150,9 +150,9 @@ if (BAD_USER_AGENTS_STR.startswith('"') and BAD_USER_AGENTS_STR.endswith('"')) o
    (BAD_USER_AGENTS_STR.startswith("'") and BAD_USER_AGENTS_STR.endswith("'")):
     BAD_USER_AGENTS_STR = BAD_USER_AGENTS_STR[1:-1]
 
-BLOCKED_PATHS = [p.strip().strip('"').strip("'") for p in BLOCKED_PATHS_STR.split(',') if p.strip()]
+BLOCKED_PATHS = [p for p in (sanitize_regex_pattern(pt.strip().strip('"').strip("'"), "BLOCKED_PATHS") for pt in BLOCKED_PATHS_STR.split(',') if pt.strip()) if p]
 
-BAD_USER_AGENTS = [p.strip().strip('"').strip("'") for p in BAD_USER_AGENTS_STR.split(',') if p.strip()]
+BAD_USER_AGENTS = [p for p in (sanitize_regex_pattern(pt.strip().strip('"').strip("'"), "BAD_USER_AGENTS") for pt in BAD_USER_AGENTS_STR.split(',') if pt.strip()) if p]
 
 # TLS Chunking Limit (Let's Encrypt max is 100)
 TRAEFIK_TLS_BATCH_SIZE = int(get_env_safe('TRAEFIK_TLS_BATCH_SIZE', 30))
@@ -166,6 +166,10 @@ try:
     G_RATE_BURST = int(get_env_safe('TRAEFIK_GLOBAL_RATE_BURST', 120))
     G_CONCURRENCY = int(get_env_safe('TRAEFIK_GLOBAL_CONCURRENCY', 25))
     HSTS_SECONDS = int(get_env_safe('TRAEFIK_HSTS_MAX_AGE', 31536000))
+    # Request/response body size limits to prevent disk exhaustion from oversized payloads
+    MAX_REQ_BODY = int(get_env_safe('TRAEFIK_MAX_REQUEST_BODY_BYTES', 52428800))   # 50 MB
+    MAX_RES_BODY = int(get_env_safe('TRAEFIK_MAX_RESPONSE_BODY_BYTES', 52428800))  # 50 MB
+    MAX_CONNS_PER_HOST = int(get_env_safe('TRAEFIK_MAX_CONNS_PER_HOST', 500))
 except ValueError:
     # Fallback defaults if parsing fails
     CS_UPDATE_INTERVAL = 60
@@ -175,13 +179,33 @@ except ValueError:
     G_RATE_BURST = 120
     G_CONCURRENCY = 25
     HSTS_SECONDS = 31536000
+    MAX_REQ_BODY = 52428800
+    MAX_RES_BODY = 52428800
+    MAX_CONNS_PER_HOST = 500
 
 # Regex for validating Docker/Traefik service names
 VALID_SERVICE_NAME_REGEX = re.compile(r'^[a-z0-9-]+$')
 
-# -----------------------------------------------------------------------------
+def sanitize_regex_pattern(pattern, label="pattern"):
+    """
+    Sanitizes a user-supplied regex pattern for safe interpolation into Traefik rules.
+    - Strips backticks (they break Traefik's rule syntax).
+    - Validates the pattern is a compilable regex.
+    Returns the cleaned pattern or None if invalid.
+    """
+    if not pattern:
+        return None
+    cleaned = pattern.replace('`', '')
+    try:
+        re.compile(cleaned)
+        return cleaned
+    except re.error as e:
+        print(f"    ⚠️ Warning: Invalid regex {label} '{pattern}' ignored: {e}")
+        return None
+
+# ------------------------------------------------------------------------------
 # Validation
-# -----------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
 
 if CROWDSEC_ENABLE and not CROWDSEC_LAPI_KEY:
     print("    ❌ FATAL ERROR: CROWDSEC_LAPI_KEY environment variable not found.")
@@ -351,6 +375,10 @@ def process_router(entry, http_section, domain_to_cert_def):
     else:
         mw_list.append('global-concurrency')
 
+    # Circuit breaker + retry: shield backends and recover from transient glitches
+    mw_list.append('global-circuitbreaker')
+    mw_list.append('global-retry')
+
     if anubis_sub:
         safe_root = sanitize_name(root)
         safe_auth = sanitize_name(anubis_sub)
@@ -405,7 +433,7 @@ def process_router(entry, http_section, domain_to_cert_def):
     # Creates a higher priority router to intercept blocked paths
     if BLOCKED_PATHS:
         path_block_router_name = f"path-blocker-{safe_domain}"
-        paths_rule = " || ".join([f"PathRegexp(`.*{re.escape(p).replace('`', '')}.*`)" for p in BLOCKED_PATHS])
+        paths_rule = " || ".join([f"PathRegexp(`.*{re.escape(p)}.*`)" for p in BLOCKED_PATHS])
         http_section['routers'][path_block_router_name] = {
             'rule': f"Host(`{domain}`) && ({paths_rule})",
             'entryPoints': ["websecure"],
@@ -414,6 +442,21 @@ def process_router(entry, http_section, domain_to_cert_def):
             'tls': router_conf['tls'],
             'middlewares': ["block-unwanted-paths"]
         }
+        
+    # -------------------------------------------------------------------------
+    # 3. Static Assets Router (Per-Domain) - Priority 500
+    # -------------------------------------------------------------------------
+    # Assets (CSS, JS, images, fonts) get a much higher rate limit bucket
+    # so that legitimate page loads with many assets don't exhaust the burst.
+    assets_router_name = f"static-assets-{safe_domain}"
+    http_section['routers'][assets_router_name] = {
+        'rule': f"Host(`{domain}`) && PathRegexp(`\\.(css|js|png|jpg|jpeg|webp|gif|ico|woff|woff2|ttf|eot|svg)$`)",
+        'entryPoints': ["websecure"],
+        'service': target_service,
+        'priority': 500,
+        'tls': router_conf['tls'],
+        'middlewares': ["security-headers", "global-ratelimit-assets", "global-compress"]
+    }
         
     # -------------------------------------------------------------------------
     # 4. Main Router (Standard Processing) - Default Priority
@@ -433,79 +476,81 @@ def generate_configs():
     error_count = 0
     stats = {'standard': 0, 'anubis': 0, 'apache': 0}
 
-    # Silently process INPUT_FILE
+    # Robustly process INPUT_FILE using csv.reader directly on the file stream.
+    # We do NOT pre-filter lines (which breaks multi-line CSV fields);
+    # instead we skip comment/empty rows after parsing.
     try:
-        with open(INPUT_FILE, 'r') as f:
-            # Use DictReader to handle headers more robustly
-            # We first peek to skip comments and detect headers
-            lines = [line for line in f if line.strip() and not line.strip().startswith('#')]
-            if not lines:
-                print("    ℹ️ No valid entries found (domains.csv is empty or comments only).")
-            else:
-                # Use csv.reader but manually handle indices for flexibility
-                reader = csv.reader(lines, skipinitialspace=True)
-                for line_num, row in enumerate(reader, 1):
-                    # Clean the row
-                    row = [col.strip() for col in row]
-                    
-                    if not row: continue
+        with open(INPUT_FILE, 'r', newline='', encoding='utf-8') as f:
+            reader = csv.reader(f, skipinitialspace=True)
+            for line_num, row in enumerate(reader, 1):
+                if not row:
+                    continue
+                # Skip rows where the first column is a comment
+                if row[0].strip().startswith('#'):
+                    continue
 
-                    if len(row) < 3:
-                        print(f"    ⚠️ Line {line_num}: Ignored (Missing mandatory columns: domain, redirection/blank, service).")
-                        error_count += 1
-                        continue
+                row = [col.strip() for col in row]
 
-                    domain = row[0]
-                    redirection = row[1] if row[1] else ""
-                    service = row[2].lower() 
-                    anubis_sub = row[3].lower() if len(row) > 3 else ""
+                if len(row) < 3:
+                    print(f"    ⚠️ Line {line_num}: Ignored (Missing mandatory columns: domain, redirection/blank, service).")
+                    error_count += 1
+                    continue
 
-                    if not domain:
-                        print(f"    ⚠️ Line {line_num}: Ignored (Empty domain field).")
-                        error_count += 1
-                        continue
+                domain = row[0]
+                redirection = row[1] if row[1] else ""
+                service = row[2].lower() 
+                anubis_sub = row[3].lower() if len(row) > 3 else ""
 
-                    # Skip header row if it's not a real domain
-                    if domain.lower() == 'domain' and service.lower() == 'service':
-                        continue
+                if not domain:
+                    print(f"    ⚠️ Line {line_num}: Ignored (Empty domain field).")
+                    error_count += 1
+                    continue
 
-                    # --- Robustness Check: Docker Service Name Format ---
-                    if service != 'apache-host' and not VALID_SERVICE_NAME_REGEX.match(service):
-                        print(f"    ❌ Line {line_num}: Error - Service name '{service}' invalid. Use only a-z, 0-9 and hyphens.")
-                        error_count += 1
-                        continue
+                # Skip header row if it's not a real domain
+                if domain.lower() == 'domain' and service.lower() == 'service':
+                    continue
 
-                    extra = {}
-                    def get_int(idx):
-                        if len(row) > idx and row[idx]:
-                            try: return int(row[idx])
-                            except ValueError: return None
-                        return None
+                # --- Robustness Check: Docker Service Name Format ---
+                if service != 'apache-host' and not VALID_SERVICE_NAME_REGEX.match(service):
+                    print(f"    ❌ Line {line_num}: Error - Service name '{service}' invalid. Use only a-z, 0-9 and hyphens.")
+                    error_count += 1
+                    continue
 
-                    rate = get_int(4)
-                    if rate: extra['rate'] = rate
-                    burst = get_int(5)
-                    if burst: extra['burst'] = burst
-                    concurrency = get_int(6)
-                    if concurrency: extra['concurrency'] = concurrency
+                extra = {}
+                def get_int(idx):
+                    if len(row) > idx and row[idx]:
+                        try: return int(row[idx])
+                        except ValueError: return None
+                    return None
 
-                    raw_entries.append({
-                        'domain': domain,
-                        'redirection': redirection,
-                        'service': service,
-                        'anubis_sub': anubis_sub,
-                        'extra': extra,
-                        'root': get_root_domain(domain)
-                    })
+                rate = get_int(4)
+                if rate: extra['rate'] = rate
+                burst = get_int(5)
+                if burst: extra['burst'] = burst
+                concurrency = get_int(6)
+                if concurrency: extra['concurrency'] = concurrency
 
-                    # Stats tracking
-                    if service == 'apache-host': stats['apache'] += 1
-                    elif anubis_sub: stats['anubis'] += 1
-                    else: stats['standard'] += 1
+                raw_entries.append({
+                    'domain': domain,
+                    'redirection': redirection,
+                    'service': service,
+                    'anubis_sub': anubis_sub,
+                    'extra': extra,
+                    'root': get_root_domain(domain)
+                })
 
+                # Stats tracking
+                if service == 'apache-host': stats['apache'] += 1
+                elif anubis_sub: stats['anubis'] += 1
+                else: stats['standard'] += 1
+
+    except csv.Error as e:
+        print(f"    ❌ CSV parse error in {INPUT_FILE}: {e}")
+        print("    👉 Check for malformed quotes or unclosed fields in your CSV.")
+        sys.exit(1)
     except Exception as e:
         print(f"    ❌ Error reading CSV: {e}")
-        return
+        sys.exit(1)
 
     # -------------------------------------------------------------------------
     # Synthetic Dashboard Entry
@@ -585,6 +630,7 @@ def generate_configs():
             'serversTransports': {
                 'default': {
                     'maxIdleConnsPerHost': 200,
+                    'maxConnsPerHost': MAX_CONNS_PER_HOST,
                     'forwardingTimeouts': {
                         'responseHeaderTimeout': f"{T_ACTIVE}s",
                         'idleConnTimeout': f"{T_IDLE}s"
@@ -603,9 +649,9 @@ def generate_configs():
                 # 2. DDoS Protection: Buffering (Protects against Slowloris)
                 'global-buffering': {
                     'buffering': {
-                        'maxRequestBodyBytes': 0, # No limit for body (handled by other layers)
+                        'maxRequestBodyBytes': MAX_REQ_BODY,
                         'memRequestBodyBytes': 2097152, # 2MB in memory
-                        'maxResponseBodyBytes': 0,
+                        'maxResponseBodyBytes': MAX_RES_BODY,
                         'memResponseBodyBytes': 2097152 # 2MB in memory
                     }
                 },
@@ -629,9 +675,28 @@ def generate_configs():
                         'burst': G_RATE_BURST
                     }
                 },
+                # 4b. Static Assets Rate Limit (generous bucket for CSS/JS/images)
+                'global-ratelimit-assets': {
+                    'rateLimit': {
+                        'average': 200,
+                        'burst': 400
+                    }
+                },
                 # 5. Traefik Concurrency
                 'global-concurrency': {
                     'inFlightReq': {'amount': G_CONCURRENCY}
+                },
+                # 5b. Circuit Breaker (auto-isolates unhealthy backends)
+                'global-circuitbreaker': {
+                    'circuitBreaker': {
+                        'expression': 'LatencyAtQuantileMS(50.0) > 3000 || ResponseCodeRatio(500, 600, 0, 600) > 0.25'
+                    }
+                },
+                # 5c. Retry (transparent recovery from transient failures)
+                'global-retry': {
+                    'retry': {
+                        'attempts': 2
+                    }
                 },
                 # 7. Global Compression (Applied late)
                 'global-compress': {
@@ -788,11 +853,11 @@ def generate_configs():
         # 2. Generate the chunked 'tls.domains' configuration
         for root_domain, subdomains in domains_by_root.items():
             # Deduplicate preserving order (Python 3.7+ dicts preserve insertion order)
-            subs_unicos = list(dict.fromkeys(subdomains))
+            unique_subs = list(dict.fromkeys(subdomains))
             
             # Chunking loop in batches of TRAEFIK_TLS_BATCH_SIZE
-            for i in range(0, len(subs_unicos), TRAEFIK_TLS_BATCH_SIZE):
-                batch = subs_unicos[i:i + TRAEFIK_TLS_BATCH_SIZE]
+            for i in range(0, len(unique_subs), TRAEFIK_TLS_BATCH_SIZE):
+                batch = unique_subs[i:i + TRAEFIK_TLS_BATCH_SIZE]
                 
                 # The first one is Main, the rest are SANs
                 cert_def = {"main": batch[0]}

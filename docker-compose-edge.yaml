@@ -20,6 +20,7 @@ services:
     networks:
       - traefik
       - socket-proxy
+      - anubis-backend
     sysctls:
       - net.core.somaxconn=4096
       - net.ipv4.tcp_max_syn_backlog=4096
@@ -72,4 +73,7 @@ networks:
     external: true
   socket-proxy:
     name: socket-proxy
+    external: true
+  anubis-backend:
+    name: anubis-backend
     external: true

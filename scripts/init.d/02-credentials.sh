@@ -97,6 +97,14 @@ if [ -z "$CROWDSEC_LAPI_KEY" ] || [ "$CROWDSEC_LAPI_KEY" == "REPLACE_ME" ] || [ 
     export CROWDSEC_LAPI_KEY="$NEW_CS_LAPI_KEY"
 fi
 
+# Prometheus Remote Write Token (auto-generate on first run)
+if [ -z "$PROMETHEUS_REMOTE_WRITE_TOKEN" ] || [ "$PROMETHEUS_REMOTE_WRITE_TOKEN" == "REPLACE_ME" ]; then
+    echo "   🔄 Generating Prometheus remote-write token..."
+    NEW_PROM_TOKEN=$(openssl rand -hex 32)
+    update_env_var "PROMETHEUS_REMOTE_WRITE_TOKEN" "$NEW_PROM_TOKEN"
+    export PROMETHEUS_REMOTE_WRITE_TOKEN="$NEW_PROM_TOKEN"
+fi
+
 # Source .env once to load all newly generated variables
 set -a
 source .env
