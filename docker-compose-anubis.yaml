@@ -8,6 +8,7 @@ services:
     restart: unless-stopped
     networks:
       - traefik
+      - anubis-backend
     read_only: true # prevents writes to container layer
     tmpfs:
       - /tmp
@@ -88,4 +89,7 @@ services:
 networks:
   traefik:
     name: traefik
+    external: true
+  anubis-backend:
+    name: anubis-backend
     external: true
