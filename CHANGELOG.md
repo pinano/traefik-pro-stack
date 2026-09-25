@@ -586,7 +586,7 @@
 - feat: Introduce a unified dashboard and configure domain manager for single sign-on across services. (4bb3977)
 - style: update superseded certificate row and "NOT IN USE" badge styling, and remove redundant hidden status text. (a90fb0e)
 - feat: Display superseded certificate status in the UI and import `defaultdict`. (fc55d32)
-- Mejoras visualeS2 (027b744)
+- Visual Improvements S2 (027b744)
 - refactor: reorder ctop target definition in Makefile (e5155fd)
 - Remove gevent Gunicorn worker configuration and add debug logging to the domain manager. (2fda160)
 - feat: Add new `btn-info` and `btn-validate` styles and apply them to the Export CSV and Validate Records buttons. (5218bbf)

@@ -504,7 +504,7 @@ ifneq ($(CROWDSEC_ENABLE),false)
 else
 # Dummy targets to print error when CrowdSec is disabled
 crowdsec-%:
-	@echo "⚠️ Error: Las tareas de CrowdSec están deshabilitadas porque CROWDSEC_ENABLE=false en tu .env"
+	@echo "⚠️  Error: CrowdSec tasks are disabled because CROWDSEC_ENABLE=false in your .env"
 	@exit 1
 endif
 

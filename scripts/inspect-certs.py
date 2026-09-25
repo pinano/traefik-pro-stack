@@ -119,11 +119,11 @@ def load_expected_batch_sets():
     all_valid_domains = set()
 
     for root_domain, subdomains in domains_by_root.items():
-        subs_unicos = list(dict.fromkeys(subdomains))
-        all_valid_domains.update(subs_unicos)
+        unique_subs = list(dict.fromkeys(subdomains))
+        all_valid_domains.update(unique_subs)
         
-        for i in range(0, len(subs_unicos), batch_size):
-            batch = subs_unicos[i:i + batch_size]
+        for i in range(0, len(unique_subs), batch_size):
+            batch = unique_subs[i:i + batch_size]
             expected_batch_sets.add(frozenset(batch))
             
     # 2. Add System Domains as single-domain batches
