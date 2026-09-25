@@ -71,7 +71,7 @@ if [ $SYSCTL_ISSUES -gt 0 ]; then
     echo ""
     echo "   💡 Host kernel tuning is incomplete for high-traffic / anti-DDoS scenarios."
     echo "      Create /etc/sysctl.d/99-traefik-anti-ddos.conf with the recommended"
-    echo "      values and run 'sysctl --system'. See AGENTS.md for the full template."
+    echo "      values and run 'sysctl --system'. See README.md for the full template."
     WARNINGS=$((WARNINGS + 1))
 else
     echo "   ✅ Anti-DDoS sysctl parameters look good."
@@ -198,5 +198,5 @@ else
     echo ""
     echo "   🛡️  These are recommendations, not blockers. The stack will start normally."
     echo "      For maximum DDoS resilience, address the items above before going to"
-    echo "      high-traffic production. Details are in AGENTS.md -> Production Hardening."
+    echo "      high-traffic production. Details are in README.md -> Production Hardening."
 fi
