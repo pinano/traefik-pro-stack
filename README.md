@@ -369,13 +369,16 @@ sudo apt update
 sudo apt install crowdsec-firewall-bouncer-nftables
 ```
 
-After installation, configure the bouncer to connect to the CrowdSec LAPI running inside Docker. The LAPI is exposed on `127.0.0.1:8080` for this purpose:
+After installation, configure the bouncer to connect to the CrowdSec LAPI running inside Docker. The LAPI is exposed on `127.0.0.1:8090` for this purpose:
 
 ```bash
-# 1. Generate a bouncer API key inside the CrowdSec container
-API_KEY=$(docker exec crowdsec cscli bouncers add firewall-bouncer -o raw)
+# 1. Find your CrowdSec container name (it follows the pattern <PROJECT_NAME>-crowdsec-1)
+CROWDSEC_CONTAINER=$(docker ps --filter name=crowdsec --format '{{.Names}}' | head -n1)
 
-# 2. Update the bouncer configuration
+# 2. Generate a bouncer API key inside the CrowdSec container
+API_KEY=$(docker exec "$CROWDSEC_CONTAINER" cscli bouncers add firewall-bouncer -o raw)
+
+# 3. Update the bouncer configuration
 sudo tee /etc/crowdsec/bouncers/crowdsec-firewall-bouncer.yaml > /dev/null <<EOF
 mode: nftables
 pid_dir: /var/run/
@@ -388,7 +391,7 @@ api_url: http://127.0.0.1:8090
 api_key: ${API_KEY}
 EOF
 
-# 3. Enable and start the service
+# 4. Enable and start the service
 sudo systemctl enable crowdsec-firewall-bouncer
 sudo systemctl start crowdsec-firewall-bouncer
 ```
