@@ -288,3 +288,5 @@ else
     echo "      For maximum DDoS resilience, address the items above before going to"
     echo "      high-traffic production. Details are in README.md -> Production Hardening."
 fi
+
+return 0
