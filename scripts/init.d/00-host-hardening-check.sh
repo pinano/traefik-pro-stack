@@ -215,7 +215,9 @@ fi
 
 # Detect LXC container — systemd limits do not apply there
 IS_LXC=false
-if [ -f /proc/1/environ ] && tr '\0' '\n' < /proc/1/environ 2>/dev/null | grep -q '^container=lxc'; then
+if [ -d /dev/lxc ] || [ -n "${container:-}" ]; then
+    IS_LXC=true
+elif tr '\0' '\n' < /proc/1/environ 2>/dev/null | grep -q '^container=lxc'; then
     IS_LXC=true
 elif grep -q 'lxc' /proc/1/cgroup 2>/dev/null; then
     IS_LXC=true
