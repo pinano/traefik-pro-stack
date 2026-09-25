@@ -139,8 +139,11 @@ fi
 FD_LIMIT=$(ulimit -n 2>/dev/null || echo "1024")
 if [ -n "$FD_LIMIT" ] && [ "$FD_LIMIT" -lt 65536 ] 2>/dev/null; then
     echo "   ⚠️  Open file descriptor limit is $FD_LIMIT (recommended: ≥ 65536)."
-    echo "      Add 'DefaultLimitNOFILE=65536' to /etc/systemd/system.conf and"
-    echo "      /etc/systemd/user.conf, then run 'systemctl daemon-reexec'."
+    echo "      Run these commands to raise the limit permanently:"
+    echo ""
+    echo "      echo 'DefaultLimitNOFILE=65536' | sudo tee -a /etc/systemd/system.conf /etc/systemd/user.conf"
+    echo "      sudo systemctl daemon-reexec"
+    echo "      # Verify with: ulimit -n"
     WARNINGS=$((WARNINGS + 1))
 else
     echo "   ✅ File descriptor limit looks good ($FD_LIMIT)."
