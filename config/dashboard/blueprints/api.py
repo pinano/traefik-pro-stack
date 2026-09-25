@@ -24,7 +24,7 @@ def verify_secret_key_online(provider, secret_key):
     }
     url = endpoints.get(provider.lower())
     if not url:
-        return False, "Proveedor desconocido"
+        return False, "Unknown provider"
     try:
         res = requests.post(url, data={'secret': secret_key, 'response': 'dummy_response_token'}, timeout=4)
         if res.status_code != 200:
@@ -33,21 +33,21 @@ def verify_secret_key_online(provider, secret_key):
                     res_json = res.json()
                     error_codes = res_json.get('error-codes', [])
                     if 'invalid-input-secret' in error_codes:
-                        return False, "Clave secreta inválida (rechazada por Cloudflare)"
+                        return False, "Invalid secret key (rejected by Cloudflare)"
                 except Exception:
                     pass
-            return None, f"El API del proveedor respondió con estado HTTP {res.status_code}"
+            return None, f"Provider API responded with HTTP status {res.status_code}"
             
         res_json = res.json()
         error_codes = res_json.get('error-codes', [])
         if 'invalid-input-secret' in error_codes:
-            return False, f"Clave secreta inválida (rechazada por {provider})"
+            return False, f"Invalid secret key (rejected by {provider})"
             
         return True, None
     except requests.Timeout:
-        return None, "Tiempo de espera agotado al conectar con el proveedor"
+        return None, "Connection timed out while contacting the provider"
     except Exception as e:
-        return None, f"Error de conexión: {str(e)}"
+        return None, f"Connection error: {str(e)}"
 
 
 @api_bp.route('/dm-api/domains', methods=['GET', 'POST'])
@@ -184,7 +184,7 @@ def api_captchas():
             
             domain_pattern = re.compile(r'^[a-zA-Z0-9][-a-zA-Z0-9\.]*\.[a-zA-Z0-9][-a-zA-Z0-9]*[a-zA-Z0-9]$')
             if not domain or not domain_pattern.match(domain):
-                errors.append(f"[{domain or 'Vacío'}] El dominio es inválido o está vacío.")
+                errors.append(f"[{domain or 'Empty'}] The domain is invalid or empty.")
                 continue
 
             if not entry.get('enabled', True):
@@ -197,34 +197,34 @@ def api_captchas():
             has_structural_error = False
 
             if not validate_captcha_data(entry):
-                errors.append(f"[{domain}] Faltan la Site Key o la Secret Key.")
+                errors.append(f"[{domain}] Site Key or Secret Key is missing.")
                 has_structural_error = True
                 continue
 
             if domain not in active_root_domains:
-                errors.append(f"[{domain}] El dominio no está configurado como activo en domains.csv.")
+                errors.append(f"[{domain}] The domain is not configured as active in domains.csv.")
                 has_structural_error = True
 
             if provider == 'turnstile':
                 if not TURNSTILE_SITE_KEY_RE.match(site_key):
-                    errors.append(f"[{domain}] Formato de Site Key inválido para Turnstile (debe empezar por 0x4 y tener de 18 a 33 caracteres).")
+                    errors.append(f"[{domain}] Invalid Site Key format for Turnstile (must start with 0x4 and be 18-33 characters).")
                     has_structural_error = True
                 if not TURNSTILE_SECRET_KEY_RE.match(secret_key):
-                    errors.append(f"[{domain}] Formato de Secret Key inválido para Turnstile (debe empezar por 0x4 y tener de 33 a 53 caracteres).")
+                    errors.append(f"[{domain}] Invalid Secret Key format for Turnstile (must start with 0x4 and be 33-53 characters).")
                     has_structural_error = True
             elif provider == 'hcaptcha':
                 if not HCAPTCHA_SITE_KEY_RE.match(site_key):
-                    errors.append(f"[{domain}] La Site Key de hCaptcha debe tener un formato UUID válido.")
+                    errors.append(f"[{domain}] hCaptcha Site Key must be a valid UUID format.")
                     has_structural_error = True
                 if not HCAPTCHA_SECRET_KEY_RE.match(secret_key):
-                    errors.append(f"[{domain}] La Secret Key de hCaptcha debe ser un UUID o empezar con 0x y tener 40 caracteres hexadecimales.")
+                    errors.append(f"[{domain}] hCaptcha Secret Key must be a UUID or start with 0x and be 40 hexadecimal characters.")
                     has_structural_error = True
             elif provider == 'recaptcha':
                 if not RECAPTCHA_KEY_RE.match(site_key):
-                    errors.append(f"[{domain}] Formato de Site Key inválido para reCAPTCHA.")
+                    errors.append(f"[{domain}] Invalid Site Key format for reCAPTCHA.")
                     has_structural_error = True
                 if not RECAPTCHA_KEY_RE.match(secret_key):
-                    errors.append(f"[{domain}] Formato de Secret Key inválido para reCAPTCHA.")
+                    errors.append(f"[{domain}] Invalid Secret Key format for reCAPTCHA.")
                     has_structural_error = True
 
             if not has_structural_error:
@@ -241,16 +241,16 @@ def api_captchas():
                     try:
                         is_valid, err_msg = future.result()
                         if is_valid is False:
-                            errors.append(f"[{dom}] Error en la clave secreta de {prov}: {err_msg}")
+                            errors.append(f"[{dom}] Secret key error for {prov}: {err_msg}")
                         elif is_valid is None:
-                            warnings.append(f"[{dom}] No se pudo verificar la clave secreta de {prov} online: {err_msg}")
+                            warnings.append(f"[{dom}] Could not verify {prov} secret key online: {err_msg}")
                     except Exception as e:
-                        warnings.append(f"[{dom}] Error al verificar la clave secreta de {prov}: {str(e)}")
+                        warnings.append(f"[{dom}] Error verifying {prov} secret key: {str(e)}")
 
         if errors:
             return jsonify({
                 'status': 'error',
-                'message': 'Falló la validación de claves CAPTCHA.',
+                'message': 'CAPTCHA key validation failed.',
                 'errors': errors
             }), 400
 

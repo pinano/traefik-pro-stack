@@ -1,14 +1,50 @@
 import os
 import json
 import time
+import socket
+import http.client
 from collections import defaultdict
-from flask import Blueprint, render_template, current_app
+from flask import Blueprint, render_template, current_app, jsonify
 from blueprints.auth import login_required
-from config import DOMAIN, TRAEFIK_RATE_AVG, TRAEFIK_RATE_BURST, TRAEFIK_CONCURRENCY, ACME_FILE
+from config import DOMAIN, TRAEFIK_RATE_AVG, TRAEFIK_RATE_BURST, TRAEFIK_CONCURRENCY, ACME_FILE, BASE_DIR
 from utils.csv_manager import read_csv, get_root_domain
 from utils.certs_manager import parse_certificate_data
 
 views_bp = Blueprint('views', __name__)
+
+@views_bp.route('/healthz')
+def healthz():
+    """Liveness/readiness probe for container orchestration."""
+    checks = {}
+
+    # 1. Can we write to the working directory?
+    try:
+        test_file = os.path.join(BASE_DIR, '.healthz_write_test')
+        with open(test_file, 'w') as f:
+            f.write('ok')
+        os.remove(test_file)
+        checks['writable'] = 'ok'
+    except Exception as e:
+        checks['writable'] = f'fail: {e}'
+
+    # 2. Is the Docker socket proxy reachable?
+    docker_host = os.environ.get('DOCKER_HOST', '')
+    if docker_host.startswith('tcp://'):
+        try:
+            host_port = docker_host[6:]
+            host, port_str = host_port.rsplit(':', 1)
+            conn = http.client.HTTPConnection(host, int(port_str), timeout=2)
+            conn.request('GET', '/_ping')
+            res = conn.getresponse()
+            checks['docker_proxy'] = 'ok' if res.status == 200 else f'http_{res.status}'
+        except Exception as e:
+            checks['docker_proxy'] = f'fail: {e}'
+    else:
+        checks['docker_proxy'] = 'skipped (no proxy configured)'
+
+    all_ok = all(v == 'ok' for v in checks.values())
+    status_code = 200 if all_ok else 503
+    return jsonify({'status': 'healthy' if all_ok else 'degraded', 'checks': checks}), status_code
 
 @views_bp.route('/')
 @login_required
@@ -109,10 +145,10 @@ def certs_view():
     batch_size = int(os.environ.get('TRAEFIK_TLS_BATCH_SIZE', '30'))
     
     for root_domain, subdomains in domains_by_root.items():
-        subs_unicos = list(dict.fromkeys(subdomains))
-        all_valid_domains.update(subs_unicos)
-        for i in range(0, len(subs_unicos), batch_size):
-            batch = subs_unicos[i:i + batch_size]
+        unique_subs = list(dict.fromkeys(subdomains))
+        all_valid_domains.update(unique_subs)
+        for i in range(0, len(unique_subs), batch_size):
+            batch = unique_subs[i:i + batch_size]
             expected_batch_sets.add(frozenset(batch))
             
     domain_env = os.environ.get('DOMAIN', '').lower()
