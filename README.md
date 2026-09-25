@@ -384,7 +384,7 @@ daemonize: true
 log_mode: file
 log_dir: /var/log/
 log_level: info
-api_url: http://127.0.0.1:8080
+api_url: http://127.0.0.1:8090
 api_key: ${API_KEY}
 EOF
 
@@ -527,7 +527,7 @@ Never edit these manually in `.env`:
 | `traefik` | `80`, `443` | `80`, `443` (TCP/UDP) | `traefik` / Host | Public HTTP/HTTPS/HTTP-3 boundary |
 | `traefik-api` | `8080` | None | `traefik` | Internal API & dashboard |
 | `dashboard` | `5000` | None | `traefik` | Flask admin + SSO auth-check |
-| `crowdsec-lapi` | `8080` | `127.0.0.1:8080` | `traefik` | CrowdSec Local API (host-accessible for firewall bouncer) |
+| `crowdsec-lapi` | `8080` | `127.0.0.1:8090` | `traefik` | CrowdSec Local API (host-accessible for firewall bouncer) |
 | `crowdsec-appsec` | `7422` | None | `traefik` | Inline WAF listener |
 | `crowdsec-db` | `5432` | None | `crowdsec-backend` (internal) | PostgreSQL backend |
 | `docker-socket-proxy` | `2375` | None | `socket-proxy` | Read-only Docker API gateway |
