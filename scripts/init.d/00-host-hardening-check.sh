@@ -340,8 +340,13 @@ if command -v sysctl >/dev/null 2>&1 || [ -x /usr/sbin/sysctl ] || [ -x /sbin/sy
     OVERCOMMIT=$(/usr/sbin/sysctl -n vm.overcommit_memory 2>/dev/null || /sbin/sysctl -n vm.overcommit_memory 2>/dev/null || /bin/sysctl -n vm.overcommit_memory 2>/dev/null || sysctl -n vm.overcommit_memory 2>/dev/null)
     if [ -n "$OVERCOMMIT" ] && [ "$OVERCOMMIT" -ne 1 ] 2>/dev/null; then
         echo "   ⚠️  vm.overcommit_memory = $OVERCOMMIT (recommended: 1)."
-        echo "      Run: sudo sysctl -w vm.overcommit_memory=1"
-        echo "      (Already included in the sysctl block above if you applied it.)"
+        if [ $SYSCTL_ISSUES -gt 0 ]; then
+            echo "      Run: sudo sysctl -w vm.overcommit_memory=1"
+            echo "      (Already included in the sysctl block above if you applied it.)"
+        else
+            echo "      Add it manually or run:"
+            echo "        sudo sysctl -w vm.overcommit_memory=1"
+        fi
         WARNINGS=$((WARNINGS + 1))
     else
         echo "   ✅ vm.overcommit_memory is correctly set to 1."
@@ -349,7 +354,9 @@ if command -v sysctl >/dev/null 2>&1 || [ -x /usr/sbin/sysctl ] || [ -x /sbin/sy
 else
     echo "   ⚠️  Cannot check vm.overcommit_memory (sysctl not found in PATH)."
     echo "      It may be installed but not in your PATH. Run: sudo /usr/sbin/sysctl -w vm.overcommit_memory=1"
-    echo "      (Already included in the sysctl block above if you applied it.)"
+    if [ $SYSCTL_ISSUES -gt 0 ]; then
+        echo "      (Already included in the sysctl block above if you applied it.)"
+    fi
     WARNINGS=$((WARNINGS + 1))
 fi
 
