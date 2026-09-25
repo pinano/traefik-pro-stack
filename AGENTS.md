@@ -373,8 +373,14 @@ Checks performed:
 The Traefik plugin blocks traffic at Layer 7 (HTTP), which means malicious packets still reach the proxy and consume CPU. For maximum anti-DDoS efficiency, install the **CrowdSec Firewall Bouncer** (`cs-firewall-bouncer`) directly on the Debian host:
 
 ```bash
-# Install
-apt install crowdsec-firewall-bouncer-nftables
+# CrowdSec packages are not in default Debian repos; add their APT repository first.
+# For Debian 13 (Trixie), use the Bookworm repository as fallback.
+curl -s https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh | sudo bash
+# If the script fails on Trixie, force the Bookworm codename:
+# sudo sed -i 's/trixie/bookworm/g' /etc/apt/sources.list.d/crowdsec.list
+
+sudo apt update
+sudo apt install crowdsec-firewall-bouncer-nftables
 
 # Configure to use the same LAPI
 CSCLI_API_URL=http://127.0.0.1:8080  # or CrowdSec container IP if LAPI is exposed

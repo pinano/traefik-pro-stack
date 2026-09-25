@@ -98,7 +98,9 @@ fi
 if [ "$CSFWB_INSTALLED" = false ]; then
     echo "   ⚠️  CrowdSec Firewall Bouncer is NOT installed on the host."
     echo "      Without it, malicious traffic still reaches Traefik before being blocked."
-    echo "      Install with: apt install crowdsec-firewall-bouncer-nftables"
+    echo "      Add the CrowdSec APT repository, then install:"
+    echo "        curl -s https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh | sudo bash"
+    echo "        sudo apt update && sudo apt install crowdsec-firewall-bouncer-nftables"
     WARNINGS=$((WARNINGS + 1))
 elif [ "$CSFWB_INSTALLED" = true ] && [ "$CSFWB_ACTIVE" = false ]; then
     echo "   ⚠️  CrowdSec Firewall Bouncer is installed but NOT running."
