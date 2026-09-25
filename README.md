@@ -354,13 +354,20 @@ sudo swapoff -a
 
 ### CrowdSec Firewall Bouncer (Host-Level)
 
-The Traefik plugin blocks at Layer 7 (HTTP) — malicious packets still reach the proxy. For maximum DDoS efficiency, install the host-level bouncer:
+The Traefik plugin blocks at Layer 7 (HTTP) — malicious packets still reach the proxy. For maximum DDoS efficiency, install the host-level bouncer. It drops packets at **netfilter** *before* they touch Docker.
+
+CrowdSec packages are not in the default Debian repositories. Add their APT repository first (use `bookworm` for Debian 13 Trixie):
 
 ```bash
-apt install crowdsec-firewall-bouncer-nftables
-```
+# Add CrowdSec repository
+curl -s https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh | sudo bash
 
-This drops packets at **netfilter** *before* they touch Docker. The container plugin remains as a fallback.
+# If the script fails on Debian 13 (Trixie), force the Bookworm codename:
+# sudo sed -i 's/trixie/bookworm/g' /etc/apt/sources.list.d/crowdsec.list
+
+sudo apt update
+sudo apt install crowdsec-firewall-bouncer-nftables
+```
 
 ### Automated Hardening Check
 
