@@ -104,21 +104,14 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
     fi
 
     # Re-register the Traefik Bouncer key on each start to ensure consistency.
-    # Atomic approach: attempt add first; only delete on conflict to minimize
-    # the window where Traefik has no valid bouncer key.
+    docker exec "$CROWDSEC_ID" cscli bouncers delete traefik-bouncer > /dev/null 2>&1 || true
+
     ADD_EXIT=0
     ADD_OUTPUT=$(echo "${CROWDSEC_LAPI_KEY}" | docker exec -i "$CROWDSEC_ID" sh -c 'read -r KEY && cscli bouncers add traefik-bouncer --key "$KEY"' 2>&1) || ADD_EXIT=$?
 
     if [ $ADD_EXIT -ne 0 ]; then
-        # If it already exists, delete and re-add to ensure key consistency
-        if echo "$ADD_OUTPUT" | grep -qiE "already exists|duplicate"; then
-            docker exec "$CROWDSEC_ID" cscli bouncers delete traefik-bouncer > /dev/null 2>&1 || true
-            ADD_OUTPUT=$(echo "${CROWDSEC_LAPI_KEY}" | docker exec -i "$CROWDSEC_ID" sh -c 'read -r KEY && cscli bouncers add traefik-bouncer --key "$KEY"' 2>&1) || ADD_EXIT=$?
-        fi
-        if [ $ADD_EXIT -ne 0 ]; then
-            echo "❌ Error registering bouncer key: $ADD_OUTPUT"
-            exit 1
-        fi
+        echo "❌ Error registering bouncer key: $ADD_OUTPUT"
+        exit 1
     fi
 
     # =============================================================================
