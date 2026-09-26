@@ -1,3 +1,11 @@
+## v2026.09.26 (2026-09-26)
+
+- feat: add comprehensive Grafana dashboards and observability pipeline (fdbf84b)
+- fix: remove unused prometheus web.config.yaml and correct dozzle healthcheck (e768ec7)
+- chore: release v2026.09.25.1 (1b98cd5)
+- fix: resolve static asset routing conflicts for dashboard sub-services and fix traefik url (eb4e0d6)
+- Fix multiple healthcheck issues (e98c770)
+
 ## v2026.09.25.1 (2026-09-25)
 
 - fix: resolve static asset routing conflicts for dashboard sub-services and fix traefik url (eb4e0d6)
