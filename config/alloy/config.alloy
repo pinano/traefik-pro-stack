@@ -42,9 +42,9 @@ discovery.relabel "docker_logs" {
 
     // Fallback: extract project/service from container name.
     // Matches patterns like:
-    //   ule-evadoc-mariadb   → project: ule-evadoc, service: mariadb
-    //   myproject-app        → project: myproject, service: app
-    //   ule-evadoc           → project: ule-evadoc (no service match, falls through)
+    //   ule-evadoc-mariadb   -> project: ule-evadoc, service: mariadb
+    //   myproject-app        -> project: myproject, service: app
+    //   ule-evadoc           -> project: ule-evadoc (no service match, falls through)
     rule {
         source_labels = ["container"]
         regex         = "^([^-]+)-(.+)$"
@@ -85,7 +85,7 @@ loki.source.docker "default" {
 
 // 5. Log Processing (Pipelines)
 loki.process "pipelines" {
-    
+
     // 5.1 Drop noise: Remove self-monitoring logs and tools
     stage.drop {
         expression = ".*(alloy|loki|grafana|dozzle|watchdog).*"
@@ -97,7 +97,7 @@ loki.process "pipelines" {
     // ============================================
     stage.match {
         selector = "{container=~\".*traefik.*\"}"
-        
+
         stage.json {
             expressions = {
                 client_ip  = "ClientHost",
@@ -109,7 +109,7 @@ loki.process "pipelines" {
                 user_agent = "RequestHeader_User_Agent",
             }
         }
-        
+
         stage.labels {
             values = {
                 status   = "status",
@@ -122,110 +122,10 @@ loki.process "pipelines" {
     }
 
     // ============================================
-    // APACHE / PHP PIPELINE
-    // Handles both JSON access logs (Zend/WordPress) and combined format (Symfony)
-    // ============================================
-    stage.match {
-        selector = "{container=~ \".*php.*|.*apache.*\"}"
-
-        // --- JSON ACCESS LOG BRANCH ---
-        // Zend and WordPress use json_combined format
-        stage.match {
-            selector = "{} |~ \"^\\{\\s*\\\"time\\\"\""
-
-            stage.json {
-                expressions = {
-                    apache_time = "time",
-                    remote_ip   = "remote_ip",
-                    host        = "host",
-                    method      = "method",
-                    uri         = "uri",
-                    status      = "status",
-                    duration    = "duration_us",
-                    referer     = "referer",
-                    user_agent  = "user_agent",
-                }
-            }
-
-            stage.labels {
-                values = {
-                    status   = "status",
-                    method   = "method",
-                    host     = "host",
-                    log_type = "access",
-                }
-            }
-
-            // Timestamp: "2025-12-04T15:01:17+0100"
-            stage.timestamp {
-                source = "apache_time"
-                format = "2006-01-02T15:04:05-0700"
-            }
-        }
-
-        // --- COMBINED FORMAT ACCESS LOG BRANCH ---
-        // Symfony/ule-evadoc uses standard Apache combined format
-        stage.match {
-            selector = "{} !~ \"^\\{\\s*\\\"time\\\"\""
-
-            // Try to parse as Apache combined format
-            stage.regex {
-                expression = "^(?P<client_ip>[\\d.]+) (?P<identd>\\S+) (?P<user>\\S+) \\[(?P<timestamp>[^\\]]+)\\] \"(?P<method>\\w+) (?P<path>[^ ]*) [^\"]*\" (?P<status>\\d+) (?P<bytes>\\d+|-) \"(?P<referer>[^\"]*)\" \"(?P<user_agent>[^\"]*)\""
-            }
-
-            stage.labels {
-                values = {
-                    method    = "",
-                    status    = "",
-                    log_type  = "access",
-                }
-            }
-
-            // Parse Apache timestamp: 14/Dec/2024:16:30:00 +0100
-            stage.timestamp {
-                source = "timestamp"
-                format = "02/Jan/2006:15:04:05 -0700"
-            }
-        }
-    }
-
-    // ============================================
-    // SYMFONY / MONolog JSON PIPELINE
-    // Symfony apps (ule-evadoc) emit Monolog JSON to stderr when in prod mode
-    // ============================================
-    stage.match {
-        selector = "{container=~ \".*evadoc.*|.*symfony.*\"}"
-
-        stage.json {
-            expressions = {
-                monolog_time    = "datetime",
-                monolog_level   = "level_name",
-                monolog_channel = "channel",
-                monolog_msg     = "message",
-                monolog_context = "context",
-            }
-        }
-
-        stage.labels {
-            values = {
-                level    = "monolog_level",
-                channel  = "monolog_channel",
-                log_type = "app",
-            }
-        }
-
-        // Monolog uses ISO8601: "2024-12-14T10:00:00.123456+01:00"
-        stage.timestamp {
-            source = "monolog_time"
-            format = "RFC3339Nano"
-        }
-    }
-
-    // ============================================
     // ANUBIS PIPELINE
     // ============================================
     stage.match {
-        selector = "{container=~ \".*anubis.*\"}"
+        selector = "{container=~\".*anubis.*\"}"
 
         stage.json {
             expressions = {
@@ -259,25 +159,95 @@ loki.process "pipelines" {
     }
 
     // ============================================
-    // GENERIC APPLICATION PIPELINE (Zend, WordPress, etc.)
-    // Catches all containers that are not Traefik, Anubis, or internal tools.
-    // Attempts to extract log level from common plain-text patterns.
+    // SYMFONY / MONolog JSON PIPELINE
+    // Symfony apps (ule-evadoc) emit Monolog JSON to stderr when in prod mode
     // ============================================
     stage.match {
-        selector = "{container!~ \".*traefik.*|.*anubis.*|.*alloy.*|.*loki.*|.*grafana.*|.*dozzle.*|.*watchdog.*|.*crowdsec.*|.*redis.*|.*postgres.*|.*prometheus.*|.*node-exporter.*|.*php.*|.*apache.*|.*evadoc.*|.*symfony.*\"}"
+        selector = "{container=~\".*evadoc.*|.*symfony.*\"}"
 
-        // Fallback: extract level from common PHP / Monolog / Symfony plain-text patterns
+        stage.json {
+            expressions = {
+                monolog_time    = "datetime",
+                monolog_level   = "level_name",
+                monolog_channel = "channel",
+                monolog_msg     = "message",
+                monolog_context = "context",
+            }
+        }
+
+        stage.labels {
+            values = {
+                level    = "monolog_level",
+                channel  = "monolog_channel",
+                log_type = "app",
+            }
+        }
+
+        // Monolog uses ISO8601: "2024-12-14T10:00:00.123456+01:00"
+        stage.timestamp {
+            source = "monolog_time"
+            format = "RFC3339Nano"
+        }
+    }
+
+    // ============================================
+    // APPLICATION CONTAINERS PIPELINE
+    // Catches all application containers (Zend, WordPress, Symfony access logs,
+    // cron jobs, etc.) that are not infrastructure.
+    //
+    // Note: stage.match selectors only support label matchers, not LogQL line
+    // filters like |~ or !~. We run stages sequentially: if a stage does not
+    // match (e.g. stage.json on non-JSON text), it is a no-op and the log
+    // continues to the next stage.
+    // ============================================
+    stage.match {
+        selector = "{container!~\".*traefik.*|.*anubis.*|.*alloy.*|.*loki.*|.*grafana.*|.*dozzle.*|.*watchdog.*|.*crowdsec.*|.*redis.*|.*postgres.*|.*prometheus.*|.*node-exporter.*\"}"
+
+        // --- JSON ACCESS LOGS (Zend, WordPress) ---
+        // These images emit structured JSON to stdout.
+        // If the line is not JSON, stage.json is a no-op.
+        stage.json {
+            expressions = {
+                apache_time = "time",
+                remote_ip   = "remote_ip",
+                host        = "host",
+                method      = "method",
+                uri         = "uri",
+                status      = "status",
+                duration    = "duration_us",
+                referer     = "referer",
+                user_agent  = "user_agent",
+            }
+        }
+
+        stage.labels {
+            values = {
+                status   = "status",
+                method   = "method",
+                host     = "host",
+                log_type = "access",
+            }
+        }
+
+        // Timestamp only applies when apache_time exists (JSON logs).
+        // If absent, ingestion time is used silently.
+        stage.timestamp {
+            source = "apache_time"
+            format = "2006-01-02T15:04:05-0700"
+        }
+
+        // --- PLAIN TEXT LOGS (PHP errors, Monolog text, etc.) ---
         // Pattern 1: Monolog: [2024-12-14 10:00:00] app.ERROR: message
         stage.regex {
             expression = "(?i)^\\[[^\\]]+\\]\\s+[\\w\\.]+\\.(?P<level>ERROR|WARNING|WARN|INFO|DEBUG|NOTICE|CRITICAL|ALERT|EMERGENCY):"
         }
 
-        // Pattern 2: PHP native errors: PHP Fatal error: ... / PHP Warning: ...
+        // Pattern 2: PHP native errors
         stage.regex {
             expression = "(?i)^PHP\\s+(?P<level>Fatal error|Warning|Notice|Parse error|Deprecated|Strict Standards)"
         }
 
-        // Pattern 3: Generic prefix: ERROR: message / [ERROR] message
+        // Pattern 3: Generic prefix: ERROR: / [ERROR]
         stage.regex {
             expression = "(?i)^(?:\\[)?(?P<level>ERROR|WARN|WARNING|INFO|DEBUG|NOTICE|CRITICAL|ALERT|EMERGENCY)(?:\\])?(?::|\\s+)"
         }
@@ -315,7 +285,7 @@ loki.source.file "apache_host" {
 
 // 8. Process Apache host logs
 loki.process "apache_host" {
-    
+
     // Add static labels for identification
     stage.static_labels {
         values = {
@@ -344,18 +314,18 @@ loki.process "apache_host" {
     // ============================================
     stage.match {
         selector = "{log_type=\"access\"}"
-        
+
         stage.regex {
             expression = "^(?P<client_ip>[\\d.]+) (?P<identd>\\S+) (?P<user>\\S+) \\[(?P<timestamp>[^\\]]+)\\] \"(?P<method>\\w+) (?P<path>[^ ]*) [^\"]*\" (?P<status>\\d+) (?P<bytes>\\d+|-) \"(?P<referer>[^\"]*)\" \"(?P<user_agent>[^\"]*)\""
         }
-        
+
         stage.labels {
             values = {
                 method    = "",
                 status    = "",
             }
         }
-        
+
         // Parse Apache timestamp format: 14/Dec/2024:16:30:00 +0100
         stage.timestamp {
             source = "timestamp"
@@ -372,18 +342,18 @@ loki.process "apache_host" {
     // ============================================
     stage.match {
         selector = "{log_type=\"error\"}"
-        
+
         stage.regex {
             expression = "^\\[(?P<timestamp>[^\\]]+)\\] \\[(?P<module>[^:]*):(?P<level>[^\\]]+)\\]( \\[pid (?P<pid>\\d+)\\])?( \\[client (?P<client_ip>[^:]+):\\d+\\])? (?P<message>.*)"
         }
-        
+
         stage.labels {
             values = {
                 level     = "",
                 module    = "",
             }
         }
-        
+
         // Timestamp parsing intentionally omitted - see note above
     }
 
@@ -420,7 +390,7 @@ prometheus.scrape "metrics" {
         {"__address__" = "postgres-exporter:9187", "job" = "postgres"},
         {"__address__" = "localhost:12345", "job" = "alloy"},
     ]
-    
+
     forward_to = [prometheus.remote_write.local.receiver]
 }
 
