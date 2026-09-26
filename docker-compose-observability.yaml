@@ -31,6 +31,8 @@ services:
       - GF_ALERTING_ENABLED=false
       - TZ=${TZ}
       - DOMAIN=${DOMAIN}
+      # Set Application Logs as default home dashboard
+      - GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH=/var/lib/grafana/dashboards/application-logs.json
       # Telegram credentials — shared with Watchdog, used by Grafana Alerting provisioning
       - GRAFANA_TELEGRAM_BOT_TOKEN=${WATCHDOG_TELEGRAM_BOT_TOKEN}
       - GRAFANA_TELEGRAM_CHAT_ID=${WATCHDOG_TELEGRAM_RECIPIENT_ID}

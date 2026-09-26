@@ -11,8 +11,7 @@ discovery.docker "containers" {
     host = "tcp://docker-socket-proxy:2375"
 }
 
-// 3. Relabeling to clean container names
-//    Equivalent to your previous regex '/(.*)'
+// 3. Relabeling to clean container names and extract metadata
 discovery.relabel "docker_logs" {
     targets = discovery.docker.containers.targets
 
@@ -28,23 +27,7 @@ discovery.relabel "docker_logs" {
         target_label  = "job"
     }
 
-    // Extract Docker Compose project name (e.g., 'symfony-app', 'wordpress-app')
-    rule {
-        source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
-        target_label  = "project"
-    }
-
-    // Extract Docker Compose service name (e.g., 'web', 'php', 'db')
-    rule {
-        source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
-        target_label  = "service"
-    }
-
-    // Fallback: extract project/service from container name.
-    // Matches patterns like:
-    //   ule-evadoc-mariadb   -> project: ule-evadoc, service: mariadb
-    //   myproject-app        -> project: myproject, service: app
-    //   ule-evadoc           -> project: ule-evadoc (no service match, falls through)
+    // 1. Initial fallback: derive project & service from container name pattern (e.g. "myproject-app" -> project: myproject, service: app)
     rule {
         source_labels = ["container"]
         regex         = "^([^-]+)-(.+)$"
@@ -59,7 +42,7 @@ discovery.relabel "docker_logs" {
         replacement   = "${2}"
     }
 
-    // Fallback for containers without a dash in their name (e.g. "ule-evadoc")
+    // Fallback if container name had no dash: project = container, service = "app"
     rule {
         source_labels = ["project"]
         regex         = "^$"
@@ -67,12 +50,24 @@ discovery.relabel "docker_logs" {
         replacement   = "${container}"
     }
 
-    // Fallback for containers without a service extracted
     rule {
         source_labels = ["service"]
         regex         = "^$"
         target_label  = "service"
         replacement   = "app"
+    }
+
+    // 2. Authoritative: Override with official Docker Compose labels whenever present
+    rule {
+        source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+        regex         = "(.+)"
+        target_label  = "project"
+    }
+
+    rule {
+        source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+        regex         = "(.+)"
+        target_label  = "service"
     }
 }
 
@@ -92,6 +87,16 @@ loki.process "pipelines" {
         source     = "container"
     }
 
+    // 5.2 Decolorize: strip ANSI escape codes from logs
+    stage.decolorize {}
+
+    // 5.3 Multi-line stage: Assemble PHP stack traces, Python tracebacks, and multiline logs
+    stage.multiline {
+        firstline     = "^(?:\\[\\w{3}\\s|\\[\\d{4}|\\d{4}[-/]\\d{2}[-/]\\d{2}|\\{|(?i:DEBUG|INFO|NOTICE|WARN|WARNING|ERROR|CRITICAL|ALERT|EMERGENCY|FATAL)|PHP\\s|Traceback\\s+\\(most recent call last\\)|\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})"
+        max_wait_time = "3s"
+        max_lines     = 500
+    }
+
     // ============================================
     // TRAEFIK PIPELINE
     // ============================================
@@ -100,13 +105,14 @@ loki.process "pipelines" {
 
         stage.json {
             expressions = {
-                client_ip  = "ClientHost",
-                status     = "DownstreamStatus",
-                method     = "RequestMethod",
-                host       = "RequestHost",
-                router     = "RouterName",
-                duration   = "Duration",
-                user_agent = "RequestHeader_User_Agent",
+                client_ip   = "ClientHost",
+                status      = "DownstreamStatus",
+                method      = "RequestMethod",
+                host        = "RequestHost",
+                router      = "RouterName",
+                duration    = "Duration",
+                user_agent  = "RequestHeader_User_Agent",
+                request_uri = "RequestPath",
             }
         }
 
@@ -117,6 +123,15 @@ loki.process "pipelines" {
                 host     = "host",
                 router   = "router",
                 log_type = "access",
+            }
+        }
+
+        stage.structured_metadata {
+            values = {
+                client_ip  = "client_ip",
+                duration   = "duration",
+                user_agent = "user_agent",
+                uri        = "request_uri",
             }
         }
     }
@@ -135,7 +150,6 @@ loki.process "pipelines" {
                 host         = "host",
                 method       = "method",
                 path         = "path",
-                // JMESPath escape for keys with hyphens
                 real_ip      = "\"x-real-ip\"",
                 challenge_id = "challenge",
             }
@@ -146,8 +160,15 @@ loki.process "pipelines" {
                 level    = "level",
                 host     = "host",
                 method   = "method",
-                msg      = "msg",
-                log_type = "level",
+                log_type = "auth",
+            }
+        }
+
+        stage.structured_metadata {
+            values = {
+                path         = "path",
+                client_ip    = "real_ip",
+                challenge_id = "challenge_id",
             }
         }
 
@@ -159,53 +180,21 @@ loki.process "pipelines" {
     }
 
     // ============================================
-    // SYMFONY / MONolog JSON PIPELINE
-    // Symfony apps (ule-evadoc) emit Monolog JSON to stderr when in prod mode
-    // ============================================
-    stage.match {
-        selector = "{container=~\".*evadoc.*|.*symfony.*\"}"
-
-        stage.json {
-            expressions = {
-                monolog_time    = "datetime",
-                monolog_level   = "level_name",
-                monolog_channel = "channel",
-                monolog_msg     = "message",
-                monolog_context = "context",
-            }
-        }
-
-        stage.labels {
-            values = {
-                level    = "monolog_level",
-                channel  = "monolog_channel",
-                log_type = "app",
-            }
-        }
-
-        // Monolog uses ISO8601: "2024-12-14T10:00:00.123456+01:00"
-        stage.timestamp {
-            source = "monolog_time"
-            format = "RFC3339Nano"
-        }
-    }
-
-    // ============================================
     // APPLICATION CONTAINERS PIPELINE
-    // Catches all application containers (Zend, WordPress, Symfony access logs,
+    // Catches all application containers (Zend, WordPress, Symfony, Python,
     // cron jobs, etc.) that are not infrastructure.
-    //
-    // Note: stage.match selectors only support label matchers, not LogQL line
-    // filters like |~ or !~. We run stages sequentially: if a stage does not
-    // match (e.g. stage.json on non-JSON text), it is a no-op and the log
-    // continues to the next stage.
     // ============================================
     stage.match {
         selector = "{container!~\".*traefik.*|.*anubis.*|.*alloy.*|.*loki.*|.*grafana.*|.*dozzle.*|.*watchdog.*|.*crowdsec.*|.*redis.*|.*postgres.*|.*prometheus.*|.*node-exporter.*\"}"
 
-        // --- JSON ACCESS LOGS (Zend, WordPress) ---
-        // These images emit structured JSON to stdout.
-        // If the line is not JSON, stage.json is a no-op.
+        // Set default log_type for apps
+        stage.static_labels {
+            values = {
+                log_type = "app",
+            }
+        }
+
+        // --- JSON ACCESS LOGS (Zend, WordPress, serversideup/php) ---
         stage.json {
             expressions = {
                 apache_time = "time",
@@ -222,34 +211,120 @@ loki.process "pipelines" {
 
         stage.labels {
             values = {
-                status   = "status",
-                method   = "method",
-                host     = "host",
-                log_type = "access",
+                status = "status",
+                method = "method",
+                host   = "host",
+            }
+        }
+
+        stage.structured_metadata {
+            values = {
+                client_ip  = "remote_ip",
+                uri        = "uri",
+                duration   = "duration",
+                referer    = "referer",
+                user_agent = "user_agent",
+            }
+        }
+
+        // --- UVICORN / FASTAPI / PYTHON HTTP ACCESS LOGS (IB1/IB2 API, Vertigo, etc.) ---
+        // Matches: INFO:     1.2.3.4:0 - "GET /path HTTP/1.1" 200 OK
+        stage.regex {
+            expression = "^(?:[A-Z]+:\\s+)?(?P<uvicorn_ip>[\\d.]+):\\d+\\s+-\\s+\"(?P<uvicorn_method>[A-Z]+)\\s+(?P<uvicorn_uri>\\S+)\\s+[^\"]*\"\\s+(?P<uvicorn_status>\\d{3})"
+        }
+
+        stage.labels {
+            values = {
+                status = "uvicorn_status",
+                method = "uvicorn_method",
+            }
+        }
+
+        stage.structured_metadata {
+            values = {
+                client_ip = "uvicorn_ip",
+                uri       = "uvicorn_uri",
+            }
+        }
+
+        // When status is extracted (JSON or Uvicorn), classify this log line as access
+        stage.match {
+            selector = "{status=~\".+\"}"
+            stage.static_labels {
+                values = {
+                    log_type = "access",
+                }
             }
         }
 
         // Timestamp only applies when apache_time exists (JSON logs).
-        // If absent, ingestion time is used silently.
         stage.timestamp {
             source = "apache_time"
             format = "2006-01-02T15:04:05-0700"
         }
 
-        // --- PLAIN TEXT LOGS (PHP errors, Monolog text, etc.) ---
-        // Pattern 1: Monolog: [2024-12-14 10:00:00] app.ERROR: message
+        // --- MONOLOG / SYMFONY JSON LOGS ---
+        stage.json {
+            expressions = {
+                monolog_time    = "datetime",
+                monolog_level   = "level_name",
+                monolog_channel = "channel",
+                monolog_msg     = "message",
+            }
+        }
+
+        stage.labels {
+            values = {
+                level   = "monolog_level",
+                channel = "monolog_channel",
+            }
+        }
+
+        stage.timestamp {
+            source = "monolog_time"
+            format = "RFC3339Nano"
+        }
+
+        // --- PLAIN TEXT LOGS (PHP, Python, MariaDB, Vaultwarden, cron, bots) ---
+        // Pattern 1: Monolog text: [2024-12-14 10:00:00] app.ERROR: message
         stage.regex {
             expression = "(?i)^\\[[^\\]]+\\]\\s+[\\w\\.]+\\.(?P<level>ERROR|WARNING|WARN|INFO|DEBUG|NOTICE|CRITICAL|ALERT|EMERGENCY):"
         }
 
-        // Pattern 2: PHP native errors
+        // Pattern 2: PHP native errors (e.g., PHP Fatal error:, PHP Warning:)
         stage.regex {
             expression = "(?i)^PHP\\s+(?P<level>Fatal error|Warning|Notice|Parse error|Deprecated|Strict Standards)"
         }
 
-        // Pattern 3: Generic prefix: ERROR: / [ERROR]
+        // Pattern 3: Vaultwarden / Rust multi-bracket: [2026-09-26 12:31:23.963][response][INFO]
+        stage.regex {
+            expression = "(?i)^\\[[^\\]]+\\](?:\\[[^\\]]+\\])*\\s*\\[(?P<level>ERROR|WARN|WARNING|INFO|DEBUG|TRACE)\\]"
+        }
+
+        // Pattern 4: Date + optional thread/PID/module + [Level] (Python apscheduler/bots, MariaDB, syslog, cron)
+        stage.regex {
+            expression = "(?i)^\\d{4}[-/]\\d{2}[-/]\\d{2}[T\\s][\\d:,.]+\\s+(?:[^\\s]+\\s+)?(?:\\[)?(?P<level>ERROR|WARNING|WARN|INFO|DEBUG|NOTICE|CRITICAL|ALERT|EMERGENCY|FATAL|Note)(?:\\])?"
+        }
+
+        // Pattern 5: Gunicorn logs: [2026-09-26 12:34:56 +0200] [12345] [INFO] msg
+        stage.regex {
+            expression = "(?i)^\\[[^\\]]+\\]\\s+\\[\\d+\\]\\s+\\[(?P<level>ERROR|WARNING|WARN|INFO|DEBUG|NOTICE|CRITICAL|ALERT|EMERGENCY|FATAL)\\]"
+        }
+
+        // Pattern 6: Python uncaught traceback
+        stage.regex {
+            expression = "^(?P<level>Traceback) \\(most recent call last\\):"
+        }
+
+        // Pattern 7: Generic prefix: ERROR: / [ERROR] / INFO:
         stage.regex {
             expression = "(?i)^(?:\\[)?(?P<level>ERROR|WARN|WARNING|INFO|DEBUG|NOTICE|CRITICAL|ALERT|EMERGENCY)(?:\\])?(?::|\\s+)"
+        }
+
+        // Normalize level names
+        stage.template {
+            source   = "level"
+            template = "{{ if or (eq .Value \"Fatal error\") (eq .Value \"Traceback\") (eq .Value \"CRITICAL\") (eq .Value \"ALERT\") (eq .Value \"EMERGENCY\") (eq .Value \"FATAL\") }}ERROR{{ else if or (eq .Value \"Warning\") (eq .Value \"WARN\") }}WARN{{ else if or (eq .Value \"Notice\") (eq .Value \"Deprecated\") (eq .Value \"Note\") }}INFO{{ else }}{{ ToUpper .Value }}{{ end }}"
         }
 
         stage.labels {
@@ -292,6 +367,8 @@ loki.process "apache_host" {
             job       = "apache-host",
             source    = "file",
             container = "apache-host",
+            project   = "apache-host",
+            service   = "apache",
             instance  = sys.env("DOMAIN"),
         }
     }
@@ -309,8 +386,6 @@ loki.process "apache_host" {
 
     // ============================================
     // ACCESS LOG PIPELINE (Combined Format)
-    // Format: %h %l %u %t "%r" %>s %b "%{Referer}i" "%{User-agent}i"
-    // Example: 192.168.1.1 - - [14/Dec/2024:16:30:00 +0100] "GET /index.html HTTP/1.1" 200 1234 "-" "Mozilla/5.0..."
     // ============================================
     stage.match {
         selector = "{log_type=\"access\"}"
@@ -321,8 +396,18 @@ loki.process "apache_host" {
 
         stage.labels {
             values = {
-                method    = "",
-                status    = "",
+                method = "",
+                status = "",
+            }
+        }
+
+        stage.structured_metadata {
+            values = {
+                client_ip  = "client_ip",
+                uri        = "path",
+                bytes      = "bytes",
+                referer    = "referer",
+                user_agent = "user_agent",
             }
         }
 
@@ -335,10 +420,6 @@ loki.process "apache_host" {
 
     // ============================================
     // ERROR LOG PIPELINE
-    // Format: [Day Mon DD HH:MM:SS.microseconds YYYY] [module:level] [pid PID] [client IP:PORT] message
-    // Example: [Sat Dec 14 16:30:00.123456 2024] [php:error] [pid 12345] [client 192.168.1.1:54321] Error message
-    // Note: Timestamp parsing disabled - Apache error logs don't include timezone,
-    //       which causes "timestamp too new" errors. Using ingestion time instead.
     // ============================================
     stage.match {
         selector = "{log_type=\"error\"}"
@@ -347,14 +428,24 @@ loki.process "apache_host" {
             expression = "^\\[(?P<timestamp>[^\\]]+)\\] \\[(?P<module>[^:]*):(?P<level>[^\\]]+)\\]( \\[pid (?P<pid>\\d+)\\])?( \\[client (?P<client_ip>[^:]+):\\d+\\])? (?P<message>.*)"
         }
 
+        stage.template {
+            source   = "level"
+            template = "{{ if or (eq .Value \"crit\") (eq .Value \"alert\") (eq .Value \"emerg\") }}ERROR{{ else if eq .Value \"warn\" }}WARN{{ else }}{{ ToUpper .Value }}{{ end }}"
+        }
+
         stage.labels {
             values = {
-                level     = "",
-                module    = "",
+                level  = "",
+                module = "",
             }
         }
 
-        // Timestamp parsing intentionally omitted - see note above
+        stage.structured_metadata {
+            values = {
+                client_ip = "client_ip",
+                pid       = "pid",
+            }
+        }
     }
 
     forward_to = [loki.write.local.receiver]
@@ -404,13 +495,11 @@ prometheus.scrape "node_exporter" {
 prometheus.relabel "node_exporter" {
     forward_to = [prometheus.remote_write.local.receiver]
 
-    // Set a standard job name that dashboards look for
     rule {
         target_label = "job"
         replacement  = "node_exporter"
     }
 
-    // Set the instance label to the domain name for easier filtering
     rule {
         target_label = "instance"
         replacement  = sys.env("DOMAIN")
