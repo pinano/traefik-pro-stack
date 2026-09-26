@@ -163,6 +163,41 @@ services:
         max-file: "3"
 
   # ===========================
+  #  POSTGRES EXPORTER (Metrics for Prometheus)
+  # ===========================
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.17.1
+    restart: unless-stopped
+    profiles:
+      - crowdsec
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${CROWDSEC_DB_USER:-crowdsec}:${CROWDSEC_DB_PASSWORD:-}@crowdsec-db:5432/${CROWDSEC_DB_NAME:-crowdsec}?sslmode=disable"
+      PG_EXPORTER_INCLUDE_DATABASES: "${CROWDSEC_DB_NAME:-crowdsec}"
+      PG_EXPORTER_AUTO_DISCOVER_DATABASES: "false"
+      PG_EXPORTER_DISABLE_SETTINGS_METRICS: "false"
+      PG_EXPORTER_DISABLE_DEFAULT_METRICS: "false"
+    networks:
+      - traefik
+      - crowdsec-backend
+    security_opt:
+      - no-new-privileges=true
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider --quiet http://localhost:9187/metrics || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ===========================
   #  CROWDSEC WEB UI (Management interface for CrowdSec LAPI)
   # ===========================
   crowdsec-web-ui:

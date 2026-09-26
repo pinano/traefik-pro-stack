@@ -1,4 +1,5 @@
 import os
+import time
 import logging
 from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -31,7 +32,7 @@ app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 def inject_version():
     app_path = os.getenv('DASHBOARD_APP_PATH_HOST', '/app')
     maintenance_active = os.path.exists(os.path.join(app_path, 'config', '.maintenance_mode'))
-    return dict(app_version=APP_VERSION, maintenance_active=maintenance_active)
+    return dict(app_version=APP_VERSION, maintenance_active=maintenance_active, timestamp=int(time.time()))
 
 @app.after_request
 def set_security_headers(response):
