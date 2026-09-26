@@ -7,22 +7,47 @@
           "type": "loki",
           "uid": "loki"
         },
-        "enable": true,
+        "enable": false,
         "iconColor": "red",
-        "name": "Errors",
+        "name": "Marcadores de error en gr\u00e1ficas",
         "target": {
-          "expr": "{container=~\".+\"} |= \"ERROR\" or \"error\" or \"FATAL\" or \"CRITICAL\"",
+          "expr": "{project=~\"$project\", service=~\"$service\"} |~ \"(?i)(error|critical|fatal|exception)\"",
           "refId": "Annotations"
         }
       }
     ]
   },
-  "description": "Explore logs from all Docker containers collected by Alloy and stored in Loki. Filter by container, search text, and log level.",
+  "description": "Multi-project application log explorer with drill-down by project, service, container, HTTP status, and log level.",
   "editable": true,
   "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
+  "graphTooltip": 1,
   "id": null,
-  "links": [],
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Web Access & Traffic",
+      "tooltip": "Ver an\u00e1lisis de tr\u00e1fico web y accesos HTTP",
+      "type": "link",
+      "url": "/grafana/d/web-access-logs/web-access-and-http-traffic"
+    },
+    {
+      "asDropdown": false,
+      "icon": "dashboard",
+      "includeVars": false,
+      "keepTime": true,
+      "tags": [],
+      "targetBlank": false,
+      "title": "Stack Health Overview",
+      "tooltip": "Ver estado y m\u00e9tricas del stack",
+      "type": "link",
+      "url": "/grafana/d/stack-overview/stack-health-overview"
+    }
+  ],
   "liveNow": false,
   "panels": [
     {
@@ -35,7 +60,7 @@
       },
       "id": 1,
       "panels": [],
-      "title": "Overview",
+      "title": "Overview & Metrics",
       "type": "row"
     },
     {
@@ -43,7 +68,7 @@
         "type": "loki",
         "uid": "loki"
       },
-      "description": "Total log lines in the selected time range for the chosen container(s).",
+      "description": "Total log lines in the selected time range for the chosen filters.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -65,7 +90,7 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
+        "w": 4,
         "x": 0,
         "y": 1
       },
@@ -84,7 +109,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "10.0.0",
+      "pluginVersion": "13.0.0",
       "targets": [
         {
           "datasource": {
@@ -92,7 +117,7 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(count_over_time({project=~\"$project\", service=~\"$service\", container=~\"$container\"} [$__range]))",
+          "expr": "sum(count_over_time({project=~\"$project\", service=~\"$service\", container=~\"$container\", status=~\"$status\", level=~\"$level\"} [$__range]))",
           "queryType": "range",
           "refId": "A"
         }
@@ -105,7 +130,7 @@
         "type": "loki",
         "uid": "loki"
       },
-      "description": "Count of log lines containing error keywords.",
+      "description": "Count of error lines matching error keywords in the selected time range.",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -131,8 +156,8 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 6,
+        "w": 4,
+        "x": 4,
         "y": 1
       },
       "id": 3,
@@ -150,7 +175,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "10.0.0",
+      "pluginVersion": "13.0.0",
       "targets": [
         {
           "datasource": {
@@ -158,12 +183,12 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum(count_over_time({project=~\"$project\", service=~\"$service\", container=~\"$container\"} |= \"ERROR\" or \"error\" or \"FATAL\" or \"CRITICAL\" or \"exception\" [$__range]))",
+          "expr": "sum(count_over_time({project=~\"$project\", service=~\"$service\", container=~\"$container\", status=~\"$status\"} |~ \"(?i)(error|fatal|critical|exception)\" [$__range])) or vector(0)",
           "queryType": "range",
           "refId": "A"
         }
       ],
-      "title": "Error Lines",
+      "title": "Errors Detected",
       "type": "stat"
     },
     {
@@ -171,42 +196,42 @@
         "type": "loki",
         "uid": "loki"
       },
-      "description": "Log volume over time for the selected container(s).",
+      "description": "Log volume over time broken down by service.",
       "fieldConfig": {
         "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "linear",
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
             "barAlignment": 0,
-            "lineWidth": 1,
+            "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "none",
-            "spanNulls": false,
-            "insertNulls": false,
-            "showPoints": "never",
-            "pointSize": 5,
-            "stacking": {
-              "mode": "none",
-              "group": "A"
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
             },
-            "axisPlacement": "auto",
-            "axisLabel": "",
-            "axisColorMode": "text",
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
             },
-            "axisCenteredZero": false,
-            "hideFrom": {
-              "tooltip": false,
-              "viz": false,
-              "legend": false
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
             },
             "thresholdsStyle": {
               "mode": "off"
             }
-          },
-          "color": {
-            "mode": "palette-classic"
           },
           "mappings": [],
           "thresholds": {
@@ -223,22 +248,22 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
+        "h": 4,
+        "w": 8,
+        "x": 8,
         "y": 1
       },
       "id": 4,
       "options": {
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        },
         "legend": {
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
           "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
         }
       },
       "targets": [
@@ -248,12 +273,102 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "sum by (container) (count_over_time({project=~\"$project\", service=~\"$service\", container=~\"$container\"} [$__interval]))",
+          "expr": "sum by (service) (count_over_time({project=~\"$project\", service=~\"$service\", container=~\"$container\", status=~\"$status\", level=~\"$level\"} [$__interval]))",
           "queryType": "range",
           "refId": "A"
         }
       ],
-      "title": "Log Volume",
+      "title": "Log Volume by Service",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "description": "Volume of errors over time broken down by service.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      },
+      "id": 5,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "sum by (service) (count_over_time({project=~\"$project\", service=~\"$service\", container=~\"$container\", status=~\"$status\"} |~ \"(?i)(error|fatal|critical|exception)\" [$__interval]))",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Errors over Time by Service",
       "type": "timeseries"
     },
     {
@@ -262,11 +377,11 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 9
+        "y": 5
       },
-      "id": 5,
+      "id": 6,
       "panels": [],
-      "title": "Logs",
+      "title": "Container Volume Distribution",
       "type": "row"
     },
     {
@@ -274,23 +389,75 @@
         "type": "loki",
         "uid": "loki"
       },
-      "description": "Live logs from the selected container(s). Use the filters above to narrow results.",
+      "description": "Log volume over time for each active container matching the filters.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
       "gridPos": {
-        "h": 16,
+        "h": 5,
         "w": 24,
         "x": 0,
-        "y": 10
+        "y": 6
       },
-      "id": 6,
+      "id": 7,
       "options": {
-        "showTime": true,
-        "wrapLogMessage": true,
-        "prettifyLogMessage": false,
-        "enableLogDetails": true,
-        "sortOrder": "Descending",
-        "dedupStrategy": "none",
-        "showLabels": false,
-        "showCommonLabels": false
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
       },
       "targets": [
         {
@@ -299,7 +466,59 @@
             "uid": "loki"
           },
           "editorMode": "code",
-          "expr": "{project=~\"$project\", service=~\"$service\", container=~\"$container\"} |= \"$filter\" |= \"$level\"",
+          "expr": "sum by (container) (count_over_time({project=~\"$project\", service=~\"$service\", container=~\"$container\", status=~\"$status\", level=~\"$level\"} [$__interval]))",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Log Volume by Container",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 11
+      },
+      "id": 8,
+      "panels": [],
+      "title": "Logs Explorer",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "description": "Real-time container logs. Select Project and Service above to filter, or use Search Text for keywords.",
+      "gridPos": {
+        "h": 18,
+        "w": 24,
+        "x": 0,
+        "y": 12
+      },
+      "id": 9,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": true,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "loki"
+          },
+          "editorMode": "code",
+          "expr": "{project=~\"$project\", service=~\"$service\", container=~\"$container\", status=~\"$status\", level=~\"$level\"} |= \"$search\"",
+          "maxLines": 5000,
           "queryType": "range",
           "refId": "A"
         }
@@ -315,13 +534,15 @@
     "logs",
     "loki",
     "docker",
-    "apps"
+    "apps",
+    "projects"
   ],
   "templating": {
     "list": [
       {
+        "allValue": ".+",
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "All",
           "value": "$__all"
         },
@@ -332,7 +553,6 @@
         "definition": "label_values(project)",
         "hide": 0,
         "includeAll": true,
-        "allValue": ".+",
         "label": "Project",
         "multi": true,
         "name": "project",
@@ -345,8 +565,9 @@
         "type": "query"
       },
       {
+        "allValue": ".+",
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "All",
           "value": "$__all"
         },
@@ -357,21 +578,21 @@
         "definition": "label_values({project=~\"$project\"}, service)",
         "hide": 0,
         "includeAll": true,
-        "allValue": ".+",
         "label": "Service",
         "multi": true,
         "name": "service",
         "options": [],
         "query": "label_values({project=~\"$project\"}, service)",
-        "refresh": 1,
+        "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 1,
         "type": "query"
       },
       {
+        "allValue": ".+",
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "All",
           "value": "$__all"
         },
@@ -382,12 +603,61 @@
         "definition": "label_values({project=~\"$project\", service=~\"$service\"}, container)",
         "hide": 0,
         "includeAll": true,
-        "allValue": ".+",
         "label": "Container",
         "multi": true,
         "name": "container",
         "options": [],
         "query": "label_values({project=~\"$project\", service=~\"$service\"}, container)",
+        "refresh": 2,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "definition": "label_values(status)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "HTTP Status",
+        "multi": true,
+        "name": "status",
+        "options": [],
+        "query": "label_values(status)",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      },
+      {
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "loki",
+          "uid": "loki"
+        },
+        "definition": "label_values(level)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Level",
+        "multi": true,
+        "name": "level",
+        "options": [],
+        "query": "label_values(level)",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -396,13 +666,13 @@
       },
       {
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "",
           "value": ""
         },
         "hide": 0,
         "label": "Search Text",
-        "name": "filter",
+        "name": "search",
         "options": [
           {
             "selected": true,
@@ -411,26 +681,6 @@
           }
         ],
         "query": "",
-        "skipUrlSync": false,
-        "type": "textbox"
-      },
-      {
-        "current": {
-          "selected": false,
-          "text": "",
-          "value": ""
-        },
-        "hide": 0,
-        "label": "Level Filter",
-        "name": "level",
-        "options": [
-          {
-            "selected": true,
-            "text": "",
-            "value": ""
-          }
-        ],
-        "query": "ERROR|WARN|INFO|DEBUG|TRACE",
         "skipUrlSync": false,
         "type": "textbox"
       }
@@ -457,6 +707,6 @@
   "timezone": "browser",
   "title": "Application Logs",
   "uid": "app-logs",
-  "version": 1,
+  "version": 11,
   "weekStart": ""
 }
