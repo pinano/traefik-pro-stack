@@ -40,36 +40,39 @@ discovery.relabel "docker_logs" {
         target_label  = "service"
     }
 
-    // Fallback: if project label is empty, try to extract from container name
-    // Compose v2 names are like: project-service-1
+    // Fallback: extract project/service from container name.
+    // Matches patterns like:
+    //   ule-evadoc-mariadb   → project: ule-evadoc, service: mariadb
+    //   myproject-app        → project: myproject, service: app
+    //   ule-evadoc           → project: ule-evadoc (no service match, falls through)
     rule {
         source_labels = ["container"]
-        regex         = "^([^-]+)-([^-]+)-[0-9]+$"
+        regex         = "^([^-]+)-(.+)$"
         target_label  = "project"
         replacement   = "${1}"
     }
 
     rule {
         source_labels = ["container"]
-        regex         = "^([^-]+)-([^-]+)-[0-9]+$"
+        regex         = "^([^-]+)-(.+)$"
         target_label  = "service"
         replacement   = "${2}"
     }
 
-    // Fallback for containers that don't follow compose naming and have no project label
+    // Fallback for containers without a dash in their name (e.g. "ule-evadoc")
     rule {
         source_labels = ["project"]
         regex         = "^$"
         target_label  = "project"
-        replacement   = "other"
+        replacement   = "${container}"
     }
 
-    // Fallback for containers without a service label
+    // Fallback for containers without a service extracted
     rule {
         source_labels = ["service"]
         regex         = "^$"
         target_label  = "service"
-        replacement   = "other"
+        replacement   = "app"
     }
 }
 
