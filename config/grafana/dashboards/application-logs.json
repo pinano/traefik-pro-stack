@@ -11,7 +11,7 @@
         "iconColor": "red",
         "name": "Errors",
         "target": {
-          "expr": "{project=~\"$project\", service=~\"$service\", container=~\"$container\"} |= \"ERROR\" or \"error\" or \"FATAL\" or \"CRITICAL\"",
+          "expr": "{container=~\".+\"} |= \"ERROR\" or \"error\" or \"FATAL\" or \"CRITICAL\"",
           "refId": "Annotations"
         }
       }
