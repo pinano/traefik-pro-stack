@@ -10,7 +10,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='favicon-16x16.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='site.webmanifest') }}" crossorigin="use-credentials">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}{% block css_cache %}{% endblock %}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}{% block css_cache %}?t={{ timestamp | default(0) }}{% endblock %}">
     <link
         href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,300;0,400;0,700;1,300&display=swap"
         rel="stylesheet">

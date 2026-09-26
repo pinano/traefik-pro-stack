@@ -31,6 +31,8 @@
     --color-violet: #8b5cf6;
     --color-violet-hover: #a78bfa;
     --color-teal: #0d9488;
+    --color-purple: #a855f7;
+    --color-rose: #e11d48;
 
     /* Legacy Shade Aliases */
     --color-indigo-500: var(--color-indigo);
@@ -49,6 +51,9 @@
     --color-violet-400: var(--color-violet-hover);
     --color-teal-500: var(--color-teal);
     --color-teal-600: var(--color-teal);
+    --color-purple-500: #a855f7;
+    --color-rose-600: #e11d48;
+    --color-custom-blue: #6c78af;
     --color-red-100: #fee2e2;
     --color-red-200: #fecaca;
     --color-red-300: #fca5a5;
@@ -1468,7 +1473,7 @@ select.data-input:focus {
 
 .app-card.card-domains:not(.disabled):hover {
     --card-background-color: var(--card-domains-hover-bg);
-    --card-border: var(--color-sky-500);
+    --card-border: var(--color-sky-500, #0ea5e9);
 }
 
 .app-card.card-certs {
@@ -1478,7 +1483,7 @@ select.data-input:focus {
 
 .app-card.card-certs:not(.disabled):hover {
     --card-background-color: var(--card-certs-hover-bg);
-    --card-border: var(--color-green-500);
+    --card-border: var(--color-green-500, #10b981);
 }
 
 .app-card.card-captchas {
@@ -1488,7 +1493,7 @@ select.data-input:focus {
 
 .app-card.card-captchas:not(.disabled):hover {
     --card-background-color: var(--card-captchas-hover-bg);
-    --card-border: var(--color-amber-500);
+    --card-border: var(--color-amber-500, #f59e0b);
 }
 
 .app-card.card-crowdsec {
@@ -1498,7 +1503,7 @@ select.data-input:focus {
 
 .app-card.card-crowdsec:not(.disabled):hover {
     --card-background-color: var(--card-crowdsec-hover-bg);
-    --card-border: var(--color-indigo-500);
+    --card-border: var(--color-indigo-500, #6366f1);
 }
 
 .app-card.card-grafana {
@@ -1508,7 +1513,7 @@ select.data-input:focus {
 
 .app-card.card-grafana:not(.disabled):hover {
     --card-background-color: var(--card-grafana-hover-bg);
-    --card-border: var(--color-purple-500);
+    --card-border: var(--color-purple-500, #a855f7);
 }
 
 .app-card.card-dozzle {
@@ -1518,7 +1523,7 @@ select.data-input:focus {
 
 .app-card.card-dozzle:not(.disabled):hover {
     --card-background-color: var(--card-dozzle-hover-bg);
-    --card-border: var(--color-teal-500);
+    --card-border: var(--color-teal-500, #0d9488);
 }
 
 .app-card.card-traefik {
@@ -1528,7 +1533,7 @@ select.data-input:focus {
 
 .app-card.card-traefik:not(.disabled):hover {
     --card-background-color: var(--card-traefik-hover-bg);
-    --card-border: var(--color-sky-400);
+    --card-border: var(--color-sky-400, #38bdf8);
 }
 
 .app-card.card-backrest {
@@ -1538,7 +1543,7 @@ select.data-input:focus {
 
 .app-card.card-backrest:not(.disabled):hover {
     --card-background-color: var(--card-backrest-hover-bg);
-    --card-border: var(--color-rose-600);
+    --card-border: var(--color-rose-600, #e11d48);
 }
 
 .app-card.card-phpmyadmin {
@@ -1548,7 +1553,7 @@ select.data-input:focus {
 
 .app-card.card-phpmyadmin:not(.disabled):hover {
     --card-background-color: var(--card-phpmyadmin-hover-bg);
-    --card-border: var(--color-custom-blue);
+    --card-border: var(--color-custom-blue, #6c78af);
 }
 
 .app-card.card-filebrowser {
@@ -1558,7 +1563,7 @@ select.data-input:focus {
 
 .app-card.card-filebrowser:not(.disabled):hover {
     --card-background-color: var(--card-filebrowser-hover-bg);
-    --card-border: var(--color-sky-500);
+    --card-border: var(--color-sky-500, #0ea5e9);
 }
 
 .app-card.card-docs {
@@ -1568,7 +1573,7 @@ select.data-input:focus {
 
 .app-card.card-docs:not(.disabled):hover {
     --card-background-color: var(--card-docs-hover-bg);
-    --card-border: var(--color-slate-500);
+    --card-border: var(--color-slate-500, #64748b);
 }
 
 .app-icon {
