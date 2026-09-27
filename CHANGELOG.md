@@ -1,3 +1,7 @@
+## v2026.09.28 (2026-09-28)
+
+- refactor: replace global circuit breaker with isolated per-domain configuration (4eee911)
+
 ## v2026.09.26 (2026-09-26)
 
 - feat: add comprehensive Grafana dashboards and observability pipeline (fdbf84b)
