@@ -201,6 +201,16 @@ except ValueError:
 # Regex for validating Docker/Traefik service names
 VALID_SERVICE_NAME_REGEX = re.compile(r'^[a-z0-9-]+$')
 
+# Circuit Breaker Settings (isolated per domain)
+CIRCUIT_BREAKER_ENABLE = get_env_safe('TRAEFIK_CIRCUIT_BREAKER_ENABLE', 'true').lower() == 'true'
+CIRCUIT_BREAKER_EXPRESSION = get_env_safe(
+    'TRAEFIK_CIRCUIT_BREAKER_EXPRESSION',
+    'LatencyAtQuantileMS(95.0) > 8000 || NetworkErrorRatio() > 0.40 || ResponseCodeRatio(500, 600, 0, 600) > 0.50'
+)
+CIRCUIT_BREAKER_CHECK_PERIOD = get_env_safe('TRAEFIK_CIRCUIT_BREAKER_CHECK_PERIOD', '2s')
+CIRCUIT_BREAKER_FALLBACK_DURATION = get_env_safe('TRAEFIK_CIRCUIT_BREAKER_FALLBACK_DURATION', '5s')
+CIRCUIT_BREAKER_RECOVERY_DURATION = get_env_safe('TRAEFIK_CIRCUIT_BREAKER_RECOVERY_DURATION', '5s')
+
 # ------------------------------------------------------------------------------
 # Validation
 # ------------------------------------------------------------------------------
@@ -373,8 +383,19 @@ def process_router(entry, http_section, domain_to_cert_def):
     else:
         mw_list.append('global-concurrency')
 
-    # Circuit breaker + retry: shield backends and recover from transient glitches
-    mw_list.append('global-circuitbreaker')
+    # Circuit breaker (isolated per-domain): shield backends and recover from transient glitches
+    if CIRCUIT_BREAKER_ENABLE:
+        custom_circuitbreaker_name = f"circuitbreaker-{safe_domain}"
+        http_section['middlewares'][custom_circuitbreaker_name] = {
+            'circuitBreaker': {
+                'expression': CIRCUIT_BREAKER_EXPRESSION,
+                'checkPeriod': CIRCUIT_BREAKER_CHECK_PERIOD,
+                'fallbackDuration': CIRCUIT_BREAKER_FALLBACK_DURATION,
+                'recoveryDuration': CIRCUIT_BREAKER_RECOVERY_DURATION
+            }
+        }
+        mw_list.append(custom_circuitbreaker_name)
+
     mw_list.append('global-retry')
 
     if anubis_sub:
@@ -643,7 +664,7 @@ def generate_configs():
             'middlewares': {
                 # --- The Golden Chain (Execution Order) ---
                 
-                # 2. DDoS Protection: Buffering (Protects against Slowloris)
+                # 1. DDoS Protection: Buffering (Protects against Slowloris)
                 'global-buffering': {
                     'buffering': {
                         'maxRequestBodyBytes': MAX_REQ_BODY,
@@ -652,7 +673,7 @@ def generate_configs():
                         'memResponseBodyBytes': 2097152 # 2MB in memory
                     }
                 },
-                # 3. Browser Security (Headers)
+                # 2. Browser Security (Headers)
                 'security-headers': {
                     'headers': {
                         'frameDeny': not bool(FRAME_ANCESTORS),
@@ -665,14 +686,14 @@ def generate_configs():
                         **(({'contentSecurityPolicy': f"frame-ancestors 'self' {FRAME_ANCESTORS.replace(',', ' ')}"}) if FRAME_ANCESTORS else {})
                     }
                 },
-                # 4. Traefik Rate Limit
+                # 3. Traefik Rate Limit
                 'global-ratelimit': {
                     'rateLimit': {
                         'average': G_RATE_AVG,
                         'burst': G_RATE_BURST
                     }
                 },
-                # 4b. Static Assets Rate Limit (generous bucket for CSS/JS/images)
+                # 4. Static Assets Rate Limit (generous bucket for CSS/JS/images)
                 'global-ratelimit-assets': {
                     'rateLimit': {
                         'average': 200,
@@ -683,13 +704,7 @@ def generate_configs():
                 'global-concurrency': {
                     'inFlightReq': {'amount': G_CONCURRENCY}
                 },
-                # 5b. Circuit Breaker (auto-isolates unhealthy backends)
-                'global-circuitbreaker': {
-                    'circuitBreaker': {
-                        'expression': 'LatencyAtQuantileMS(50.0) > 3000 || ResponseCodeRatio(500, 600, 0, 600) > 0.25'
-                    }
-                },
-                # 5c. Retry (transparent recovery from transient failures)
+                # 6. Retry (transparent recovery from transient failures)
                 'global-retry': {
                     'retry': {
                         'attempts': 2
@@ -699,7 +714,7 @@ def generate_configs():
                 'global-compress': {
                     'compress': {'minResponseBodyBytes': 1024}
                 },
-                # 9. Protocol Forwarder (For legacy Apache)
+                # 8. Protocol Forwarder (For legacy Apache)
                 'apache-forward-headers': {
                     'headers': {
                         'customRequestHeaders': {
@@ -710,19 +725,19 @@ def generate_configs():
 
                 # --- Specialized Helper Middlewares ---
 
-                # 6. Anubis Assets Stripper
+                # 9. Anubis Assets Stripper
                 'anubis-assets-stripper': {
                     'stripPrefix': {
                         'prefixes': ['/.within.website/x/cmd/anubis']
                     }
                 },
-                # 8. Anubis CSS Replacement
+                # 10. Anubis CSS Replacement
                 'anubis-css-replace': {
                     'replacePath': {
                         'path': '/custom.min.css'
                     }
                 },
-                # 10. Anubis Assets Caching Headers
+                # 11. Anubis Assets Caching Headers
                 'anubis-assets-headers': {
                     'headers': {
                         'customResponseHeaders': {
@@ -730,7 +745,7 @@ def generate_configs():
                         }
                     }
                 },
-                # 11. Anubis Main Page Preload Link Headers
+                # 12. Anubis Main Page Preload Link Headers
                 'anubis-preload-headers': {
                     'headers': {
                         'customResponseHeaders': {
