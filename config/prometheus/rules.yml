@@ -100,7 +100,7 @@ groups:
       - alert: CriticalMemoryUsage
         expr: |
           ((node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes)
-          / node_memory_MemTotal_bytes) or on() vector(0) > 0.97
+          / node_memory_MemTotal_bytes) > 0.97
         for: 2m
         labels:
           severity: critical
