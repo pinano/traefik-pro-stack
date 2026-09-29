@@ -47,7 +47,7 @@ check_sysctl() {
     local min_val="$2"
     local current_val
 
-    current_val=$(sysctl -n "$param" 2>/dev/null)
+    current_val=$(sysctl -n "$param" 2>/dev/null || true)
     if [ -n "$current_val" ] && [ "$current_val" -lt "$min_val" ] 2>/dev/null; then
         echo "   ⚠️  $param = $current_val (recommended: ≥ $min_val)"
         return 1
@@ -122,9 +122,13 @@ for cmd in cs-firewall-bouncer crowdsec-firewall-bouncer; do
     done
 done
 
-# Fallback: verify the package is installed via dpkg
+# Fallback: verify the package is installed via dpkg or pacman
 if [ "$CSFWB_INSTALLED" = false ] && command -v dpkg >/dev/null 2>&1; then
     if dpkg -l | grep -qE "crowdsec-firewall-bouncer|cs-firewall-bouncer"; then
+        CSFWB_INSTALLED=true
+    fi
+elif [ "$CSFWB_INSTALLED" = false ] && command -v pacman >/dev/null 2>&1; then
+    if pacman -Q crowdsec-firewall-bouncer-nftables >/dev/null 2>&1 || pacman -Q crowdsec-firewall-bouncer-bin >/dev/null 2>&1 || pacman -Q crowdsec-firewall-bouncer >/dev/null 2>&1; then
         CSFWB_INSTALLED=true
     fi
 fi
@@ -149,11 +153,16 @@ done
 if [ "$CSFWB_INSTALLED" = false ]; then
     echo "   ⚠️  CrowdSec Firewall Bouncer is NOT installed on the host."
     echo "      Without it, malicious traffic still reaches Traefik before being blocked."
-    echo "      Add the CrowdSec APT repository, then install:"
-    echo "        curl -s https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh | sudo bash"
-    echo "        # If the script fails on Debian 13 (Trixie), force the Bookworm codename:"
-    echo "        #   sudo sed -i 's/trixie/bookworm/g' /etc/apt/sources.list.d/crowdsec_crowdsec.list"
-    echo "        sudo apt update && sudo apt install crowdsec-firewall-bouncer-nftables"
+    if command -v pacman >/dev/null 2>&1; then
+        echo "      On Arch Linux, this is optional for local dev. In production, install from AUR:"
+        echo "        yay -S crowdsec-firewall-bouncer-nftables"
+    else
+        echo "      Add the CrowdSec APT repository, then install:"
+        echo "        curl -s https://packagecloud.io/install/repositories/crowdsec/crowdsec/script.deb.sh | sudo bash"
+        echo "        # If the script fails on Debian 13 (Trixie), force the Bookworm codename:"
+        echo "        #   sudo sed -i 's/trixie/bookworm/g' /etc/apt/sources.list.d/crowdsec_crowdsec.list"
+        echo "        sudo apt update && sudo apt install crowdsec-firewall-bouncer-nftables"
+    fi
     WARNINGS=$((WARNINGS + 1))
 elif [ "$CSFWB_INSTALLED" = true ] && [ "$CSFWB_ACTIVE" = false ]; then
     echo "   ⚠️  CrowdSec Firewall Bouncer is installed but NOT running."
@@ -216,7 +225,7 @@ fi
 # Detect LXC container — systemd limits do not apply there
 IS_LXC=false
 if command -v systemd-detect-virt >/dev/null 2>&1; then
-    VIRT_TYPE=$(systemd-detect-virt --container 2>/dev/null || systemd-detect-virt 2>/dev/null)
+    VIRT_TYPE=$(systemd-detect-virt --container 2>/dev/null || systemd-detect-virt 2>/dev/null || true)
     if [ "$VIRT_TYPE" = "lxc" ]; then
         IS_LXC=true
     fi
@@ -337,7 +346,7 @@ fi
 # from triggering during fork() operations (even with persistence disabled).
 
 if command -v sysctl >/dev/null 2>&1 || [ -x /usr/sbin/sysctl ] || [ -x /sbin/sysctl ] || [ -x /bin/sysctl ]; then
-    OVERCOMMIT=$(/usr/sbin/sysctl -n vm.overcommit_memory 2>/dev/null || /sbin/sysctl -n vm.overcommit_memory 2>/dev/null || /bin/sysctl -n vm.overcommit_memory 2>/dev/null || sysctl -n vm.overcommit_memory 2>/dev/null)
+    OVERCOMMIT=$(/usr/sbin/sysctl -n vm.overcommit_memory 2>/dev/null || /sbin/sysctl -n vm.overcommit_memory 2>/dev/null || /bin/sysctl -n vm.overcommit_memory 2>/dev/null || sysctl -n vm.overcommit_memory 2>/dev/null || true)
     if [ -n "$OVERCOMMIT" ] && [ "$OVERCOMMIT" -ne 1 ] 2>/dev/null; then
         echo "   ⚠️  vm.overcommit_memory = $OVERCOMMIT (recommended: 1)."
         echo "      Run: sudo sysctl -w vm.overcommit_memory=1"
