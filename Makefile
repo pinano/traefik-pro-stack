@@ -454,8 +454,8 @@ traefik-health: ## Check Traefik health status
 certs-watch: ## Monitor ACME logs (Works at default INFO level)
 	@echo "Monitoring ACME/Certificate logs... (Ctrl+C to stop)"
 	@-$(DOCKER_COMPOSE) logs -f traefik | \
-		grep --line-buffered -iE 'obtain|validat|challenge|acme|lego|fail|err' | \
-		grep --line-buffered -vE 'Adding certificate|Looking for|No ACME.*required|RequestHost|global-compress'
+		grep --line-buffered -iE 'obtain|validat|challenge|acme|lego|certificat' | \
+		grep --line-buffered -vE 'Adding certificate|Looking for|No ACME.*required|RequestHost|global-compress|circuitbreaker'
 
 ##@help certs-info
 ## Analyzes the acme.json file against domains.csv.
