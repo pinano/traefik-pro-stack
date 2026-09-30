@@ -205,7 +205,6 @@ Request → [Redirect Regex (Index 0)] → (if match: 301/302 immediate return)
        → [Security Headers]
        → [Rate Limiter]
        → [Concurrency Limiter]
-       → [Circuit Breaker]
        → [Retry]
        → [ForwardAuth / Anubis] → (if no valid cookie: PoW challenge)
        → [Compression]
@@ -405,7 +404,6 @@ This drops packets at **netfilter** (nftables/iptables) *before* they ever touch
 | WriteTimeout aligned with ReadTimeout | ✅ Done | `traefik.yaml.template` |
 | Bearer auth on Prometheus remote_write | ✅ Done | `docker-compose-observability.yaml`, `config.alloy`, `.env.dist` |
 | maxConnsPerHost limit (500) | ✅ Done | `generate-config.py`, `.env.dist` |
-| Isolated per-domain circuit breaker | ✅ Done | `generate-config.py`, `.env.dist` |
 | Retry middleware (2 attempts) | ✅ Done | `generate-config.py` |
 | no-new-privileges on maintenance and alloy | ✅ Done | compose files |
 | Alloy healthcheck | ✅ Done | `docker-compose-observability.yaml` |

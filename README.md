@@ -22,6 +22,7 @@
 ---
 
 ## Table of Contents
+
 1. [What Is This?](#what-is-this)
 2. [The 3 Layers of Protection](#the-3-layers-of-protection)
 3. [Requirements](#requirements)
@@ -41,6 +42,7 @@
 This is a **self-hosted, production-grade edge gateway** designed to protect multiple Docker web applications (and legacy host services) with zero manual configuration drift. Instead of maintaining static proxy configs by hand, you manage routing through a single CSV file and environment variables. The stack handles the rest: TLS certificates, DDoS mitigation, bot filtering, Web Application Firewall, observability, backups, and alerting.
 
 **Core capabilities at a glance:**
+
 - **Automatic TLS** with Let's Encrypt (or local self-signed certs for dev).
 - **Intrusion Prevention + WAF** via CrowdSec (blocks bad IPs and inspects payloads for SQLi/XSS).
 - **Bot Defense** via Anubis (cryptographic Proof-of-Work challenges that block scrapers but are invisible to humans).
@@ -138,6 +140,7 @@ make start
 ```
 
 The startup runs in 6 phases:
+
 1. **Env sync** — merges new variables from `.env.dist` without overwriting your settings.
 2. **Credential sync** — auto-generates secrets (dashboard key, Redis password, CrowdSec API key, etc.).
 3. **Asset prep** — compiles templates, generates dynamic Traefik configs, and prepares Anubis assets.
@@ -146,6 +149,7 @@ The startup runs in 6 phases:
 6. **Full deployment** — launches all remaining services and auto-configures Grafana Telegram alerts.
 
 Check health:
+
 ```bash
 make health
 ```
@@ -155,7 +159,7 @@ make health
 ## What to Edit & What to Leave Alone
 
 | ✅ Safe to edit | ❌ Never edit directly |
-|----------------|----------------------|
+| ---------------- | ---------------------- |
 | `.env` | `traefik-generated.yaml` |
 | `domains.csv` | `docker-compose-anubis-generated.yaml` |
 | `config/traefik/traefik.yaml.template` | `config/traefik/dynamic-config/*.yaml` |
@@ -174,7 +178,7 @@ make health
 Four Docker networks isolate services by risk level:
 
 | Network | Purpose | Who's on it |
-|---------|---------|-------------|
+| --------- | --------- | ------------- |
 | `traefik` | Public routing | Traefik, Dashboard, Grafana, Prometheus, Loki, CrowdSec, etc. |
 | `socket-proxy` | Read-only Docker API | Proxy that shields the host socket from Traefik, CrowdSec, Alloy, Dozzle |
 | `anubis-backend` | PoW session cache | Anubis + Redis/Valkey (no outbound internet) |
@@ -209,7 +213,6 @@ Request → [Redirect Regex] → (301/302 if matched)
        → [CrowdSec Bouncer] → (403 / CAPTCHA if banned)
        → [Buffering] → [Security Headers]
        → [Rate Limiter] → [Concurrency Limiter]
-       → [Circuit Breaker] → [Retry]
        → [ForwardAuth / Anubis] → (PoW challenge)
        → [Compression] → Backend
 ```
@@ -229,7 +232,7 @@ Services that need Docker metadata connect through a **read-only proxy** (`docke
 Key variables that affect operation:
 
 | Variable | Default | What it controls |
-|----------|---------|------------------|
+| ---------- | --------- | ------------------ |
 | `DOMAIN` | `mydomain.com` | Root domain for dashboard and alerts |
 | `TRAEFIK_ACME_ENV_TYPE` | `staging` | `staging` (test certs), `production` (real certs), `local` (self-signed) |
 | `TRAEFIK_ACME_EMAIL` | — | Let's Encrypt notification email |
@@ -292,19 +295,23 @@ make help                  # Full command list
 ### Troubleshooting
 
 **Certificates not issuing?**
+
 - Verify DNS A records point to the server.
 - Check `TRAEFIK_ACME_ENV_TYPE` is not `local` if you need real certs.
 - Ensure ports 80 and 443 are open to the internet.
 
 **Dashboard soft restart not working?**
+
 - Verify `docker-socket-proxy-dashboard` is healthy.
 - Check Dashboard logs: `make logs dashboard`.
 
 **CrowdSec blocking legitimate traffic?**
+
 - Add IPs to `CROWDSEC_WHITELIST_IPS` in `.env`.
 - Disable `CROWDSEC_RATE_LIMIT_BAN_ENABLE` if AJAX-heavy apps trigger false positives.
 
 **High memory usage?**
+
 - Reduce `PROMETHEUS_RETENTION_DAYS` or increase `PROMETHEUS_MEM_LIMIT`.
 - Check Valkey memory: `make shell redis` then `redis-cli INFO memory`.
 
@@ -335,18 +342,21 @@ Reload: `sysctl --system`
 ### Host Resources
 
 **File descriptors:** The default 1024 limit is exhausted under traffic spikes.
+
 ```bash
 echo 'DefaultLimitNOFILE=65536' | sudo tee -a /etc/systemd/system.conf /etc/systemd/user.conf
 sudo systemctl daemon-reexec
 ```
 
 **Swap:** Causes unpredictable latency for proxies and in-memory DBs.
+
 ```bash
 sudo swapoff -a
 # Comment out swap entries in /etc/fstab
 ```
 
 **Docker Live-Restore:** Survives daemon restarts without killing containers.
+
 ```json
 // /etc/docker/daemon.json
 { "live-restore": true }
@@ -407,7 +417,7 @@ sudo systemctl start crowdsec-firewall-bouncer
 ### Full Environment Variable Table
 
 | Variable | Scope | Default | Description |
-|:---|:---|:---|:---|
+| :--- | :--- | :--- | :--- |
 | `DOMAIN` | General | `mydomain.com` | Primary root domain. |
 | `TZ` | General | `Europe/Madrid` | Server timezone. |
 | `PROJECT_NAME` | General | `stack` | Compose project prefix. |
@@ -463,6 +473,7 @@ sudo systemctl start crowdsec-firewall-bouncer
 ### System-Managed Variables (Auto-Generated)
 
 Never edit these manually in `.env`:
+
 - `TRAEFIK_CERT_RESOLVER`
 - `DASHBOARD_APP_PATH_HOST`
 - `DASHBOARD_SECRET_KEY`
@@ -526,7 +537,7 @@ Never edit these manually in `.env`:
 ### Port Allocations
 
 | Service | Internal Port | External Port | Network | Notes |
-|:---|:---|:---|:---|:---|
+| :--- | :--- | :--- | :--- | :--- |
 | `traefik` | `80`, `443` | `80`, `443` (TCP/UDP) | `traefik` / Host | Public HTTP/HTTPS/HTTP-3 boundary |
 | `traefik-api` | `8080` | None | `traefik` | Internal API & dashboard |
 | `dashboard` | `5000` | None | `traefik` | Flask admin + SSO auth-check |
@@ -626,13 +637,12 @@ flowchart LR
 ### Completed Hardening Checklist
 
 | Hardening Item | Status |
-|:---|:---|
+| :--- | :--- |
 | Dashboard isolated from host Docker socket (dedicated proxy) | ✅ |
 | Buffering size limits (50 MB default) | ✅ |
 | WriteTimeout aligned with ReadTimeout | ✅ |
 | Prometheus remote_write Bearer auth | ✅ |
 | maxConnsPerHost limit (500) | ✅ |
-| Circuit breaker global | ✅ |
 | Retry middleware (2 attempts) | ✅ |
 | no-new-privileges on maintenance & alloy | ✅ |
 | Alloy healthcheck | ✅ |

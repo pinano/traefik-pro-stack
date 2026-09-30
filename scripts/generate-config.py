@@ -201,15 +201,6 @@ except ValueError:
 # Regex for validating Docker/Traefik service names
 VALID_SERVICE_NAME_REGEX = re.compile(r'^[a-z0-9-]+$')
 
-# Circuit Breaker Settings (isolated per domain)
-CIRCUIT_BREAKER_ENABLE = get_env_safe('TRAEFIK_CIRCUIT_BREAKER_ENABLE', 'true').lower() == 'true'
-CIRCUIT_BREAKER_EXPRESSION = get_env_safe(
-    'TRAEFIK_CIRCUIT_BREAKER_EXPRESSION',
-    'ResponseCodeRatio(500, 600, 0, 600) > 0.70 || NetworkErrorRatio() > 0.75'
-)
-CIRCUIT_BREAKER_CHECK_PERIOD = get_env_safe('TRAEFIK_CIRCUIT_BREAKER_CHECK_PERIOD', '10s')
-CIRCUIT_BREAKER_FALLBACK_DURATION = get_env_safe('TRAEFIK_CIRCUIT_BREAKER_FALLBACK_DURATION', '5s')
-CIRCUIT_BREAKER_RECOVERY_DURATION = get_env_safe('TRAEFIK_CIRCUIT_BREAKER_RECOVERY_DURATION', '5s')
 
 # ------------------------------------------------------------------------------
 # Validation
@@ -383,18 +374,6 @@ def process_router(entry, http_section, domain_to_cert_def):
     else:
         mw_list.append('global-concurrency')
 
-    # Circuit breaker (isolated per-domain): shield backends and recover from transient glitches
-    if CIRCUIT_BREAKER_ENABLE:
-        custom_circuitbreaker_name = f"circuitbreaker-{safe_domain}"
-        http_section['middlewares'][custom_circuitbreaker_name] = {
-            'circuitBreaker': {
-                'expression': CIRCUIT_BREAKER_EXPRESSION,
-                'checkPeriod': CIRCUIT_BREAKER_CHECK_PERIOD,
-                'fallbackDuration': CIRCUIT_BREAKER_FALLBACK_DURATION,
-                'recoveryDuration': CIRCUIT_BREAKER_RECOVERY_DURATION
-            }
-        }
-        mw_list.append(custom_circuitbreaker_name)
 
     mw_list.append('global-retry')
 
