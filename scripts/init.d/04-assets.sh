@@ -59,8 +59,24 @@ for img in happy.webp pensive.webp reject.webp; do
     fi
 done
 
+mkdir -p ./config/traefik
+
+# Safety check: if acme.json is a directory (Docker artifact from bind-mount before file existed), remove it
+if [ -d ./config/traefik/acme.json ]; then
+    echo "⚠️ Cleaning up directory collision: ./config/traefik/acme.json (created by Docker)"
+    rm -rf ./config/traefik/acme.json || {
+        echo "❌ Error: Could not remove directory './config/traefik/acme.json'."
+        echo "   Please run: sudo rm -rf ./config/traefik/acme.json && sudo chown -R \$(id -u):\$(id -g) ."
+        exit 1
+    }
+fi
+
 if [ ! -f ./config/traefik/acme.json ]; then
-    touch ./config/traefik/acme.json
+    touch ./config/traefik/acme.json || {
+        echo "❌ Error: Cannot create ./config/traefik/acme.json due to permissions."
+        echo "   Please run: sudo chown -R \$(id -u):\$(id -g) ."
+        exit 1
+    }
     chmod 600 ./config/traefik/acme.json
     echo "   ✅ Created acme.json with secure permissions."
 fi

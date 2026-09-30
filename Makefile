@@ -455,7 +455,7 @@ certs-watch: ## Monitor ACME logs (Works at default INFO level)
 	@echo "Monitoring ACME/Certificate logs... (Ctrl+C to stop)"
 	@-$(DOCKER_COMPOSE) logs -f traefik | \
 		grep --line-buffered -iE 'obtain|validat|challenge|acme|lego|certificat' | \
-		grep --line-buffered -vE 'Adding certificate|Looking for|No ACME.*required|RequestHost|global-compress|circuitbreaker'
+		grep --line-buffered -vE 'Adding certificate|Looking for|No ACME.*required|RequestHost|global-compress'
 
 ##@help certs-info
 ## Analyzes the acme.json file against domains.csv.
