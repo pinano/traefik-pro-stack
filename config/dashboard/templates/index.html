@@ -90,6 +90,13 @@
                     </h2>
                     <p class="app-desc">Dynamic MySQL/MariaDB database administration portal.</p>
                 </a>
+                {% else %}
+                <div class="app-card card-phpmyadmin disabled"
+                    title="phpMyAdmin is disabled (PHPMYADMIN_ENABLE=false)">
+                    <img src="{{ url_for('static', filename='img/phpmyadmin.svg') }}" class="app-icon" alt="phpMyAdmin">
+                    <h2 class="app-title app-title-disabled">phpMyAdmin</h2>
+                    <p class="app-desc">Database administration portal is currently disabled.</p>
+                </div>
                 {% endif %}
 
                 <!-- Filebrowser -->
@@ -100,6 +107,13 @@
                     </h2>
                     <p class="app-desc">Web-based file manager for project directory administration.</p>
                 </a>
+                {% else %}
+                <div class="app-card card-filebrowser disabled"
+                    title="Filebrowser is disabled (FILEBROWSER_ENABLE=false)">
+                    <img src="{{ url_for('static', filename='img/filebrowser.svg') }}" class="app-icon" alt="Filebrowser">
+                    <h2 class="app-title app-title-disabled">Filebrowser</h2>
+                    <p class="app-desc">File manager service is currently disabled.</p>
+                </div>
                 {% endif %}
 
                 <!-- CrowdSec UI -->
@@ -151,6 +165,13 @@
                     </h2>
                     <p class="app-desc">Navigate, restore, and verify your restic backups.</p>
                 </a>
+                {% else %}
+                <div class="app-card card-backrest disabled"
+                    title="Backrest is disabled (BACKREST_ENABLE=false)">
+                    <img src="{{ url_for('static', filename='img/backrest.svg') }}" class="app-icon backrest-icon" alt="Backrest">
+                    <h2 class="app-title app-title-disabled">Backrest</h2>
+                    <p class="app-desc">Backup manager service is currently disabled.</p>
+                </div>
                 {% endif %}
 
                 <!-- Documentation -->
