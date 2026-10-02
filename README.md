@@ -362,6 +362,17 @@ sudo swapoff -a
 { "live-restore": true }
 ```
 
+**Docker Socket Post-Restore Handler:** When `live-restore: true` is enabled, restarting or upgrading Docker recreates `/var/run/docker.sock` with a new inode. Running containers mounting the socket (Watchdog, socket proxies) hold a stale descriptor and produce connection errors. A systemd drop-in override automatically refreshes these socket-dependent containers without interrupting web traffic:
+
+```bash
+sudo mkdir -p /etc/systemd/system/docker.service.d
+sudo tee /etc/systemd/system/docker.service.d/restart-socket-proxies.conf > /dev/null <<'EOF'
+[Service]
+ExecStartPost=-/bin/sh -c 'sleep 2; /usr/bin/docker ps -q --filter "volume=/var/run/docker.sock" | xargs -r /usr/bin/docker restart'
+EOF
+sudo systemctl daemon-reload
+```
+
 ### CrowdSec Firewall Bouncer (Host-Level)
 
 The Traefik plugin blocks at Layer 7 (HTTP) — malicious packets still reach the proxy. For maximum DDoS efficiency, install the host-level bouncer. It drops packets at **netfilter** *before* they touch Docker.
@@ -408,7 +419,7 @@ sudo systemctl start crowdsec-firewall-bouncer
 
 ### Automated Hardening Check
 
-`make start` runs a pre-flight check on Linux hosts that verifies sysctls, the firewall bouncer, file descriptor limits, swap, Docker live-restore, and `vm.overcommit_memory`. It warns if anything is missing but **never blocks** startup.
+`make start` runs a pre-flight check on Linux hosts that verifies sysctls, the firewall bouncer, file descriptor limits, swap, Docker live-restore, Docker socket post-restore drop-in, and `vm.overcommit_memory`. It warns if anything is missing but **never blocks** startup.
 
 ---
 
@@ -653,6 +664,7 @@ flowchart LR
 | Loki compaction tuned for slow disk | ✅ |
 | Dashboard healthcheck endpoint (`/healthz`) | ✅ |
 | Host hardening pre-flight check | ✅ |
+| Docker socket post-restore drop-in (docker.service.d) | ✅ |
 
 ---
 
