@@ -355,6 +355,18 @@ Without live-restore, restarting the Docker daemon (e.g., during an upgrade) kil
 # Then: sudo systemctl restart docker
 ```
 
+**Docker Socket Post-Restore Handler (Live-Restore Socket Refresh)**
+With `live-restore: true`, restarting or updating Docker recreates `/var/run/docker.sock` with a new inode. Running containers mounting this socket (e.g. `watchdog`, `docker-socket-proxy`, `docker-socket-proxy-dashboard`) become detached and point to the stale/dead inode, producing continuous Telegram errors (*"Cannot connect to the Docker daemon at unix:///var/run/docker.sock"*). To automatically refresh these containers without interrupting production traffic, configure a systemd drop-in override for `docker.service`:
+
+```bash
+sudo mkdir -p /etc/systemd/system/docker.service.d
+sudo tee /etc/systemd/system/docker.service.d/restart-socket-proxies.conf > /dev/null <<'EOF'
+[Service]
+ExecStartPost=-/bin/sh -c 'sleep 2; /usr/bin/docker ps -q --filter "volume=/var/run/docker.sock" | xargs -r /usr/bin/docker restart'
+EOF
+sudo systemctl daemon-reload
+```
+
 ### Automated Hardening Verification
 
 `make start` runs a pre-flight check (`scripts/init.d/00-host-hardening-check.sh`) that verifies all of the above on Linux hosts. It warns if anything is missing but **never blocks** stack startup. It is especially useful when onboarding a new LXC or after a host OS upgrade.
@@ -365,7 +377,8 @@ Checks performed:
 3. File descriptor limit (`ulimit -n` ≥ 65536)
 4. Swap presence (warns if > 0)
 5. Docker live-restore configuration
-6. `vm.overcommit_memory` value
+6. Docker socket post-restore drop-in (when live-restore is enabled)
+7. `vm.overcommit_memory` value
 
 ### CrowdSec Firewall Bouncer (Host-Level Blocking)
 
@@ -414,6 +427,7 @@ This drops packets at **netfilter** (nftables/iptables) *before* they ever touch
 | Loki compaction interval tuned for slow disks | ✅ Done | `config/loki/config.yaml` |
 | Dashboard healthcheck endpoint (`/healthz`) | ✅ Done | `views.py`, `docker-compose-dashboard.yaml` |
 | Host hardening pre-flight check | ✅ Done | `scripts/init.d/00-host-hardening-check.sh` |
+| Docker socket post-restore drop-in (`docker.service.d`) | ✅ Done | `/etc/systemd/system/docker.service.d/restart-socket-proxies.conf`, `00-host-hardening-check.sh` |
 
 ---
 
