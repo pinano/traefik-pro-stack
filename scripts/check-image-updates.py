@@ -419,7 +419,7 @@ def main():
         elif latest_tag == current_tag:
             print(f"{latest_tag:<15} | 🟢 Up-to-date")
         else:
-            if "postgres" in image_name:
+            if image_name == "postgres" or image_name.endswith("/postgres"):
                 print(f"{latest_tag:<15} | ⚠️  Update Available (Migration required)")
                 postgres_updates.append((image_name, current_tag, latest_tag))
             else:
