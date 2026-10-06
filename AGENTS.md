@@ -224,7 +224,7 @@ Five Docker networks:
 
 #### Docker Socket Proxy (Dashboard)
 
-Unlike the global proxy (read-only), the Dashboard needs limited write operations to perform *soft restarts* (create containers, remove orphans, run `docker exec` for SIGHUP). A **dedicated proxy** (`docker-socket-proxy-dashboard`) was added inside `docker-compose-dashboard.yaml` with the minimum required permissions (`POST=1`, `DELETE=1`, `EXEC=1`), keeping dangerous operations blocked (`BUILD`, `IMAGES`, `VOLUMES`, `SWARM`). The Dashboard no longer mounts the host Docker socket directly.
+Unlike the global proxy (read-only), the Dashboard needs limited write and inspection operations to perform *soft restarts* (create containers, remove orphans, inspect images, run `docker exec` for SIGHUP). A **dedicated proxy** (`docker-socket-proxy-dashboard`) was added inside `docker-compose-dashboard.yaml` with the minimum required permissions (`POST=1`, `DELETE=1`, `EXEC=1`, `IMAGES=1`), keeping dangerous operations blocked (`BUILD`, `VOLUMES`, `SWARM`). The Dashboard no longer mounts the host Docker socket directly.
 
 ---
 

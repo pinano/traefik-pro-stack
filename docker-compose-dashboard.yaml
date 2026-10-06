@@ -27,9 +27,9 @@ services:
       - POST=1
       - DELETE=1
       - EXEC=1
+      - IMAGES=1
       # Explicitly disallow dangerous ops
       - BUILD=0
-      - IMAGES=0
       - VOLUMES=0
       - SWARM=0
       - SECRETS=0
