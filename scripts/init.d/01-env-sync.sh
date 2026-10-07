@@ -43,8 +43,16 @@ while IFS= read -r line || [ -n "$line" ]; do
         # Use existing value from .env (take the first occurrence)
         awk -F= -v var="$VAR_NAME" '$1 == var { print; exit }' "$ENV_FILE" >> "$TEMP_ENV"
     else
-        # Use default value from .env.dist
-        echo "$line" >> "$TEMP_ENV"
+        # Use default value from .env.dist (with macOS overrides for local development)
+        LINE_TO_ADD="$line"
+        if [ "$(uname -s)" = "Darwin" ]; then
+            if [ "$VAR_NAME" = "CROWDSEC_ENABLE" ]; then
+                LINE_TO_ADD="CROWDSEC_ENABLE=false"
+            elif [ "$VAR_NAME" = "BACKREST_ENABLE" ]; then
+                LINE_TO_ADD="BACKREST_ENABLE=false"
+            fi
+        fi
+        echo "$LINE_TO_ADD" >> "$TEMP_ENV"
         echo "   ➕ Added variable: $VAR_NAME"
         ADDED_VARS=$((ADDED_VARS + 1))
     fi
