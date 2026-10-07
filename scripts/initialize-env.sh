@@ -82,6 +82,22 @@ fi
 echo "📋 Copying $DIST_FILE to $ENV_FILE..."
 cp "$DIST_FILE" "$ENV_FILE"
 
+# Helper to blindly replace without prompt
+replace_val() {
+    local var_name=$1
+    local new_val=$2
+    # Use a temporary file and awk + ENVIRON for a truly literal replacement.
+    local TMP_FILE=$(mktemp)
+    NEW_VAL="$new_val" awk -v name="$var_name" '
+        BEGIN { FS="="; val=ENVIRON["NEW_VAL"]; found=0 }
+        $1 == name { print name "=" val; found=1; next }
+        { print }
+        END { if (found == 0) print name "=" val }
+    ' "$ENV_FILE" > "$TMP_FILE"
+    cat "$TMP_FILE" > "$ENV_FILE"
+    rm "$TMP_FILE"
+}
+
 # Helper function to prompt and replace
 # usage: prompt_val VAR_NAME DESCRIPTION
 prompt_val() {
@@ -117,21 +133,14 @@ prompt_val() {
     fi
 }
 
-# Helper to blindly replace without prompt
-replace_val() {
-    local var_name=$1
-    local new_val=$2
-    # Use a temporary file and awk + ENVIRON for a truly literal replacement.
-    local TMP_FILE=$(mktemp)
-    NEW_VAL="$new_val" awk -v name="$var_name" '
-        BEGIN { FS="="; val=ENVIRON["NEW_VAL"]; found=0 }
-        $1 == name { print name "=" val; found=1; next }
-        { print }
-        END { if (found == 0) print name "=" val }
-    ' "$ENV_FILE" > "$TMP_FILE"
-    cat "$TMP_FILE" > "$ENV_FILE"
-    rm "$TMP_FILE"
-}
+# Detect OS and apply platform-specific defaults
+IS_MACOS=false
+if [ "$(uname -s)" = "Darwin" ]; then
+    IS_MACOS=true
+    echo "🍎 macOS detected: setting default development preferences (CrowdSec & Backrest disabled)..."
+    replace_val "CROWDSEC_ENABLE" "false"
+    replace_val "BACKREST_ENABLE" "false"
+fi
 
 echo ""
 echo "🔧 CONFIGURING VARIABLES..."
@@ -154,41 +163,56 @@ prompt_val "ANUBIS_MEM_LIMIT" "Anubis memory limit per instance"
 
 prompt_val "DASHBOARD_SUBDOMAIN" "Dashboard Subdomain (e.g. 'dashboard' for dashboard.example.com)"
 
-prompt_val "CROWDSEC_UPDATE_INTERVAL" "CrowdSec update interval (seconds)"
-
+# --- CROWDSEC FIREWALL ---
 echo ""
-read -p "👉 Disable CrowdSec Firewall completely? (y/N): " disable_cs
-if [[ "$disable_cs" == "y" || "$disable_cs" == "Y" ]]; then
-    replace_val "CROWDSEC_ENABLE" "false"
-    echo "   ✅ CrowdSec DISABLED"
+if [ "$IS_MACOS" = true ]; then
+    read -p "👉 Enable CrowdSec Firewall? (y/N): " enable_cs
+    if [[ "$enable_cs" == "y" || "$enable_cs" == "Y" ]]; then
+        replace_val "CROWDSEC_ENABLE" "true"
+        echo "   ✅ CrowdSec ENABLED"
+    else
+        replace_val "CROWDSEC_ENABLE" "false"
+        echo "   ✅ CrowdSec DISABLED (default on macOS)"
+    fi
 else
-    replace_val "CROWDSEC_ENABLE" "true"
-    echo "   ✅ CrowdSec ENABLED"
+    read -p "👉 Disable CrowdSec Firewall completely? (y/N): " disable_cs
+    if [[ "$disable_cs" == "y" || "$disable_cs" == "Y" ]]; then
+        replace_val "CROWDSEC_ENABLE" "false"
+        echo "   ✅ CrowdSec DISABLED"
+    else
+        replace_val "CROWDSEC_ENABLE" "true"
+        echo "   ✅ CrowdSec ENABLED"
+    fi
 fi
 
-echo ""
-echo "👉 CrowdSec Console Enrollment (optional)"
-echo "   Get your key from https://app.crowdsec.net"
-read -p "   Enter enrollment key (leave empty to skip): " cs_enroll_key
-if [ -n "$cs_enroll_key" ]; then
-    replace_val "CROWDSEC_ENROLLMENT_KEY" "$cs_enroll_key"
-    echo "   ✅ Set CROWDSEC_ENROLLMENT_KEY"
-else
-    echo "   ⏭️ Skipping console enrollment"
+cs_current=$(grep "^CROWDSEC_ENABLE=" "$ENV_FILE" | cut -d'=' -f2- | tr -d "'\"")
+if [ "$cs_current" = "true" ]; then
+    prompt_val "CROWDSEC_UPDATE_INTERVAL" "CrowdSec update interval (seconds)"
+
+    echo ""
+    echo "👉 CrowdSec Console Enrollment (optional)"
+    echo "   Get your key from https://app.crowdsec.net"
+    read -p "   Enter enrollment key (leave empty to skip): " cs_enroll_key
+    if [ -n "$cs_enroll_key" ]; then
+        replace_val "CROWDSEC_ENROLLMENT_KEY" "$cs_enroll_key"
+        echo "   ✅ Set CROWDSEC_ENROLLMENT_KEY"
+    else
+        echo "   ⏭️ Skipping console enrollment"
+    fi
+
+    echo ""
+    echo "👉 CrowdSec Collections (scenarios/parsers)"
+    echo "   Remove 'crowdsecurity/http-dos' if you get too many false positives"
+    echo "   ⚠️  If you modify this on an existing installation, you may need to reset CrowdSec volumes:"
+    echo "      docker volume rm \$(docker volume ls -q | grep crowdsec)"
+    prompt_val "CROWDSEC_COLLECTIONS" "CrowdSec collections to load (space-separated)"
+
+    echo ""
+    echo "👉 CrowdSec IP Whitelist (optional)"
+    echo "   Enter IPs/CIDRs to bypass CrowdSec detection (comma-separated)"
+    echo "   Example: 192.168.1.1,10.0.0.0/8"
+    prompt_val "CROWDSEC_WHITELIST_IPS" "CrowdSec whitelist IPs (leave empty for none)"
 fi
-
-echo ""
-echo "👉 CrowdSec Collections (scenarios/parsers)"
-echo "   Remove 'crowdsecurity/http-dos' if you get too many false positives"
-echo "   ⚠️  If you modify this on an existing installation, you may need to reset CrowdSec volumes:"
-echo "      docker volume rm \$(docker volume ls -q | grep crowdsec)"
-prompt_val "CROWDSEC_COLLECTIONS" "CrowdSec collections to load (space-separated)"
-
-echo ""
-echo "👉 CrowdSec IP Whitelist (optional)"
-echo "   Enter IPs/CIDRs to bypass CrowdSec detection (comma-separated)"
-echo "   Example: 192.168.1.1,10.0.0.0/8"
-prompt_val "CROWDSEC_WHITELIST_IPS" "CrowdSec whitelist IPs (leave empty for none)"
 
 prompt_val "TRAEFIK_GLOBAL_RATE_AVG" "Traefik default rate limit (requests/sec)"
 prompt_val "TRAEFIK_GLOBAL_RATE_BURST" "Traefik default burst limit"
@@ -213,11 +237,34 @@ read -p "   Password [password]: " dm_pass
 [ -z "$dm_pass" ] && dm_pass="password"
 replace_val "DASHBOARD_ADMIN_PASSWORD" "$dm_pass"
 
+# --- BACKREST (CLOUD BACKUPS) ---
+echo ""
+if [ "$IS_MACOS" = true ]; then
+    read -p "👉 Enable Backrest (Cloud Backups)? (y/N): " enable_backrest
+    if [[ "$enable_backrest" == "y" || "$enable_backrest" == "Y" ]]; then
+        replace_val "BACKREST_ENABLE" "true"
+        echo "   ✅ Backrest ENABLED"
+    else
+        replace_val "BACKREST_ENABLE" "false"
+        echo "   ✅ Backrest DISABLED (default on macOS)"
+    fi
+else
+    read -p "👉 Disable Backrest (Cloud Backups)? (y/N): " disable_backrest
+    if [[ "$disable_backrest" == "y" || "$disable_backrest" == "Y" ]]; then
+        replace_val "BACKREST_ENABLE" "false"
+        echo "   ✅ Backrest DISABLED"
+    else
+        replace_val "BACKREST_ENABLE" "true"
+        echo "   ✅ Backrest ENABLED"
+    fi
+fi
 
 prompt_val "WATCHDOG_TELEGRAM_BOT_TOKEN" "Telegram Bot Token (for Let's Encrypt renewal alerts)"
 prompt_val "WATCHDOG_TELEGRAM_RECIPIENT_ID" "Telegram Chat/Group ID (for Let's Encrypt renewal alerts)"
 prompt_val "WATCHDOG_CERT_DAYS_WARNING" "Days before SSL certificate expiration to send alert (default: 10)"
-prompt_val "WATCHDOG_CROWDSEC_CHECK_INTERVAL" "CrowdSec Watchdog check interval (seconds)"
+if [ "$cs_current" = "true" ]; then
+    prompt_val "WATCHDOG_CROWDSEC_CHECK_INTERVAL" "CrowdSec Watchdog check interval (seconds)"
+fi
 prompt_val "WATCHDOG_DNS_CHECK_INTERVAL" "DNS check interval (seconds)"
 
 # --- AUTOMATED GENERATION ---
