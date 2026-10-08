@@ -49,7 +49,7 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
         timeout=60
         while [ -z "$CROWDSEC_ID" ] || [ "$(docker inspect --format='{{.State.Health.Status}}' $CROWDSEC_ID 2>/dev/null)" != "healthy" ]; do
             sleep 2
-            ((timeout-=2))
+            timeout=$((timeout - 2))
             if [ $timeout -le 0 ]; then
                 echo "   ❌ Timeout waiting for CrowdSec to become healthy after config update."
                 exit 1
@@ -69,7 +69,7 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
         while [ -z "$CROWDSEC_ID" ] || [ "$(docker inspect --format='{{.State.Health.Status}}' $CROWDSEC_ID 2>/dev/null)" != "healthy" ]; do
             sleep 2
             echo -n "."
-            ((timeout-=2))
+            timeout=$((timeout - 2))
             if [ $timeout -le 0 ]; then
                 # Auto-recovery: Check if CrowdSec failed due to 401 watcher credentials mismatch against DB or missing machine
                 if [ -n "$CROWDSEC_ID" ] && docker logs "$CROWDSEC_ID" 2>&1 | grep -qiE "authenticate watcher.*API error: incorrect Username or Password|ent: machine not found|Error machine login|POST /v1/watchers/login.*401"; then

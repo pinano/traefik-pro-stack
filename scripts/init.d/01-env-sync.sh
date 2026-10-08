@@ -120,13 +120,13 @@ validate_env() {
     # 1. Check DOMAIN
     if [ -z "$DOMAIN" ]; then
         echo "❌ Error: DOMAIN variable cannot be empty."
-        ((error_count++))
+        error_count=$((error_count + 1))
     fi
 
     # 2. Check TRAEFIK_ACME_ENV_TYPE
     if [[ ! "$TRAEFIK_ACME_ENV_TYPE" =~ ^(local|staging|production)$ ]]; then
         echo "❌ Error: TRAEFIK_ACME_ENV_TYPE must be 'local', 'staging', or 'production'. Current: '$TRAEFIK_ACME_ENV_TYPE'"
-        ((error_count++))
+        error_count=$((error_count + 1))
     fi
 
     # 3. Check ACME Email (only if not local)
@@ -135,7 +135,7 @@ validate_env() {
         if [[ "$TRAEFIK_ACME_EMAIL" == *"email@mydomain.com"* ]] || [[ "$TRAEFIK_ACME_EMAIL" == *"placeholder"* ]] || [ -z "$TRAEFIK_ACME_EMAIL" ]; then
             echo "❌ Error: TRAEFIK_ACME_EMAIL is set to default or empty, but environment is '$TRAEFIK_ACME_ENV_TYPE'."
             echo "   -> Please set a valid email in .env for Let's Encrypt notifications."
-            ((error_count++))
+            error_count=$((error_count + 1))
         fi
     fi
 
