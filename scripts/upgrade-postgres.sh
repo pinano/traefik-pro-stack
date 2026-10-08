@@ -27,7 +27,7 @@ trap cleanup EXIT INT TERM
 
 # Source .env to get DB credentials
 if [ -f .env ]; then
-  source .env
+  source ./.env
 fi
 DB_USER=${CROWDSEC_DB_USER:-crowdsec}
 DB_NAME=${CROWDSEC_DB_NAME:-crowdsec}

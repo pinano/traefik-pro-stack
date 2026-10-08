@@ -1,5 +1,28 @@
 #!/bin/bash
 
+ENV_FILE="${ENV_FILE:-.env}"
+
+if ! command -v update_env_var &>/dev/null; then
+    update_env_var() {
+        local var_name=$1
+        local new_val=$2
+        local current_val=$(awk -F= -v name="$var_name" '$1 == name { sub(/^[^=]*=/, ""); gsub(/^[[:space:]]*["\x27]?|["\x27]?[[:space:]]*$/, ""); print; exit }' "$ENV_FILE")
+        if [ "$current_val" = "$new_val" ]; then return; fi
+        if [[ "$new_val" =~ [[:space:]] ]] && [[ ! "$new_val" =~ ^\".*\"$ ]] && [[ ! "$new_val" =~ ^\'.*\'$ ]]; then
+            new_val="\"$new_val\""
+        fi
+        local TMP_ENV=$(mktemp)
+        NEW_VAL="$new_val" awk -v name="$var_name" '
+            BEGIN { FS="="; val=ENVIRON["NEW_VAL"]; found=0 }
+            $1 == name { print name "=" val; found=1; next }
+            { print }
+            END { if (found == 0) print name "=" val }
+        ' "$ENV_FILE" > "$TMP_ENV"
+        cat "$TMP_ENV" > "$ENV_FILE"
+        rm "$TMP_ENV"
+    }
+fi
+
 echo ""
 echo "── [3/6] 🎨 Preparing application assets ───────────────────────────────"
 
@@ -30,14 +53,19 @@ for dir in "${DATA_DIRS[@]}"; do
 done
 
 # Ensure non-root service users can write to their data directories.
-# Each service runs as a specific UID inside its container.
-chown -R 472:472 ./data/grafana 2>/dev/null || chmod -R 777 ./data/grafana 2>/dev/null || true
-chown -R 10001:10001 ./data/loki 2>/dev/null || chmod -R 777 ./data/loki 2>/dev/null || true
-chown -R 65534:65534 ./data/prometheus 2>/dev/null || chmod -R 777 ./data/prometheus 2>/dev/null || true
-chown -R 1000:1000 ./data/filebrowser 2>/dev/null || chmod -R 777 ./data/filebrowser 2>/dev/null || true
-
+# When directories are newly created, set permissions recursively.
+# On subsequent starts, only touch the directory root to avoid slow disk traversal of large TSDB/log volumes.
 if [ $DATA_CREATED -gt 0 ]; then
+    chown -R 472:472 ./data/grafana 2>/dev/null || chmod -R 777 ./data/grafana 2>/dev/null || true
+    chown -R 10001:10001 ./data/loki 2>/dev/null || chmod -R 777 ./data/loki 2>/dev/null || true
+    chown -R 65534:65534 ./data/prometheus 2>/dev/null || chmod -R 777 ./data/prometheus 2>/dev/null || true
+    chown -R 1000:1000 ./data/filebrowser 2>/dev/null || chmod -R 777 ./data/filebrowser 2>/dev/null || true
     echo "   ✅ Created $DATA_CREATED persistent data director(ies) under ./data/."
+else
+    chown 472:472 ./data/grafana 2>/dev/null || chmod 777 ./data/grafana 2>/dev/null || true
+    chown 10001:10001 ./data/loki 2>/dev/null || chmod 777 ./data/loki 2>/dev/null || true
+    chown 65534:65534 ./data/prometheus 2>/dev/null || chmod 777 ./data/prometheus 2>/dev/null || true
+    chown 1000:1000 ./data/filebrowser 2>/dev/null || chmod 777 ./data/filebrowser 2>/dev/null || true
 fi
 
 ANUBIS_ASSETS_DIR="./config/anubis/assets"

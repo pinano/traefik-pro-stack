@@ -27,6 +27,16 @@ if [ -f /.dockerenv ] || grep -q 'docker\|lxc' /proc/1/cgroup 2>/dev/null; then
     return 0
 fi
 
+# Skip if environment is not staging or production (e.g. local development)
+CURRENT_ENV_TYPE="${TRAEFIK_ACME_ENV_TYPE:-}"
+if [ -z "$CURRENT_ENV_TYPE" ] && [ -f "./.env" ]; then
+    CURRENT_ENV_TYPE=$(grep -E '^[[:space:]]*TRAEFIK_ACME_ENV_TYPE=' ./.env 2>/dev/null | cut -d= -f2- | tr -d '\"'\'' ')
+fi
+
+if [[ "$CURRENT_ENV_TYPE" != "staging" && "$CURRENT_ENV_TYPE" != "production" ]]; then
+    return 0
+fi
+
 # Skip on non-Linux platforms (macOS, WSL without native sysctl, etc.)
 if [ "$(uname -s)" != "Linux" ]; then
     return 0
@@ -131,6 +141,10 @@ fi
 # drops packets at netfilter (nftables/iptables) before they reach Docker.
 # This is the most effective DDoS mitigation layer.
 
+CS_ENABLE_CHECK=$(grep -E '^[[:space:]]*CROWDSEC_ENABLE=' .env 2>/dev/null | cut -d= -f2- | tr -d '\"'\'' ' | tr '[:upper:]' '[:lower:]')
+if [ "$CS_ENABLE_CHECK" = "false" ] || [ "$CROWDSEC_ENABLE" = "false" ]; then
+    echo "   ℹ️  CrowdSec is disabled (CROWDSEC_ENABLE=false), skipping Firewall Bouncer check."
+else
 CSFWB_INSTALLED=false
 CSFWB_ACTIVE=false
 
@@ -254,6 +268,7 @@ elif [ "$CSFWB_INSTALLED" = true ] && [ "$CSFWB_ACTIVE" = false ]; then
     fi
 else
     echo "   ✅ CrowdSec Firewall Bouncer is installed and active."
+fi
 fi
 
 # ---------------------------------------------------------------------------

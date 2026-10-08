@@ -186,10 +186,43 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # ===========================
+  #  REDIS EXPORTER (Metrics for Prometheus)
+  # ===========================
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.92.0-alpine
+    restart: unless-stopped
+    environment:
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    networks:
+      - traefik
+      - anubis-backend
+    security_opt:
+      - no-new-privileges=true
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider --quiet http://localhost:9121/metrics || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
 networks:
   traefik:
     name: traefik
     external: true
   socket-proxy:
     name: socket-proxy
+    external: true
+  anubis-backend:
+    name: anubis-backend
     external: true

@@ -40,6 +40,13 @@ grafana_api() {
         curl -sk -u "${AUTH}" "$@"
 }
 
+# ─── Guard: skip if Grafana is disabled ─────────────────────────────────────
+GRAFANA_ENABLED_VAL="${GRAFANA_ENABLED:-${GRAFANA_ENABLE:-true}}"
+GRAFANA_ENABLED_VAL=$(echo "$GRAFANA_ENABLED_VAL" | tr -d '\"'\'' ' | tr '[:upper:]' '[:lower:]')
+if [[ "$GRAFANA_ENABLED_VAL" == "false" ]]; then
+    skip "Grafana is disabled (GRAFANA_ENABLED=false) — skipping Grafana alerting setup."
+fi
+
 # ─── Guard: skip if Telegram is not configured ───────────────────────────────
 if [[ -z "${WATCHDOG_TELEGRAM_BOT_TOKEN:-}" || "${WATCHDOG_TELEGRAM_BOT_TOKEN}" == "REPLACE_ME" ]]; then
     skip "WATCHDOG_TELEGRAM_BOT_TOKEN not configured — skipping Grafana alerting setup."
@@ -58,10 +65,10 @@ fi
 # ─── Wait for Grafana container to be running and healthy ─────────────────────
 info "Waiting for Grafana container..."
 GRAFANA_READY=false
-for i in $(seq 1 24); do
+for i in $(seq 1 60); do
     # Check container is running first (supports both container ID and container name)
     if ! docker inspect --format '{{.State.Running}}' "${GRAFANA_CONTAINER}" 2>/dev/null | grep -q "true"; then
-        sleep 5
+        sleep 2
         continue
     fi
     # Then check Grafana's internal health endpoint
@@ -69,7 +76,7 @@ for i in $(seq 1 24); do
         GRAFANA_READY=true
         break
     fi
-    sleep 5
+    sleep 2
 done
 
 if [[ "${GRAFANA_READY}" == "false" ]]; then

@@ -8,7 +8,7 @@ echo "============================================="
 # Load environment
 if [ -f .env ]; then
     set -a
-    source .env
+    source ./.env
     set +a
 fi
 source scripts/compose-files.sh
@@ -72,7 +72,13 @@ check_container "redis" "valkey-cli -a ${REDIS_PASSWORD} ping"
 
 echo ""
 echo "--- Observability ---"
-check_container "grafana" "wget -qO- http://localhost:3000/api/health"
+GRAFANA_ENABLED_VAL="${GRAFANA_ENABLED:-${GRAFANA_ENABLE:-true}}"
+GRAFANA_ENABLED_VAL=$(echo "$GRAFANA_ENABLED_VAL" | tr -d '\"'\'' ' | tr '[:upper:]' '[:lower:]')
+if [ "$GRAFANA_ENABLED_VAL" != "false" ]; then
+    check_container "grafana" "wget -qO- http://localhost:3000/api/health"
+else
+    echo -e "🟡 \033[1mgrafana\033[0m: Disabled in .env"
+fi
 
 echo ""
 echo "============================================="

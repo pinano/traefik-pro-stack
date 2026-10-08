@@ -81,7 +81,17 @@ This prioritizes availability over security in abnormal situations. If you need 
 - Ports **80 and 443 free** on the host.
 - A domain pointing to the server (for Let's Encrypt).
 
-### In 3 Commands
+### Quick Start: Local Development (Single Command)
+
+For local development on your machine, just run:
+
+```bash
+make start
+```
+
+If `.env` does not exist, `make start` will automatically prompt for the environment (`local`), configure your core domain and dashboard credentials, disable heavy background services (CrowdSec, Grafana, Watchdog, Backrest, etc.), generate local TLS certificates, and boot the stack immediately.
+
+### Production / Staging: In 3 Commands
 
 ```bash
 # 1. Initialize the environment (creates .venv, installs dependencies, generates .env)
@@ -162,11 +172,13 @@ The stack separates responsibilities across multiple files:
 | File | Contents |
 |---------|-----------|
 | `docker-compose-edge.yaml` | Traefik |
-| `docker-compose-security.yaml` | CrowdSec, PostgreSQL, Redis, Redis Exporter, CrowdSec Web UI, Docker Socket Proxy |
-| `docker-compose-observability.yaml` | Grafana, Loki, Alloy, Prometheus |
-| `docker-compose-dashboard.yaml` | Dashboard (Flask), Dozzle, Watchdog, **Docker Socket Proxy (Dashboard)** |
-| `docker-compose-anubis.yaml` | Base Anubis template + asset server |
-| `docker-compose-anubis-generated.yaml` | Auto-generated Anubis instances (per TLD) |
+| `docker-compose-security.yaml` | CrowdSec, PostgreSQL, Redis, CrowdSec Web UI, Docker Socket Proxy |
+| `docker-compose-observability.yaml` | Grafana, Loki, Alloy, Prometheus, Redis Exporter (conditional on `GRAFANA_ENABLED != false`) |
+| `docker-compose-dashboard.yaml` | Dashboard (Flask), Dozzle, **Docker Socket Proxy (Dashboard)** |
+| `docker-compose-watchdog.yaml` | Watchdog (SSL, DNS, CrowdSec health monitor) — conditional on `WATCHDOG_ENABLE != false` (disabled in `local`) |
+| `docker-compose-anubis-base.yaml` | Abstract Anubis template (`anubis-base`) — used only via `extends`, never booted directly |
+| `docker-compose-anubis.yaml` | Anubis asset server (`anubis-assets`) — conditional on `.anubis_available` |
+| `docker-compose-anubis-generated.yaml` | Auto-generated Anubis instances (per TLD) — conditional on `.anubis_available` |
 | `docker-compose-backrest.yaml` | Backrest (Restic + Rclone) — conditional on `BACKREST_ENABLE=true` |
 | `docker-compose-apache-logs.yaml` | Apache log integration (auto-included if Apache is detected) |
 

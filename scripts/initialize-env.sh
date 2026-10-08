@@ -51,10 +51,12 @@ fi
 
 # Install requirements
 if [ -f "scripts/requirements.txt" ]; then
-    echo "⬇️  Installing/Updating Python dependencies..."
-    # Bootstrap pip if it is missing (common on Debian without python3-full)
-    ./.venv/bin/python3 -m pip --version &>/dev/null || (echo "📦 Bootstrapping pip..." && curl -sS https://bootstrap.pypa.io/get-pip.py | ./.venv/bin/python3 -q)
-    ./.venv/bin/python3 -m pip install -q -r scripts/requirements.txt || echo "⚠️  Warning: Failed to install dependencies. Check your internet connection."
+    if ! ./.venv/bin/python3 -c "import yaml, tldextract" &>/dev/null; then
+        echo "⬇️  Installing/Updating Python dependencies..."
+        # Bootstrap pip if it is missing (common on Debian without python3-full)
+        ./.venv/bin/python3 -m pip --version &>/dev/null || (echo "📦 Bootstrapping pip..." && curl -sS https://bootstrap.pypa.io/get-pip.py | ./.venv/bin/python3 -q)
+        ./.venv/bin/python3 -m pip install -q -r scripts/requirements.txt || echo "⚠️  Warning: Failed to install dependencies. Check your internet connection."
+    fi
 else
     echo "⚠️  Warning: scripts/requirements.txt not found. Skipping dependency installation."
 fi
@@ -83,36 +85,32 @@ echo "📋 Copying $DIST_FILE to $ENV_FILE..."
 cp "$DIST_FILE" "$ENV_FILE"
 
 # Helper function to prompt and replace
-# usage: prompt_val VAR_NAME DESCRIPTION
+# usage: prompt_val VAR_NAME DESCRIPTION [CUSTOM_DEFAULT]
 prompt_val() {
     local var_name=$1
     local desc=$2
+    local custom_default=$3
     # Grep the current value from the file (handles defaults from dist)
     local current_val
     current_val=$(grep "^${var_name}=" "$ENV_FILE" | cut -d'=' -f2-)
     
     # Remove single and double quotes if present for display
     local display_val
-    display_val=$(echo "$current_val" | tr -d "'\"")
+    if [ -n "$custom_default" ]; then
+        display_val="$custom_default"
+    else
+        display_val=$(echo "$current_val" | tr -d "'\"")
+    fi
 
     echo ""
     echo "👉 $desc"
     read -p "   Enter value [${display_val}]: " input_val
 
     if [ -n "$input_val" ]; then
-        # Use a temporary file and awk + ENVIRON for a truly literal replacement.
-        # This handles ALL special characters (\, |, &, quotes) without delimiter hell.
-        local TMP_FILE=$(mktemp)
-        NEW_VAL="$input_val" awk -v name="$var_name" '
-            BEGIN { FS="="; val=ENVIRON["NEW_VAL"]; found=0 }
-            $1 == name { print name "=" val; found=1; next }
-            { print }
-            END { if (found == 0) print name "=" val }
-        ' "$ENV_FILE" > "$TMP_FILE"
-        cat "$TMP_FILE" > "$ENV_FILE"
-        rm "$TMP_FILE"
+        replace_val "$var_name" "$input_val"
         echo "   ✅ Set to: $input_val"
     else
+        replace_val "$var_name" "$display_val"
         echo "   ⏭️ Keeping default: $display_val"
     fi
 }
@@ -121,6 +119,10 @@ prompt_val() {
 replace_val() {
     local var_name=$1
     local new_val=$2
+    # Ensure values containing whitespace are wrapped in quotes for shell safety
+    if [[ "$new_val" =~ [[:space:]] ]] && [[ ! "$new_val" =~ ^\".*\"$ ]] && [[ ! "$new_val" =~ ^\'.*\'$ ]]; then
+        new_val="\"$new_val\""
+    fi
     # Use a temporary file and awk + ENVIRON for a truly literal replacement.
     local TMP_FILE=$(mktemp)
     NEW_VAL="$new_val" awk -v name="$var_name" '
@@ -136,89 +138,136 @@ replace_val() {
 echo ""
 echo "🔧 CONFIGURING VARIABLES..."
 
-
-# --- INTERACTIVE PROMPTS ---
-
-prompt_val "DOMAIN" "Core domain (e.g. example.com)"
-prompt_val "PROJECT_NAME" "Docker Compose Project Name (prefix for containers)"
-prompt_val "TZ" "Timezone (e.g. Europe/Madrid)"
-prompt_val "TRAEFIK_ACME_EMAIL" "Let's Encrypt email"
-prompt_val "TRAEFIK_LISTEN_IP" "Traefik Listen IP (default: 0.0.0.0 for all)"
-prompt_val "TRAEFIK_ACME_ENV_TYPE" "ACME Environment (production/staging/local)"
-
-
-prompt_val "ANUBIS_DIFFICULTY" "Anubis challenge difficulty (1-5)"
-prompt_val "ANUBIS_CPU_LIMIT" "Anubis CPU limit per instance"
-prompt_val "ANUBIS_MEM_LIMIT" "Anubis memory limit per instance"
-
-
-prompt_val "DASHBOARD_SUBDOMAIN" "Dashboard Subdomain (e.g. 'dashboard' for dashboard.example.com)"
-
-prompt_val "CROWDSEC_UPDATE_INTERVAL" "CrowdSec update interval (seconds)"
-
+# =============================================================================
+# 1. ENVIRONMENT SELECTION (Universal)
+# =============================================================================
 echo ""
-read -p "👉 Disable CrowdSec Firewall completely? (y/N): " disable_cs
-if [[ "$disable_cs" == "y" || "$disable_cs" == "Y" ]]; then
+echo "👉 Select Environment (local / staging / production)"
+echo "   • local: Development environment with self-signed local certs, minimal background services"
+echo "   • staging: Pre-production testing with Let's Encrypt Staging"
+echo "   • production: Live production with real Let's Encrypt certificates and active shields"
+read -p "   Enter environment [local]: " input_env
+input_env="${input_env:-local}"
+input_env=$(echo "$input_env" | tr '[:upper:]' '[:lower:]' | tr -d ' ')
+
+if [[ "$input_env" != "staging" && "$input_env" != "production" ]]; then
+    input_env="local"
+fi
+
+replace_val "TRAEFIK_ACME_ENV_TYPE" "$input_env"
+echo "   ✅ Environment set to: $input_env"
+
+# PROJECT_NAME is never prompted, defaults to 'stack' across all environments
+replace_val "PROJECT_NAME" "stack"
+
+if [ "$input_env" = "local" ]; then
+    # =========================================================================
+    # LOCAL ENVIRONMENT FLOW (Streamlined)
+    # =========================================================================
+    echo ""
+    echo "🏠 Local environment selected: applying streamlined development setup."
+
+    # 1. Core domain & Dashboard configuration
+    prompt_val "DOMAIN" "Core domain (e.g. localhost)" "localhost"
+    prompt_val "DASHBOARD_SUBDOMAIN" "Dashboard Subdomain (e.g. 'dashboard')" "dashboard"
+    prompt_val "DASHBOARD_ADMIN_USER" "Dashboard Admin User" "admin"
+    prompt_val "DASHBOARD_ADMIN_PASSWORD" "Dashboard Admin Password" "password"
+
+    # 2. Timezone
+    prompt_val "TZ" "Timezone (e.g. Europe/Madrid)" "Europe/Madrid"
+
+    # Auto-configure local settings silently
+    replace_val "DASHBOARD_ANUBIS_SUBDOMAIN" ""
     replace_val "CROWDSEC_ENABLE" "false"
-    echo "   ✅ CrowdSec DISABLED"
+    replace_val "GRAFANA_ENABLED" "false"
+    replace_val "BACKREST_ENABLE" "false"
+    replace_val "PHPMYADMIN_ENABLE" "false"
+    replace_val "FILEBROWSER_ENABLE" "false"
+    replace_val "WATCHDOG_ENABLE" "false"
+
+    echo ""
+    echo "   ⚡ Disabled background services for local development: CrowdSec, Grafana, Backrest, phpMyAdmin, Filebrowser, Watchdog."
+
 else
-    replace_val "CROWDSEC_ENABLE" "true"
-    echo "   ✅ CrowdSec ENABLED"
+    # =========================================================================
+    # STAGING / PRODUCTION ENVIRONMENT FLOW (Full Configuration)
+    # =========================================================================
+    echo ""
+    echo "🚀 $input_env environment selected: configuring production security and services."
+
+    # Core domain & Dashboard configuration
+    prompt_val "DOMAIN" "Core domain (e.g. example.com)"
+    CURRENT_DOMAIN=$(grep "^DOMAIN=" "$ENV_FILE" | cut -d'=' -f2- | tr -d "'\"")
+    prompt_val "DASHBOARD_SUBDOMAIN" "Dashboard Subdomain (e.g. 'dashboard' for dashboard.${CURRENT_DOMAIN:-example.com})" "dashboard"
+    prompt_val "DASHBOARD_ADMIN_USER" "Dashboard Admin User" "admin"
+    SUGGESTED_PASS=$(openssl rand -hex 12)
+    prompt_val "DASHBOARD_ADMIN_PASSWORD" "Dashboard Admin Password" "$SUGGESTED_PASS"
+    prompt_val "DASHBOARD_ANUBIS_SUBDOMAIN" "Dashboard Anubis subdomain (e.g. 'auth', leave empty for none)" ""
+
+    # General & Network configuration
+    prompt_val "TZ" "Timezone (e.g. Europe/Madrid)"
+    DEFAULT_ACME_EMAIL="admin@${CURRENT_DOMAIN:-example.com}"
+    prompt_val "TRAEFIK_ACME_EMAIL" "Let's Encrypt email" "$DEFAULT_ACME_EMAIL"
+    prompt_val "TRAEFIK_LISTEN_IP" "Traefik Listen IP (default: 0.0.0.0 for all)"
+
+    prompt_val "ANUBIS_DIFFICULTY" "Anubis challenge difficulty (1-5)"
+    prompt_val "ANUBIS_CPU_LIMIT" "Anubis CPU limit per instance"
+    prompt_val "ANUBIS_MEM_LIMIT" "Anubis memory limit per instance"
+
+    prompt_val "CROWDSEC_UPDATE_INTERVAL" "CrowdSec update interval (seconds)"
+
+    echo ""
+    read -p "👉 Disable CrowdSec Firewall completely? (y/N): " disable_cs
+    if [[ "$disable_cs" == "y" || "$disable_cs" == "Y" ]]; then
+        replace_val "CROWDSEC_ENABLE" "false"
+        echo "   ✅ CrowdSec DISABLED"
+    else
+        replace_val "CROWDSEC_ENABLE" "true"
+        echo "   ✅ CrowdSec ENABLED"
+    fi
+
+    echo ""
+    echo "👉 CrowdSec Console Enrollment (optional)"
+    echo "   Get your key from https://app.crowdsec.net"
+    read -p "   Enter enrollment key (leave empty to skip): " cs_enroll_key
+    if [ -n "$cs_enroll_key" ]; then
+        replace_val "CROWDSEC_ENROLLMENT_KEY" "$cs_enroll_key"
+        echo "   ✅ Set CROWDSEC_ENROLLMENT_KEY"
+    else
+        echo "   ⏭️ Skipping console enrollment"
+    fi
+
+    echo ""
+    echo "👉 CrowdSec Collections (scenarios/parsers)"
+    echo "   Remove 'crowdsecurity/http-dos' if you get too many false positives"
+    echo "   ⚠️  If you modify this on an existing installation, you may need to reset CrowdSec volumes:"
+    echo "      docker volume rm \$(docker volume ls -q | grep crowdsec)"
+    prompt_val "CROWDSEC_COLLECTIONS" "CrowdSec collections to load (space-separated)"
+
+    echo ""
+    echo "👉 CrowdSec IP Whitelist (optional)"
+    echo "   Enter IPs/CIDRs to bypass CrowdSec detection (comma-separated)"
+    echo "   Example: 192.168.1.1,10.0.0.0/8"
+    prompt_val "CROWDSEC_WHITELIST_IPS" "CrowdSec whitelist IPs (leave empty for none)"
+
+    prompt_val "TRAEFIK_GLOBAL_RATE_AVG" "Traefik default rate limit (requests/sec)"
+    prompt_val "TRAEFIK_GLOBAL_RATE_BURST" "Traefik default burst limit"
+    prompt_val "TRAEFIK_GLOBAL_CONCURRENCY" "Traefik global concurrency"
+    prompt_val "TRAEFIK_TIMEOUT_ACTIVE" "Traefik active read timeout in seconds"
+    prompt_val "TRAEFIK_TIMEOUT_IDLE" "Traefik idle timeout in seconds"
+    prompt_val "TRAEFIK_BLOCKED_PATHS" "Global Blocked Paths (e.g. /wp-admin/,/admin/)"
+    prompt_val "TRAEFIK_BAD_USER_AGENTS" "Bad User Agents (regex, comma-separated)"
+    prompt_val "TRAEFIK_ACCESS_LOG_BUFFER" "Access Log Buffer Size"
+    prompt_val "TRAEFIK_LOG_LEVEL" "Traefik Log Level (DEBUG/INFO/WARN/ERROR)"
+    prompt_val "TRAEFIK_HSTS_MAX_AGE" "HSTS max age (seconds)"
+    prompt_val "TRAEFIK_FRAME_ANCESTORS" "Allowed Iframe Ancestors (e.g. https://my-other-web.com)"
+
+    prompt_val "WATCHDOG_TELEGRAM_BOT_TOKEN" "Telegram Bot Token (for Let's Encrypt renewal alerts)"
+    prompt_val "WATCHDOG_TELEGRAM_RECIPIENT_ID" "Telegram Chat/Group ID (for Let's Encrypt renewal alerts)"
+    prompt_val "WATCHDOG_CERT_DAYS_WARNING" "Days before SSL certificate expiration to send alert (default: 10)"
+    prompt_val "WATCHDOG_CROWDSEC_CHECK_INTERVAL" "CrowdSec Watchdog check interval (seconds)"
+    prompt_val "WATCHDOG_DNS_CHECK_INTERVAL" "DNS check interval (seconds)"
 fi
-
-echo ""
-echo "👉 CrowdSec Console Enrollment (optional)"
-echo "   Get your key from https://app.crowdsec.net"
-read -p "   Enter enrollment key (leave empty to skip): " cs_enroll_key
-if [ -n "$cs_enroll_key" ]; then
-    replace_val "CROWDSEC_ENROLLMENT_KEY" "$cs_enroll_key"
-    echo "   ✅ Set CROWDSEC_ENROLLMENT_KEY"
-else
-    echo "   ⏭️ Skipping console enrollment"
-fi
-
-echo ""
-echo "👉 CrowdSec Collections (scenarios/parsers)"
-echo "   Remove 'crowdsecurity/http-dos' if you get too many false positives"
-echo "   ⚠️  If you modify this on an existing installation, you may need to reset CrowdSec volumes:"
-echo "      docker volume rm \$(docker volume ls -q | grep crowdsec)"
-prompt_val "CROWDSEC_COLLECTIONS" "CrowdSec collections to load (space-separated)"
-
-echo ""
-echo "👉 CrowdSec IP Whitelist (optional)"
-echo "   Enter IPs/CIDRs to bypass CrowdSec detection (comma-separated)"
-echo "   Example: 192.168.1.1,10.0.0.0/8"
-prompt_val "CROWDSEC_WHITELIST_IPS" "CrowdSec whitelist IPs (leave empty for none)"
-
-prompt_val "TRAEFIK_GLOBAL_RATE_AVG" "Traefik default rate limit (requests/sec)"
-prompt_val "TRAEFIK_GLOBAL_RATE_BURST" "Traefik default burst limit"
-prompt_val "TRAEFIK_GLOBAL_CONCURRENCY" "Traefik global concurrency"
-prompt_val "TRAEFIK_TIMEOUT_ACTIVE" "Traefik active read timeout in seconds"
-prompt_val "TRAEFIK_TIMEOUT_IDLE" "Traefik idle timeout in seconds"
-prompt_val "TRAEFIK_BLOCKED_PATHS" "Global Blocked Paths (e.g. /wp-admin/,/admin/)"
-prompt_val "TRAEFIK_BAD_USER_AGENTS" "Bad User Agents (regex, comma-separated)"
-prompt_val "TRAEFIK_ACCESS_LOG_BUFFER" "Access Log Buffer Size"
-prompt_val "TRAEFIK_LOG_LEVEL" "Traefik Log Level (DEBUG/INFO/WARN/ERROR)"
-prompt_val "TRAEFIK_HSTS_MAX_AGE" "HSTS max age (seconds)"
-prompt_val "TRAEFIK_FRAME_ANCESTORS" "Allowed Iframe Ancestors (e.g. https://my-other-web.com)"
-
-# --- DASHBOARD CREDENTIALS (SSO) ---
-echo ""
-echo "👉 Dashboard Admin Credentials (SSO for all services)"
-read -p "   User [admin]: " dm_user
-[ -z "$dm_user" ] && dm_user="admin"
-replace_val "DASHBOARD_ADMIN_USER" "$dm_user"
-
-read -p "   Password [password]: " dm_pass
-[ -z "$dm_pass" ] && dm_pass="password"
-replace_val "DASHBOARD_ADMIN_PASSWORD" "$dm_pass"
-
-
-prompt_val "WATCHDOG_TELEGRAM_BOT_TOKEN" "Telegram Bot Token (for Let's Encrypt renewal alerts)"
-prompt_val "WATCHDOG_TELEGRAM_RECIPIENT_ID" "Telegram Chat/Group ID (for Let's Encrypt renewal alerts)"
-prompt_val "WATCHDOG_CERT_DAYS_WARNING" "Days before SSL certificate expiration to send alert (default: 10)"
-prompt_val "WATCHDOG_CROWDSEC_CHECK_INTERVAL" "CrowdSec Watchdog check interval (seconds)"
-prompt_val "WATCHDOG_DNS_CHECK_INTERVAL" "DNS check interval (seconds)"
 
 # --- AUTOMATED GENERATION ---
 

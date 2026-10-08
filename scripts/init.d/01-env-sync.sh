@@ -5,13 +5,15 @@
 DIST_FILE=".env.dist"
 ENV_FILE=".env"
 
+JUST_INITIALIZED=0
+
 # 1. Check if .env exists, if not, initialize
 if [ ! -f "$ENV_FILE" ]; then
     echo "⚠️  $ENV_FILE not found. Running initialization..."
     if [ -f "./scripts/initialize-env.sh" ]; then
         [ -w "./scripts/initialize-env.sh" ] && chmod +x ./scripts/initialize-env.sh
         ./scripts/initialize-env.sh
-        exit 0
+        JUST_INITIALIZED=1
     else
         echo "❌ Error: initialize-env.sh not found. Please create $ENV_FILE manually."
         exit 1
@@ -21,64 +23,91 @@ fi
 # 1. Environment Preparation
 echo ""
 echo "── [1/6] 📋 Preparing environment ──────────────────────────────────────"
-# Safely create backup with 600 permissions
-rm -f "${ENV_FILE}.bak"
-(umask 077 && cp "$ENV_FILE" "${ENV_FILE}.bak")
-TEMP_ENV=$(mktemp)
-ADDED_VARS=0
 
-# Process all lines from .env.dist to maintain its structure
-while IFS= read -r line || [ -n "$line" ]; do
-    # Preserve comments and empty lines
-    if [[ "$line" =~ ^# ]] || [[ -z "$line" ]]; then
-        echo "$line" >> "$TEMP_ENV"
-        continue
-    fi
+if [ "$JUST_INITIALIZED" -eq 1 ]; then
+    echo "   ✅ Environment freshly initialized and synchronized."
+else
+    # Safely create backup with 600 permissions
+    rm -f "${ENV_FILE}.bak"
+    (umask 077 && cp "$ENV_FILE" "${ENV_FILE}.bak")
+    TEMP_ENV=$(mktemp)
 
-    # Extract variable name (part before =)
-    VAR_NAME=$(echo "$line" | cut -d'=' -f1)
-    
-    # Check if variable exists in current .env
-    if awk -F= -v var="$VAR_NAME" '$1 == var { found=1; exit } END { exit !found }' "$ENV_FILE"; then
-        # Use existing value from .env (take the first occurrence)
-        awk -F= -v var="$VAR_NAME" '$1 == var { print; exit }' "$ENV_FILE" >> "$TEMP_ENV"
+    # Perform instant single-pass structure synchronization
+    SYNC_STATS=$(python3 -c '
+import sys
+dist_file = sys.argv[1]
+env_file = sys.argv[2]
+out_file = sys.argv[3]
+
+env_vars = {}
+with open(env_file, "r", encoding="utf-8", errors="replace") as f:
+    for line in f:
+        s = line.strip()
+        if s and not s.startswith("#") and "=" in line:
+            k = line.split("=", 1)[0].strip()
+            if k not in env_vars:
+                env_vars[k] = line.rstrip("\r\n")
+
+dist_keys = set()
+added_count = 0
+output_lines = []
+
+with open(dist_file, "r", encoding="utf-8", errors="replace") as f:
+    for line in f:
+        s = line.strip()
+        if not s or s.startswith("#") or "=" not in line:
+            output_lines.append(line.rstrip("\r\n"))
+            continue
+        k = line.split("=", 1)[0].strip()
+        dist_keys.add(k)
+        if k in env_vars:
+            output_lines.append(env_vars[k])
+        else:
+            output_lines.append(line.rstrip("\r\n"))
+            added_count += 1
+
+extra_lines = []
+with open(env_file, "r", encoding="utf-8", errors="replace") as f:
+    for line in f:
+        s = line.strip()
+        if s and not s.startswith("#") and "=" in line:
+            k = line.split("=", 1)[0].strip()
+            if k not in dist_keys:
+                extra_lines.append(line.rstrip("\r\n"))
+
+if extra_lines:
+    output_lines.append("")
+    output_lines.append("# --- Custom variables (not in .env.dist) ---")
+    output_lines.extend(extra_lines)
+
+with open(out_file, "w", encoding="utf-8") as f:
+    f.write("\n".join(output_lines) + "\n")
+
+print(f"{added_count} {len(extra_lines)}")
+' "$DIST_FILE" "$ENV_FILE" "$TEMP_ENV")
+
+    ADDED_VARS=$(echo "$SYNC_STATS" | awk '{print $1}')
+    EXTRA_VARS=$(echo "$SYNC_STATS" | awk '{print $2}')
+
+    if cmp -s "$TEMP_ENV" "$ENV_FILE"; then
+        rm "$TEMP_ENV"
     else
-        # Use default value from .env.dist
-        echo "$line" >> "$TEMP_ENV"
-        echo "   ➕ Added variable: $VAR_NAME"
-        ADDED_VARS=$((ADDED_VARS + 1))
+        cat "$TEMP_ENV" > "$ENV_FILE"
+        rm "$TEMP_ENV"
+        chmod 600 "$ENV_FILE"
     fi
-done < "$DIST_FILE"
 
-# Append any custom variables from .env that are NOT in .env.dist
-EXTRA_VARS=0
-while IFS= read -r line || [ -n "$line" ]; do
-    if [[ "$line" =~ ^# ]] || [[ -z "$line" ]]; then continue; fi
-    VAR_NAME=$(echo "$line" | cut -d'=' -f1)
-    if ! awk -F= -v var="$VAR_NAME" '$1 == var { found=1; exit } END { exit !found }' "$DIST_FILE"; then
-        if [ $EXTRA_VARS -eq 0 ]; then
-            echo "" >> "$TEMP_ENV"
-            echo "# --- Custom variables (not in .env.dist) ---" >> "$TEMP_ENV"
-        fi
-        echo "$line" >> "$TEMP_ENV"
-        EXTRA_VARS=$((EXTRA_VARS + 1))
+    if [ "$ADDED_VARS" -gt 0 ]; then
+        echo "   ✅ Added $ADDED_VARS new variables from .env.dist."
     fi
-done < "$ENV_FILE"
-
-cat "$TEMP_ENV" > "$ENV_FILE"
-rm "$TEMP_ENV"
-chmod 600 "$ENV_FILE"
-
-if [ $ADDED_VARS -gt 0 ]; then
-    echo "   ✅ Added $ADDED_VARS new variables from .env.dist."
-fi
-if [ $EXTRA_VARS -gt 0 ]; then
-    echo "   ℹ️ Preserved $EXTRA_VARS custom variables."
+    if [ "$EXTRA_VARS" -gt 0 ]; then
+        echo "   ℹ️ Preserved $EXTRA_VARS custom variables."
+    fi
 fi
 
 # Load variables
 set -a
-source .env
+source ./.env
 set +a
 
 # =============================================================================

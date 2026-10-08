@@ -11,7 +11,7 @@ services:
         condition: service_healthy
         required: false
       redis:
-        condition: service_healthy
+        condition: service_started
         required: false
     ports:
       - "${TRAEFIK_LISTEN_IP:-0.0.0.0}:80:80"
@@ -50,10 +50,10 @@ services:
       - no-new-privileges=true
     healthcheck:
       test: ["CMD", "traefik", "healthcheck"]
-      interval: 10s
-      timeout: 5s
+      interval: 3s
+      timeout: 2s
       retries: 3
-      start_period: 10s
+      start_period: 2s
     deploy:
       resources:
         reservations:

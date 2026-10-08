@@ -32,6 +32,14 @@ set -eo pipefail
 export PYTHONWARNINGS="ignore:urllib3 v2 only supports"
 export PYTHONUNBUFFERED=1
 
+# Normalize CROWDSEC_ENABLE (strip quotes, whitespace, convert to lowercase)
+CROWDSEC_ENABLE=$(echo "${CROWDSEC_ENABLE:-true}" | tr -d '\"'\'' ' | tr '[:upper:]' '[:lower:]')
+export CROWDSEC_ENABLE
+
+# Normalize GRAFANA_ENABLED (strip quotes, whitespace, convert to lowercase)
+GRAFANA_ENABLED=$(echo "${GRAFANA_ENABLED:-${GRAFANA_ENABLE:-true}}" | tr -d '\"'\'' ' | tr '[:upper:]' '[:lower:]')
+export GRAFANA_ENABLED
+
 # ─── Mutex: Prevent concurrent executions ────────────────────────
 LOCKFILE="/tmp/stack-restart.lock"
 if command -v flock >/dev/null 2>&1; then
@@ -180,9 +188,12 @@ find ./config/traefik -type f -name "*.yaml" -exec chmod 644 {} \;
 find ./config/traefik -type f -name "*.json" -exec chmod 600 {} \;
 chmod 644 ./domains.csv 2>/dev/null || true
 
-# Ensure docker-compose-anubis-generated.yaml is readable
+# Ensure docker-compose-anubis-generated.yaml and base are readable
 if [ -f "docker-compose-anubis-generated.yaml" ]; then
     chmod 644 docker-compose-anubis-generated.yaml
+fi
+if [ -f "docker-compose-anubis-base.yaml" ]; then
+    chmod 644 docker-compose-anubis-base.yaml
 fi
 
 # Ensure anubis policy is readable
@@ -243,8 +254,54 @@ source scripts/compose-files.sh
 
 # Build compose command with explicit project name
 COMPOSE_CMD="docker compose -p ${PROJECT_NAME:-stack}"
-if [[ "${CROWDSEC_ENABLE:-true}" == "true" ]]; then
+if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
     COMPOSE_CMD="$COMPOSE_CMD --profile crowdsec"
+else
+    # If CrowdSec is disabled, ensure no CrowdSec containers remain running
+    for cs_svc in crowdsec crowdsec-db crowdsec-web-ui postgres-exporter; do
+        CS_IDS=$(docker ps -aq --filter label=com.docker.compose.project="${PROJECT_NAME:-stack}" --filter label=com.docker.compose.service="$cs_svc" 2>/dev/null || true)
+        if [ -z "$CS_IDS" ]; then
+            CS_IDS=$(docker ps -aq --filter label=com.docker.compose.service="$cs_svc" 2>/dev/null || true)
+        fi
+        if [ -n "$CS_IDS" ]; then
+            docker rm -f $CS_IDS >/dev/null 2>&1 || true
+        fi
+    done
+fi
+
+# If Grafana / Observability is disabled, ensure no Observability containers remain running
+if [[ "$GRAFANA_ENABLED" == "false" ]]; then
+    for obs_svc in grafana loki alloy prometheus redis-exporter; do
+        OBS_IDS=$(docker ps -aq --filter label=com.docker.compose.project="${PROJECT_NAME:-stack}" --filter label=com.docker.compose.service="$obs_svc" 2>/dev/null || true)
+        if [ -z "$OBS_IDS" ]; then
+            OBS_IDS=$(docker ps -aq --filter label=com.docker.compose.service="$obs_svc" 2>/dev/null || true)
+        fi
+        if [ -n "$OBS_IDS" ]; then
+            docker rm -f $OBS_IDS >/dev/null 2>&1 || true
+        fi
+    done
+fi
+
+# If Anubis is not in use, ensure no Anubis containers remain running
+if [ ! -f ".anubis_available" ]; then
+    for anubis_svc in anubis-base anubis-assets; do
+        ANUBIS_IDS=$(docker ps -aq --filter label=com.docker.compose.project="${PROJECT_NAME:-stack}" --filter label=com.docker.compose.service="$anubis_svc" 2>/dev/null || true)
+        if [ -z "$ANUBIS_IDS" ]; then
+            ANUBIS_IDS=$(docker ps -aq --filter label=com.docker.compose.service="$anubis_svc" 2>/dev/null || true)
+        fi
+        if [ -n "$ANUBIS_IDS" ]; then
+            docker rm -f $ANUBIS_IDS >/dev/null 2>&1 || true
+        fi
+    done
+    DYN_ANUBIS_IDS=$(docker ps -aq --filter label=com.docker.compose.project="${PROJECT_NAME:-stack}" --filter "name=anubis-" 2>/dev/null || true)
+    if [ -n "$DYN_ANUBIS_IDS" ]; then
+        docker rm -f $DYN_ANUBIS_IDS >/dev/null 2>&1 || true
+    fi
+else
+    BASE_ID=$(docker ps -aq --filter label=com.docker.compose.project="${PROJECT_NAME:-stack}" --filter label=com.docker.compose.service=anubis-base 2>/dev/null || true)
+    if [ -n "$BASE_ID" ]; then
+        docker rm -f $BASE_ID >/dev/null 2>&1 || true
+    fi
 fi
 
 # Audit config for drift (helpful for debugging in modal log)
