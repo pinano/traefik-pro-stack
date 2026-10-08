@@ -3,6 +3,9 @@
 ENV_FILE="${ENV_FILE:-./.env}"
 case "$ENV_FILE" in /*|./*|../*) ;; *) ENV_FILE="./$ENV_FILE" ;; esac
 
+# Ensure inherited environment variables don't mask missing credentials in $ENV_FILE
+unset DASHBOARD_SECRET_KEY CROWDSEC_WEB_UI_PASSWORD CROWDSEC_DB_PASSWORD CROWDSEC_LAPI_KEY REDIS_PASSWORD ANUBIS_REDIS_PRIVATE_KEY PROMETHEUS_REMOTE_WRITE_TOKEN
+
 if [ -f "$ENV_FILE" ]; then
     set -a
     source "$ENV_FILE"
@@ -131,10 +134,12 @@ if [ "${GRAFANA_ENABLED:-true}" != "false" ]; then
     fi
 fi
 
-# Source .env once to load all newly generated variables
-set -a
-source ./.env
-set +a
+# Source ENV_FILE once to load all newly generated variables
+if [ -f "$ENV_FILE" ]; then
+    set -a
+    source "$ENV_FILE"
+    set +a
+fi
 
 # Clean any leading/trailing quotes from CROWDSEC_COLLECTIONS to prevent duplicate quoting from Make/OS
 if [ -n "$CROWDSEC_COLLECTIONS" ]; then
