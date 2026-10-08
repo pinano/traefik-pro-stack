@@ -3,8 +3,8 @@
 ENV_FILE="${ENV_FILE:-./.env}"
 case "$ENV_FILE" in /*|./*|../*) ;; *) ENV_FILE="./$ENV_FILE" ;; esac
 
-# Ensure inherited environment variables don't mask missing credentials in $ENV_FILE
-unset DASHBOARD_SECRET_KEY CROWDSEC_WEB_UI_PASSWORD CROWDSEC_DB_PASSWORD CROWDSEC_LAPI_KEY REDIS_PASSWORD ANUBIS_REDIS_PRIVATE_KEY PROMETHEUS_REMOTE_WRITE_TOKEN
+# Ensure inherited environment variables don't mask missing credentials or service configs in $ENV_FILE
+unset DASHBOARD_SECRET_KEY CROWDSEC_WEB_UI_PASSWORD CROWDSEC_DB_PASSWORD CROWDSEC_LAPI_KEY REDIS_PASSWORD ANUBIS_REDIS_PRIVATE_KEY PROMETHEUS_REMOTE_WRITE_TOKEN DASHBOARD_ANUBIS_SUBDOMAIN
 
 if [ -f "$ENV_FILE" ]; then
     set -a
