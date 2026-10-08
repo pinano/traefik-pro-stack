@@ -35,11 +35,9 @@ else
     # Perform instant single-pass structure synchronization
     SYNC_STATS=$(python3 -c '
 import sys
-import platform
 dist_file = sys.argv[1]
 env_file = sys.argv[2]
 out_file = sys.argv[3]
-is_darwin = platform.system() == "Darwin"
 
 env_vars = {}
 with open(env_file, "r", encoding="utf-8", errors="replace") as f:
@@ -65,13 +63,7 @@ with open(dist_file, "r", encoding="utf-8", errors="replace") as f:
         if k in env_vars:
             output_lines.append(env_vars[k])
         else:
-            line_to_add = line.rstrip("\r\n")
-            if is_darwin:
-                if k == "CROWDSEC_ENABLE":
-                    line_to_add = "CROWDSEC_ENABLE=false"
-                elif k == "BACKREST_ENABLE":
-                    line_to_add = "BACKREST_ENABLE=false"
-            output_lines.append(line_to_add)
+            output_lines.append(line.rstrip("\r\n"))
             added_count += 1
 
 extra_lines = []
