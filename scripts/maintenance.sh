@@ -4,7 +4,7 @@ set -e
 # Load environment
 if [ -f .env ]; then
     set -a
-    source .env
+    source ./.env
     set +a
 fi
 

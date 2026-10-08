@@ -279,5 +279,44 @@ def test_generate_config_custom_limits(tmp_path):
     assert 'conc-custom-example-com' in router_mw
 
 
+def test_generate_config_crowdsec_disabled(tmp_path):
+    """
+    Tests that when CROWDSEC_ENABLE=false, no CrowdSec middlewares or
+    crowdsec-web-ui router are generated.
+    """
+    (tmp_path / 'config' / 'traefik' / 'dynamic-config').mkdir(parents=True)
+    (tmp_path / 'config' / 'crowdsec' / 'parsers').mkdir(parents=True)
+
+    domains_csv = tmp_path / 'domains.csv'
+    domains_csv.write_text("domain, redirection, docker_service\napp.example.com, , web-app\n")
+
+    env = os.environ.copy()
+    env['CROWDSEC_ENABLE'] = 'false'
+    env['DOMAIN'] = 'example.com'
+    env['DASHBOARD_SUBDOMAIN'] = 'dashboard'
+    env['REDIS_PASSWORD'] = 'test-pass'
+
+    result = subprocess.run(['python3', SCRIPT_PATH], cwd=str(tmp_path), env=env, capture_output=True, text=True)
+    assert result.returncode == 0, f"Script failed: {result.stderr}"
+
+    routers_yaml = tmp_path / 'config' / 'traefik' / 'dynamic-config' / 'routers-generated.yaml'
+    with open(routers_yaml, 'r') as f:
+        config = yaml.safe_load(f)
+
+    routers = config.get('http', {}).get('routers', {})
+    middlewares = config.get('http', {}).get('middlewares', {})
+
+    # crowdsec-web-ui router must NOT exist
+    assert 'crowdsec-web-ui' not in routers
+
+    # crowdsec middleware must NOT exist
+    assert 'crowdsec-check' not in middlewares
+
+    # App router middleware list should not include any crowdsec middleware
+    app_router_mw = routers['router-app-example-com']['middlewares']
+    assert not any('crowdsec' in mw for mw in app_router_mw)
+
+
+
 
 

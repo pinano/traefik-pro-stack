@@ -95,7 +95,26 @@ Internet
 
 ---
 
-## Quick Start (3 Steps)
+## Local Development (Single Command)
+
+If you are developing locally on your machine, simply run:
+
+```bash
+make start
+```
+
+If `.env` does not exist, `make start` automatically triggers the setup wizard:
+1. Select **`local`** environment (press Enter).
+2. Set your core domain (`localhost` by default) and dashboard admin credentials.
+3. The wizard automatically configures a streamlined environment:
+   - **Heavy services disabled**: CrowdSec, Grafana/Loki/Prometheus, Watchdog, Backrest, phpMyAdmin, and Filebrowser are turned off.
+   - **Local SSL**: Generates self-signed / mkcert certificates for `*.localhost`.
+   - **Instant boot**: Boots only the lightweight edge proxy, dashboard, and redis.
+4. Access your dashboard immediately at: `https://dashboard.localhost/`
+
+---
+
+## Production / Staging Setup (3 Steps)
 
 ### Step 1: Initialize
 
@@ -103,7 +122,7 @@ Internet
 make init
 ```
 
-This creates a Python virtual environment, installs dependencies, and launches an interactive wizard that generates your `.env` file from the template.
+This creates a Python virtual environment, installs dependencies, and launches an interactive wizard that generates your `.env` file from the template. Choose `staging` or `production`.
 
 ### Step 2: Configure
 

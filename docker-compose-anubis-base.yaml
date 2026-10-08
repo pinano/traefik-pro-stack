@@ -1,0 +1,58 @@
+services:
+
+  # ===========================
+  # ANUBIS (base template - extended by docker-compose-anubis-generated.yaml)
+  # ===========================
+  anubis-base:
+    image: ghcr.io/techarohq/anubis:v1.25.0
+    restart: unless-stopped
+    networks:
+      - traefik
+      - anubis-backend
+    read_only: true # prevents writes to container layer
+    tmpfs:
+      - /tmp
+    deploy:
+      resources:
+        limits:
+          # Set up defaults ${VAR:-default} in case we forget these in the .env
+          cpus: '${ANUBIS_CPU_LIMIT:-0.10}'
+          memory: '${ANUBIS_MEM_LIMIT:-32M}'
+        reservations:
+          memory: 16M
+    environment:
+      - TZ=${TZ}
+      - BIND=:8080
+      - DIFFICULTY=${ANUBIS_DIFFICULTY}
+      - POLICY_FNAME=/botPolicy.yaml
+      - 'TARGET= '
+      - COOKIE_DYNAMIC_DOMAIN=true
+      - ED25519_PRIVATE_KEY_HEX=${ANUBIS_REDIS_PRIVATE_KEY:-}
+      # Now cookie prefix is set based on the domain name
+      #- COOKIE_PREFIX=${ANUBIS_COOKIE_PREFIX:-anubis}
+    security_opt:
+      - no-new-privileges=true
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./config/anubis/botPolicy-generated.yaml:/botPolicy.yaml:ro
+    # Anubis exposes /healthz — monitored via built-in healthcheck flag.
+    # The chainguard static image has no shell: use CMD array to call the binary directly.
+    healthcheck:
+      test: ["CMD", "/ko-app/anubis", "--healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+networks:
+  traefik:
+    name: traefik
+    external: true
+  anubis-backend:
+    name: anubis-backend
+    external: true

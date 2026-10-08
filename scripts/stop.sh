@@ -13,7 +13,7 @@
 
 set -a
 # Try to load .env if it exists
-[ -f .env ] && source .env
+[ -f .env ] && source ./.env
 set +a
 
 export PROJECT_NAME=${PROJECT_NAME:-"stack"}
@@ -72,11 +72,10 @@ source scripts/compose-files.sh
 
 echo "🛑 Stopping and cleaning the entire stack..."
 
-# Enforce project name to avoid missing containers
-COMPOSE_CMD="docker compose -p $PROJECT_NAME"
-if [ "${CROWDSEC_ENABLE:-true}" = "true" ]; then
-    COMPOSE_CMD="$COMPOSE_CMD --profile crowdsec"
-fi
+# Enforce project name to avoid missing containers.
+# Always include the crowdsec profile so that all containers in the stack
+# (including crowdsec, crowdsec-db, crowdsec-web-ui, postgres-exporter) are stopped and removed.
+COMPOSE_CMD="docker compose -p $PROJECT_NAME --profile crowdsec"
 
 # 1. Graceful stop (allow containers to finish tasks)
 # We use || true to ensure 'down' runs even if 'stop' encounters issues
@@ -86,6 +85,34 @@ $COMPOSE_CMD $COMPOSE_FILES stop -t 20 || true
 # 2. Complete removal
 echo "   ➜ Removing containers and cleaning orphans..."
 $COMPOSE_CMD $COMPOSE_FILES down --remove-orphans
+
+# 3. Ensure any remaining CrowdSec containers are stopped and removed
+for cs_svc in crowdsec crowdsec-db crowdsec-web-ui postgres-exporter; do
+    CS_IDS=$(docker ps -aq --filter label=com.docker.compose.project="$PROJECT_NAME" --filter label=com.docker.compose.service="$cs_svc" 2>/dev/null || true)
+    if [ -n "$CS_IDS" ]; then
+        docker rm -f $CS_IDS >/dev/null 2>&1 || true
+    fi
+done
+
+# 4. Ensure any remaining Grafana / Observability containers are stopped and removed
+for obs_svc in grafana loki alloy prometheus redis-exporter; do
+    OBS_IDS=$(docker ps -aq --filter label=com.docker.compose.project="$PROJECT_NAME" --filter label=com.docker.compose.service="$obs_svc" 2>/dev/null || true)
+    if [ -n "$OBS_IDS" ]; then
+        docker rm -f $OBS_IDS >/dev/null 2>&1 || true
+    fi
+done
+
+# 5. Ensure any remaining Anubis containers are stopped and removed
+for anubis_svc in anubis-base anubis-assets; do
+    ANUBIS_IDS=$(docker ps -aq --filter label=com.docker.compose.project="$PROJECT_NAME" --filter label=com.docker.compose.service="$anubis_svc" 2>/dev/null || true)
+    if [ -n "$ANUBIS_IDS" ]; then
+        docker rm -f $ANUBIS_IDS >/dev/null 2>&1 || true
+    fi
+done
+DYN_ANUBIS_IDS=$(docker ps -aq --filter label=com.docker.compose.project="$PROJECT_NAME" --filter "name=anubis-" 2>/dev/null || true)
+if [ -n "$DYN_ANUBIS_IDS" ]; then
+    docker rm -f $DYN_ANUBIS_IDS >/dev/null 2>&1 || true
+fi
 
 # =============================================================================
 # DONE

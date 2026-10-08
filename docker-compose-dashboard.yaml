@@ -58,10 +58,10 @@ services:
         max-file: "3"
     healthcheck:
       test: [ "CMD-SHELL", "nc -z 127.0.0.1 2375 || exit 1" ]
-      interval: 15s
-      timeout: 5s
+      interval: 3s
+      timeout: 2s
       retries: 3
-      start_period: 5s
+      start_period: 1s
 
   # ===========================
   #  DASHBOARD (SSO + Admin UI)
@@ -86,6 +86,7 @@ services:
       - DASHBOARD_SUBDOMAIN=${DASHBOARD_SUBDOMAIN}
       - DASHBOARD_ANUBIS_SUBDOMAIN=${DASHBOARD_ANUBIS_SUBDOMAIN:-}
       - CROWDSEC_ENABLE=${CROWDSEC_ENABLE:-true}
+      - GRAFANA_ENABLED=${GRAFANA_ENABLED:-true}
       - BACKREST_ENABLE=${BACKREST_ENABLE:-true}
       - PHPMYADMIN_ENABLE=${PHPMYADMIN_ENABLE:-true}
       - FILEBROWSER_ENABLE=${FILEBROWSER_ENABLE:-true}
@@ -104,6 +105,7 @@ services:
       - ./docker-compose-edge.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-edge.yaml:ro
       - ./docker-compose-security.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-security.yaml:ro
       - ./docker-compose-anubis.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-anubis.yaml:ro
+      - ./docker-compose-anubis-base.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-anubis-base.yaml:ro
       - ./docker-compose-anubis-generated.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-anubis-generated.yaml
       - ./docker-compose-apache-logs.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-apache-logs.yaml:ro
       - ./docker-compose-observability.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-observability.yaml:ro
@@ -188,68 +190,6 @@ services:
       # Service: Tell Traefik that Dozzle listens on internal port 8080
       - "traefik.http.services.dozzle.loadbalancer.server.port=8080"
 
-  # ===========================
-  #  WATCHDOG (SSL, DNS, CrowdSec health monitor → Telegram)
-  # ===========================
-  watchdog:
-    build: ./config/watchdog
-    restart: unless-stopped
-    init: true
-    networks:
-      - traefik
-    # Run all check scripts in parallel with independent intervals
-    # check-certs.sh: every 24h, check-dns.sh: every WATCHDOG_DNS_CHECK_INTERVAL
-    # check-crowdsec.sh: every WATCHDOG_CROWDSEC_CHECK_INTERVAL (default 1h)
-    # check-system.sh: every WATCHDOG_SYSTEM_CHECK_INTERVAL (default 5m)
-    # check-traefik.sh: every WATCHDOG_TRAEFIK_CHECK_INTERVAL (default 5m)
-    # Note: Execution is now handled by crond via config/watchdog/entrypoint.sh
-    volumes:
-      - ./config/traefik/acme.json:/acme.json:ro
-      - ./config/watchdog/check-certs.sh:/check-certs.sh:ro
-      - ./config/watchdog/check-dns.sh:/check-dns.sh:ro
-      - ./config/watchdog/check-crowdsec.sh:/check-crowdsec.sh:ro
-      - ./config/watchdog/check-system.sh:/check-system.sh:ro
-      - ./config/watchdog/check-traefik.sh:/check-traefik.sh:ro
-      - ./domains.csv:/domains.csv:ro
-      # Docker socket for CrowdSec container inspection
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    environment:
-      - WATCHDOG_TELEGRAM_BOT_TOKEN=${WATCHDOG_TELEGRAM_BOT_TOKEN}
-      - WATCHDOG_TELEGRAM_RECIPIENT_ID=${WATCHDOG_TELEGRAM_RECIPIENT_ID}
-      - SERVER_DOMAIN=${DOMAIN} # For customizing the alert message
-      - WATCHDOG_CERT_DAYS_WARNING=${WATCHDOG_CERT_DAYS_WARNING}
-      - TZ=${TZ}
-      - TRAEFIK_LISTEN_IP=${TRAEFIK_LISTEN_IP}
-      - WATCHDOG_DNS_CHECK_INTERVAL=${WATCHDOG_DNS_CHECK_INTERVAL:-21600}
-      - WATCHDOG_CROWDSEC_CHECK_INTERVAL=${WATCHDOG_CROWDSEC_CHECK_INTERVAL:-3600}
-      - WATCHDOG_SYSTEM_CHECK_INTERVAL=${WATCHDOG_SYSTEM_CHECK_INTERVAL:-300}
-      - WATCHDOG_TRAEFIK_CHECK_INTERVAL=${WATCHDOG_TRAEFIK_CHECK_INTERVAL:-300}
-      - CROWDSEC_CONTAINER=crowdsec
-      - DASHBOARD_SUBDOMAIN=${DASHBOARD_SUBDOMAIN}
-      - CROWDSEC_ENABLE=${CROWDSEC_ENABLE:-true}
-      - CROWDSEC_APPSEC_ENABLE=${CROWDSEC_APPSEC_ENABLE:-true}
-      - PROJECT_NAME=${PROJECT_NAME}
-      - CROWDSEC_LAPI_KEY=${CROWDSEC_LAPI_KEY:-}
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-      - TRAEFIK_ACME_ENV_TYPE=${TRAEFIK_ACME_ENV_TYPE}
-    security_opt:
-      - no-new-privileges=true
-    healthcheck:
-      test: ["CMD-SHELL", "pgrep crond > /dev/null 2>&1 || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    deploy:
-      resources:
-        limits:
-          cpus: 0.10
-          memory: 96M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
 
 networks:
   traefik:

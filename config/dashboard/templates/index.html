@@ -134,12 +134,21 @@
                 {% endif %}
 
                 <!-- Grafana -->
+                {% if grafana_enabled %}
                 <a href="/grafana/" target="_blank" class="app-card card-grafana">
                     <img src="{{ url_for('static', filename='img/grafana.svg') }}" class="app-icon" alt="Grafana">
                     <h2 class="app-title">Grafana <i data-lucide="external-link" class="icon-external-link"></i>
                     </h2>
                     <p class="app-desc">Visualize logs, metrics, and dashboards.</p>
                 </a>
+                {% else %}
+                <div class="app-card card-grafana disabled"
+                    title="Grafana is disabled (GRAFANA_ENABLED=false)">
+                    <img src="{{ url_for('static', filename='img/grafana.svg') }}" class="app-icon" alt="Grafana">
+                    <h2 class="app-title app-title-disabled">Grafana</h2>
+                    <p class="app-desc">Observability stack is currently disabled.</p>
+                </div>
+                {% endif %}
 
                 <!-- Dozzle -->
                 <a href="/dozzle/" target="_blank" class="app-card card-dozzle">

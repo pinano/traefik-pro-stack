@@ -127,40 +127,11 @@ services:
       - no-new-privileges=true
     healthcheck:
       test: [ "CMD", "valkey-cli", "-a", "${REDIS_PASSWORD}", "--no-auth-warning", "ping" ]
-      interval: 10s
-      timeout: 5s
+      interval: 2s
+      timeout: 2s
       retries: 3
-      start_period: 5s
+      start_period: 1s
 
-  # ===========================
-  #  REDIS EXPORTER (Metrics for Prometheus)
-  # ===========================
-  redis-exporter:
-    image: oliver006/redis_exporter:v1.92.0-alpine
-    restart: unless-stopped
-    environment:
-      - REDIS_ADDR=redis:6379
-      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
-    networks:
-      - traefik
-      - anubis-backend
-    security_opt:
-      - no-new-privileges=true
-    healthcheck:
-      test: ["CMD-SHELL", "wget --spider --quiet http://localhost:9121/metrics || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 3
-      start_period: 5s
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "50m"
-        max-file: "3"
 
   # ===========================
   #  POSTGRES EXPORTER (Metrics for Prometheus)
@@ -299,10 +270,10 @@ services:
         max-file: "3"
     healthcheck:
       test: ["CMD-SHELL", "nc -z 127.0.0.1 2375 || exit 1"]
-      interval: 15s
-      timeout: 5s
+      interval: 3s
+      timeout: 2s
       retries: 3
-      start_period: 5s
+      start_period: 1s
 
 networks:
   traefik:

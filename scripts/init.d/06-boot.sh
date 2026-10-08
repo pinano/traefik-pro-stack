@@ -138,16 +138,7 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
 
     echo "   ✅ Docker Socket Proxy, CrowdSec & Redis operational."
 else
-    REDIS_ID=$(docker ps -aq --filter label=com.docker.compose.project=$PROJECT_NAME --filter label=com.docker.compose.service=redis | head -n 1)
-    if [ -n "$REDIS_ID" ] && [ "$(docker inspect --format='{{.State.Running}}' $REDIS_ID 2>/dev/null)" == "true" ]; then
-        :
-    else
-        echo -n "   ⏳ Starting Socket Proxy & Redis..."
-        $COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d docker-socket-proxy redis > /dev/null
-        sleep 1
-        echo " ready!"
-    fi
-    echo "   ✅ Docker Socket Proxy & Redis operational."
+    echo "   ℹ️ CrowdSec is disabled, skipping security wait loop."
 fi
 
 # =============================================================================
@@ -155,7 +146,6 @@ fi
 # =============================================================================
 # Now that the security layer is ready, deploy everything else.
 # --remove-orphans cleans up any old containers not in current config.
-
 
 echo ""
 echo "── [6/6] 🚀 Deploying remaining services ───────────────────────────────"
@@ -166,14 +156,51 @@ if [[ "$DASHBOARD_INTERNAL" == "true" ]]; then
     $COMPOSE_CMD $COMPOSE_FILES config --quiet || echo "      ⚠️ Warning: Config validation failed."
 fi
 
-# Deploy everything.
-echo "   ⏳ Deploying stack containers..."
-$COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d --remove-orphans
-sleep 1
+# Purge lingering containers for any disabled services in a single batch
+PROJECT_CONTAINERS=$(docker ps -a --filter label=com.docker.compose.project="$PROJECT_NAME" --format '{{.ID}} {{.Label "com.docker.compose.service"}}' 2>/dev/null || true)
+if [ -n "$PROJECT_CONTAINERS" ]; then
+    CLEANUP_IDS=()
+    if [[ "$CROWDSEC_ENABLE" != "true" ]]; then
+        for cs_svc in crowdsec crowdsec-db crowdsec-web-ui postgres-exporter; do
+            ids=$(echo "$PROJECT_CONTAINERS" | awk -v s="$cs_svc" '$2 == s { print $1 }')
+            for id in $ids; do CLEANUP_IDS+=("$id"); done
+        done
+    fi
+    if [[ "$GRAFANA_ENABLED" == "false" ]]; then
+        for obs_svc in grafana loki alloy prometheus redis-exporter; do
+            ids=$(echo "$PROJECT_CONTAINERS" | awk -v s="$obs_svc" '$2 == s { print $1 }')
+            for id in $ids; do CLEANUP_IDS+=("$id"); done
+        done
+    fi
+    if [[ "$WATCHDOG_ENABLE" == "false" ]]; then
+        ids=$(echo "$PROJECT_CONTAINERS" | awk '$2 == "watchdog" { print $1 }')
+        for id in $ids; do CLEANUP_IDS+=("$id"); done
+    fi
+    if [ ! -f ".anubis_available" ]; then
+        for anubis_svc in anubis-base anubis-assets; do
+            ids=$(echo "$PROJECT_CONTAINERS" | awk -v s="$anubis_svc" '$2 == s { print $1 }')
+            for id in $ids; do CLEANUP_IDS+=("$id"); done
+        done
+        dyn_ids=$(docker ps -aq --filter label=com.docker.compose.project="$PROJECT_NAME" --filter "name=anubis-" 2>/dev/null || true)
+        for id in $dyn_ids; do CLEANUP_IDS+=("$id"); done
+    else
+        ids=$(echo "$PROJECT_CONTAINERS" | awk '$2 == "anubis-base" { print $1 }')
+        for id in $ids; do CLEANUP_IDS+=("$id"); done
+    fi
+
+    if [ ${#CLEANUP_IDS[@]} -gt 0 ]; then
+        UNIQUE_CLEANUP_IDS=($(printf "%s\n" "${CLEANUP_IDS[@]}" | sort -u))
+        docker rm -f "${UNIQUE_CLEANUP_IDS[@]}" >/dev/null 2>&1 || true
+    fi
+fi
+
+# Deploy stack containers
+echo "   ⏳ Deploying stack containers:"
+$COMPOSE_CMD $COMPOSE_FILES up -d --remove-orphans
 echo "   ✅ Services started successfully."
 
 echo "   🔍 Verifying Core DNS records..."
-CORE_SUBS=("dashboard")
+CORE_SUBS=("${DASHBOARD_SUBDOMAIN:-dashboard}")
 MISSING_DNS=()
 
 # Helper for DNS resolution (cross-platform)
@@ -226,7 +253,7 @@ fi
 # =============================================================================
 # Grafana Alerting Setup
 # =============================================================================
-if [ -f "./scripts/setup-grafana-alerting.sh" ]; then
+if [[ "$GRAFANA_ENABLED" != "false" ]] && [ -f "./scripts/setup-grafana-alerting.sh" ]; then
     bash ./scripts/setup-grafana-alerting.sh
 fi
 

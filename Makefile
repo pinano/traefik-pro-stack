@@ -76,8 +76,31 @@ tail ?= all
 # Extract TRAEFIK_ACME_ENV_TYPE from .env
 TRAEFIK_ACME_ENV_TYPE := $(shell grep '^TRAEFIK_ACME_ENV_TYPE=' .env 2>/dev/null | cut -d= -f2)
 
+# Extract and normalize CROWDSEC_ENABLE (strip quotes, whitespace, lowercase)
+CROWDSEC_ENABLE_VAL := $(strip $(subst ",,$(subst ',,$(CROWDSEC_ENABLE))))
+ifeq ($(CROWDSEC_ENABLE_VAL),)
+    CROWDSEC_ENABLE_VAL := $(strip $(shell grep -E '^[[:space:]]*CROWDSEC_ENABLE=' .env 2>/dev/null | cut -d= -f2- | tr -d '\"'\'' ' | tr '[:upper:]' '[:lower:]'))
+endif
+ifeq ($(CROWDSEC_ENABLE_VAL),)
+    CROWDSEC_ENABLE_VAL := true
+endif
+CROWDSEC_ENABLE_VAL := $(strip $(shell echo "$(CROWDSEC_ENABLE_VAL)" | tr '[:upper:]' '[:lower:]'))
+
+# Extract and normalize GRAFANA_ENABLED (strip quotes, whitespace, lowercase, defaults to true)
+GRAFANA_ENABLED_VAL := $(strip $(subst ",,$(subst ',,$(GRAFANA_ENABLED))))
+ifeq ($(GRAFANA_ENABLED_VAL),)
+    GRAFANA_ENABLED_VAL := $(strip $(subst ",,$(subst ',,$(GRAFANA_ENABLE))))
+endif
+ifeq ($(GRAFANA_ENABLED_VAL),)
+    GRAFANA_ENABLED_VAL := $(strip $(shell grep -E '^[[:space:]]*GRAFANA_ENABLE(D)?=' .env 2>/dev/null | cut -d= -f2- | tr -d '\"'\'' ' | tr '[:upper:]' '[:lower:]'))
+endif
+ifeq ($(GRAFANA_ENABLED_VAL),)
+    GRAFANA_ENABLED_VAL := true
+endif
+GRAFANA_ENABLED_VAL := $(strip $(shell echo "$(GRAFANA_ENABLED_VAL)" | tr '[:upper:]' '[:lower:]'))
+
 # Base Docker Compose command
-ifeq ($(CROWDSEC_ENABLE),false)
+ifeq ($(CROWDSEC_ENABLE_VAL),false)
     DOCKER_COMPOSE := docker compose -p $(PROJECT_NAME) $(COMPOSE_FILES)
 else
     DOCKER_COMPOSE := docker compose -p $(PROJECT_NAME) --profile crowdsec $(COMPOSE_FILES)
@@ -279,8 +302,10 @@ else ifdef s
 	@echo "Rebuilding service: $(s)..."
 	@$(DOCKER_COMPOSE) up -d --build --force-recreate $(s)
 else
-	@echo "Rebuilding custom image services (dashboard, watchdog)..."
-	@$(DOCKER_COMPOSE) up -d --build --force-recreate dashboard watchdog
+	@REBUILD_SVCS="dashboard"; \
+	if echo "$(COMPOSE_FILES)" | grep -q "docker-compose-watchdog.yaml"; then REBUILD_SVCS="$$REBUILD_SVCS watchdog"; fi; \
+	echo "Rebuilding custom image services ($$REBUILD_SVCS)..."; \
+	$(DOCKER_COMPOSE) up -d --build --force-recreate $$REBUILD_SVCS
 endif
 
 ##@help status
@@ -503,7 +528,7 @@ ifeq ($(TRAEFIK_ACME_ENV_TYPE),local)
 endif
 
 # CrowdSec Targets (only if enabled)
-ifneq ($(CROWDSEC_ENABLE),false)
+ifneq ($(CROWDSEC_ENABLE_VAL),false)
     include scripts/make/crowdsec.mk
 else
 # Dummy targets to print error when CrowdSec is disabled
@@ -512,8 +537,15 @@ crowdsec-%:
 	@exit 1
 endif
 
-# Grafana Alerting setup targets
-include scripts/make/grafana.mk
+# Grafana Targets (only if enabled)
+ifneq ($(GRAFANA_ENABLED_VAL),false)
+    include scripts/make/grafana.mk
+else
+# Dummy targets to print error when Grafana is disabled
+grafana-%:
+	@echo "⚠️  Error: Grafana tasks are disabled because GRAFANA_ENABLED=false in your .env"
+	@exit 1
+endif
 
 endif # SKIP_MAKEFILE
 
