@@ -34,10 +34,10 @@ The full stack, with all services at their configured limits, consumes approxima
 | Prometheus | 512 MB |
 | CrowdSec Web UI | 512 MB |
 | Dashboard | 512 MB |
-| Redis (Valkey) | 256 MB |
+| Redis (Valkey) | 512 MB |
 | Redis Exporter | 128 MB |
 | Watchdog | 96 MB |
-| Dozzle | 64 MB |
+| Dozzle | 128 MB |
 | Anubis (×N instances, 32 MB each) | ~320 MB (×10) |
 | Anubis Assets (nginx) | 64 MB |
 | Backrest (Restic Web UI) | 1 GB |

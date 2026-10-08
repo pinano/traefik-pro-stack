@@ -180,6 +180,8 @@ The stack separates responsibilities across multiple files:
 | `docker-compose-anubis.yaml` | Anubis asset server (`anubis-assets`) — conditional on `.anubis_available` |
 | `docker-compose-anubis-generated.yaml` | Auto-generated Anubis instances (per TLD) — conditional on `.anubis_available` |
 | `docker-compose-backrest.yaml` | Backrest (Restic + Rclone) — conditional on `BACKREST_ENABLE=true` |
+| `docker-compose-phpmyadmin.yaml` | phpMyAdmin — conditional on `PHPMYADMIN_ENABLE=true` |
+| `docker-compose-filebrowser.yaml` | Filebrowser — conditional on `FILEBROWSER_ENABLE=true` |
 | `docker-compose-apache-logs.yaml` | Apache log integration (auto-included if Apache is detected) |
 
 The active list of compose files is determined by `scripts/compose-files.sh` — the **single source of truth** used by `start.sh`, `stop.sh`, and the `Makefile`. Never hardcode lists of compose files by hand anywhere else.
@@ -191,7 +193,7 @@ The script starts in 6 sequential phases:
 1. **Env sync**: Merges the structure of `.env.dist` with the existing `.env`; backs up `.env` to `.env.bak`. Never destructive.
 2. **Credential sync**: Automatically generates `DASHBOARD_SECRET_KEY`, `CROWDSEC_DB_PASSWORD`, `CROWDSEC_WEB_UI_PASSWORD`, `REDIS_PASSWORD`, `ANUBIS_REDIS_PRIVATE_KEY`, `PROMETHEUS_REMOTE_WRITE_TOKEN` if missing. Detects admin password changes and regenerates bcrypt hashes.
 3. **Asset prep**: Copies Anubis `.dist` assets if no overrides exist. Generates `traefik-generated.yaml` from its template. Runs `generate-config.py` to produce all dynamic configuration.
-4. **Network + security prep**: Creates Docker networks (`traefik`, `socket-proxy`, `anubis-backend`, `crowdsec-backend`). Generates the CrowdSec IP whitelist. Probes Apache via TCP.
+4. **Network + security prep**: Creates Docker networks (`traefik`, `socket-proxy`, `socket-proxy-dashboard`, `anubis-backend`, `crowdsec-backend`). Generates the CrowdSec IP whitelist. Probes Apache via TCP.
 5. **Security-first boot**: Starts Docker Socket Proxy, CrowdSec, PostgreSQL, and Redis first. Health check loop (60s timeout). Traefik does not start until CrowdSec is healthy. The bouncer key is registered/re-registered on every startup.
 6. **Full stack start**: All remaining services are launched. `grafana-setup-telegram` is invoked automatically.
 

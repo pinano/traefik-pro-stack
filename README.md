@@ -194,12 +194,13 @@ make health
 
 ### Networks
 
-Four Docker networks isolate services by risk level:
+Five Docker networks isolate services by risk level:
 
 | Network | Purpose | Who's on it |
 | --------- | --------- | ------------- |
 | `traefik` | Public routing | Traefik, Dashboard, Grafana, Prometheus, Loki, CrowdSec, etc. |
 | `socket-proxy` | Read-only Docker API | Proxy that shields the host socket from Traefik, CrowdSec, Alloy, Dozzle |
+| `socket-proxy-dashboard` | Read/Write Docker API (restricted) | Dedicated proxy for Dashboard soft-restart operations (exec, create, delete) |
 | `anubis-backend` | PoW session cache | Anubis + Redis/Valkey (no outbound internet) |
 | `crowdsec-backend` | IPS database | CrowdSec + PostgreSQL (completely internal) |
 
@@ -557,10 +558,16 @@ Never edit these manually in `.env`:
 │
 ├── docker-compose-edge.yaml           # Traefik
 ├── docker-compose-security.yaml       # CrowdSec, PostgreSQL, Redis, Socket Proxy
-├── docker-compose-observability.yaml  # Grafana, Loki, Alloy, Prometheus
-├── docker-compose-dashboard.yaml      # Dashboard, Dozzle, Watchdog, Dashboard Socket Proxy
-├── docker-compose-anubis.yaml         # Anubis base template
+├── docker-compose-observability.yaml  # Grafana, Loki, Alloy, Prometheus, Redis Exporter
+├── docker-compose-dashboard.yaml      # Dashboard, Dozzle, Dashboard Socket Proxy
+├── docker-compose-watchdog.yaml       # Watchdog (SSL, DNS, CrowdSec monitor)
+├── docker-compose-anubis-base.yaml    # Anubis base template
+├── docker-compose-anubis.yaml         # Anubis asset server
+├── docker-compose-anubis-generated.yaml # Anubis instances (auto-generated)
 ├── docker-compose-backrest.yaml       # Backups (optional)
+├── docker-compose-phpmyadmin.yaml     # phpMyAdmin (optional)
+├── docker-compose-filebrowser.yaml    # Filebrowser (optional)
+├── docker-compose-apache-logs.yaml    # Host Apache log shipping
 └── docker-compose-maintenance.yaml    # Global 503 fallback
 ```
 
@@ -583,6 +590,8 @@ Never edit these manually in `.env`:
 | `alloy` | `12345` | None | `traefik` | Log & metric collector |
 | `dozzle` | `8080` | None | `traefik` | Container log viewer |
 | `backrest` | `9898` | None | `traefik` | Backup Web UI (optional) |
+| `phpmyadmin` | `80` | None | `traefik` | Database management UI (optional) |
+| `filebrowser` | `80` | None | `traefik` | Web file manager (optional) |
 | `apache-host` | `8080` | `8080` | Host | Legacy Apache on host |
 
 ### Architecture Diagrams
@@ -606,7 +615,7 @@ flowchart TD
     end
 
     subgraph traefik_network ["Network: traefik"]
-        Traefik["Traefik v3.7.12 (80 & 443)"]
+        Traefik["Traefik v3.x (80 & 443)"]
         Dashboard["Flask Dashboard (5000)"]
         CrowdSec["CrowdSec LAPI (8080)"]
         AppSec["AppSec WAF (7422)"]
