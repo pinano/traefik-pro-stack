@@ -55,10 +55,11 @@ if [[ -z "${WATCHDOG_TELEGRAM_RECIPIENT_ID:-}" || "${WATCHDOG_TELEGRAM_RECIPIENT
     skip "WATCHDOG_TELEGRAM_RECIPIENT_ID not configured — skipping Grafana alerting setup."
 fi
 
-echo "   🔔 Grafana Alerting setup (Telegram)"
+echo -n "   🔔 Grafana Alerting setup (Telegram)..."
 
 # ─── Guard: skip if Docker is not available ──────────────────────────────────
 if ! command -v docker &>/dev/null; then
+    echo ""
     skip "docker not found in PATH — skipping (run 'make grafana-setup-telegram' once Docker is available)."
 fi
 
@@ -66,20 +67,27 @@ fi
 info "Waiting for Grafana container..."
 GRAFANA_READY=false
 for i in $(seq 1 60); do
+    DETECTED_GRAFANA=$(docker ps --quiet --filter "label=com.docker.compose.project=${PROJECT_NAME:-stack}" --filter "label=com.docker.compose.service=grafana" 2>/dev/null | head -n 1)
+    GRAFANA_CONTAINER="${DETECTED_GRAFANA:-${PROJECT_NAME:-stack}-grafana-1}"
+
     # Check container is running first (supports both container ID and container name)
     if ! docker inspect --format '{{.State.Running}}' "${GRAFANA_CONTAINER}" 2>/dev/null | grep -q "true"; then
+        echo -n "."
         sleep 2
         continue
     fi
     # Then check Grafana's internal health endpoint
     if grafana_api "http://localhost:3000/api/health" 2>/dev/null | grep -q '"database": "ok"'; then
         GRAFANA_READY=true
+        echo " ready!"
         break
     fi
+    echo -n "."
     sleep 2
 done
 
 if [[ "${GRAFANA_READY}" == "false" ]]; then
+    echo ""
     warn "Grafana container '${GRAFANA_CONTAINER}' did not become healthy after 2 minutes."
     warn "Run 'make grafana-setup-telegram' manually once Grafana is up."
     exit 0  # Non-fatal: don't break 'make start'
