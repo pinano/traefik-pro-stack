@@ -32,6 +32,17 @@ set -eo pipefail
 export PYTHONWARNINGS="ignore:urllib3 v2 only supports"
 export PYTHONUNBUFFERED=1
 
+# Load environment variables if .env exists
+if [ -f "./.env" ]; then
+    set -a
+    source "./.env"
+    set +a
+elif [ -f "../.env" ]; then
+    set -a
+    source "../.env"
+    set +a
+fi
+
 # Normalize CROWDSEC_ENABLE (strip quotes, whitespace, convert to lowercase)
 CROWDSEC_ENABLE=$(echo "${CROWDSEC_ENABLE:-true}" | tr -d '\"'\'' ' | tr '[:upper:]' '[:lower:]')
 export CROWDSEC_ENABLE
@@ -39,6 +50,10 @@ export CROWDSEC_ENABLE
 # Normalize GRAFANA_ENABLED (strip quotes, whitespace, convert to lowercase)
 GRAFANA_ENABLED=$(echo "${GRAFANA_ENABLED:-${GRAFANA_ENABLE:-true}}" | tr -d '\"'\'' ' | tr '[:upper:]' '[:lower:]')
 export GRAFANA_ENABLED
+
+# Normalize WATCHDOG_ENABLE (strip quotes, whitespace, convert to lowercase)
+WATCHDOG_ENABLE=$(echo "${WATCHDOG_ENABLE:-${WATCHDOG_ENABLED:-true}}" | tr -d '\"'\'' ' | tr '[:upper:]' '[:lower:]')
+export WATCHDOG_ENABLE
 
 # ─── Mutex: Prevent concurrent executions ────────────────────────
 LOCKFILE="/tmp/stack-restart.lock"
@@ -302,7 +317,16 @@ else
     if [ -n "$BASE_ID" ]; then
         docker rm -f $BASE_ID >/dev/null 2>&1 || true
     fi
+# If Watchdog is disabled, ensure no Watchdog containers remain running
+if [[ "$WATCHDOG_ENABLE" == "false" ]]; then
+    WATCHDOG_IDS=$(docker ps -aq --filter label=com.docker.compose.project="${PROJECT_NAME:-stack}" --filter label=com.docker.compose.service="watchdog" 2>/dev/null || true)
+    if [ -n "$WATCHDOG_IDS" ]; then
+        docker rm -f $WATCHDOG_IDS >/dev/null 2>&1 || true
+    fi
 fi
+
+# Ensure all external Docker networks exist before applying compose changes
+./scripts/ensure-networks.sh >/dev/null 2>&1 || true
 
 # Audit config for drift (helpful for debugging in modal log)
 $COMPOSE_CMD $COMPOSE_FILES config --quiet || echo "   ⚠️ Warning: Config validation produced warnings."

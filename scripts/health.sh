@@ -12,7 +12,7 @@ if [ -f .env ]; then
     set +a
 fi
 source scripts/compose-files.sh
-DOCKER_COMPOSE="docker compose -p ${PROJECT_NAME:-traefik-stack} $COMPOSE_FILES"
+DOCKER_COMPOSE="docker compose -p ${PROJECT_NAME:-stack} $COMPOSE_FILES"
 
 check_container() {
     local service=$1

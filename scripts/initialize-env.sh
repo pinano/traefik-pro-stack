@@ -84,22 +84,6 @@ fi
 echo "📋 Copying $DIST_FILE to $ENV_FILE..."
 cp "$DIST_FILE" "$ENV_FILE"
 
-# Helper to blindly replace without prompt
-replace_val() {
-    local var_name=$1
-    local new_val=$2
-    # Use a temporary file and awk + ENVIRON for a truly literal replacement.
-    local TMP_FILE=$(mktemp)
-    NEW_VAL="$new_val" awk -v name="$var_name" '
-        BEGIN { FS="="; val=ENVIRON["NEW_VAL"]; found=0 }
-        $1 == name { print name "=" val; found=1; next }
-        { print }
-        END { if (found == 0) print name "=" val }
-    ' "$ENV_FILE" > "$TMP_FILE"
-    cat "$TMP_FILE" > "$ENV_FILE"
-    rm "$TMP_FILE"
-}
-
 # Helper function to prompt and replace
 # usage: prompt_val VAR_NAME DESCRIPTION [CUSTOM_DEFAULT]
 prompt_val() {

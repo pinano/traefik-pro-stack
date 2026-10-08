@@ -20,7 +20,7 @@ if [ "$ACTION" == "on" ]; then
     touch config/.maintenance_mode
     
     source scripts/compose-files.sh
-    DOCKER_COMPOSE="docker compose -p ${PROJECT_NAME:-traefik-stack} $COMPOSE_FILES"
+    DOCKER_COMPOSE="docker compose -p ${PROJECT_NAME:-stack} $COMPOSE_FILES"
     
     # Start the maintenance container explicitly
     echo "Starting maintenance container..."
@@ -39,7 +39,7 @@ elif [ "$ACTION" == "off" ]; then
     
     # We must explicitly stop the maintenance container since compose might not clean it up
     # just by omitting it from the COMPOSE_FILES list.
-    DOCKER_COMPOSE="docker compose -p ${PROJECT_NAME:-traefik-stack} -f docker-compose-maintenance.yaml"
+    DOCKER_COMPOSE="docker compose -p ${PROJECT_NAME:-stack} -f docker-compose-maintenance.yaml"
     $DOCKER_COMPOSE down || true
     
     echo "✅ Maintenance Mode is now OFF. Traefik will instantly restore normal routing."

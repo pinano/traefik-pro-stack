@@ -42,6 +42,14 @@ tls:
         keyFile: /certs/local-key.pem
 EOF
             echo "   ✅ Generated local-certs.yaml."
+            chmod 644 "$TRAEFIK_CERTS_CONF" 2>/dev/null || true
+            if [[ "$DASHBOARD_INTERNAL" == "true" ]]; then
+                TARGET_UID=$(stat -c '%u' ./config/traefik 2>/dev/null) || TARGET_UID=$(stat -f '%u' ./config/traefik 2>/dev/null) || TARGET_UID=""
+                TARGET_GID=$(stat -c '%g' ./config/traefik 2>/dev/null) || TARGET_GID=$(stat -f '%g' ./config/traefik 2>/dev/null) || TARGET_GID=""
+                if [ -n "$TARGET_UID" ] && [ -n "$TARGET_GID" ]; then
+                    chown "$TARGET_UID:$TARGET_GID" "$TRAEFIK_CERTS_CONF" 2>/dev/null || true
+                fi
+            fi
         fi
     else
         echo "   ℹ️ No custom local certificates found."
@@ -136,22 +144,11 @@ else
     fi
 fi
 
-# =============================================================================
-# PHASE 4: User-Agent Blacklist Configuration
-# =============================================================================
-# This variable is used by generate-config.py to create native Traefik blocking rules.
-if [ -n "$TRAEFIK_BAD_USER_AGENTS" ]; then
-    UA_COUNT=$(echo "$TRAEFIK_BAD_USER_AGENTS" | tr ',' '\n' | grep -c .)
-    echo "   🛡️ UA blacklist: $UA_COUNT patterns configured."
-    export TRAEFIK_BAD_USER_AGENTS
-fi
-
-
 # Ensure all external Docker networks exist
 ./scripts/ensure-networks.sh
 
 # =============================================================================
-# PHASE 4: Build Compose File List
+# PHASE 5: Build Compose File List
 # =============================================================================
 
 # --- Apache Detection ---
