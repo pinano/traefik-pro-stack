@@ -42,12 +42,6 @@ if [ "$(uname -s)" != "Linux" ]; then
     return 0
 fi
 
-# Skip on development/desktop distros (Arch Linux, etc.)
-# Host hardening is intended strictly for Debian/Ubuntu production hosts.
-if [ -f /etc/arch-release ] || ( [ -f /etc/os-release ] && grep -qiE '^ID(=|_LIKE=).*(arch)' /etc/os-release ); then
-    return 0
-fi
-
 echo ""
 echo "── [0/6] 🔍 Checking host-level hardening ───────────────────────────────"
 

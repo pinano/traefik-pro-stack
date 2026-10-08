@@ -98,11 +98,8 @@ def sync_env(dist_file, env_file):
                     prefix, value = current_values[key]
                     new_lines.append(f"{prefix}{key}={value}\n")
                 else:
-                    # Keep .env.dist default (with macOS overrides for local development)
-                    if sys.platform == 'darwin' and key in ('CROWDSEC_ENABLE', 'BACKREST_ENABLE'):
-                        new_lines.append(f"{key}=false\n")
-                    else:
-                        new_lines.append(line)
+                    # Keep .env.dist default
+                    new_lines.append(line)
                     print(f"➕ Added missing variable: {key}")
             else:
                 new_lines.append(line)
