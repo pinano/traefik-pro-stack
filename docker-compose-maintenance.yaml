@@ -1,7 +1,7 @@
 services:
   maintenance:
     image: nginx:1.31.6-alpine3.24-slim
-    container_name: ${PROJECT_NAME:-traefik-stack}-maintenance
+    container_name: ${PROJECT_NAME:-stack}-maintenance
     restart: always
     volumes:
       - ./config/maintenance/index.html:/usr/share/nginx/html/index.html:ro

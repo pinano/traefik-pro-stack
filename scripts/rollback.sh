@@ -78,6 +78,11 @@ fi
 
 git checkout "$SELECTED_TAG" --quiet
 echo "Success: Codebase changed to $SELECTED_TAG."
+
+# Ensure all external networks exist before rebuild
+echo "Ensuring Docker networks exist..."
+./scripts/ensure-networks.sh
+
 echo ""
 read -p "Do you want to apply these changes and start the stack now? [y/N] " -n 1 -r
 echo

@@ -298,6 +298,13 @@ if ! $PYTHON_CMD -c "import tldextract; import yaml" >/dev/null 2>&1; then
     exit 1
 fi
 
+# User-Agent Blacklist Configuration
+if [ -n "$TRAEFIK_BAD_USER_AGENTS" ]; then
+    UA_COUNT=$(echo "$TRAEFIK_BAD_USER_AGENTS" | tr ',' '\n' | grep -c .)
+    echo "   🛡️ UA blacklist: $UA_COUNT pattern(s) configured."
+    export TRAEFIK_BAD_USER_AGENTS
+fi
+
 $PYTHON_CMD scripts/generate-config.py | sed 's/^/   /'
 
 # Fix permissions if running internally (files created as root)

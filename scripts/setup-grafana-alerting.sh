@@ -22,7 +22,7 @@ set -euo pipefail
 
 # ─── Config ──────────────────────────────────────────────────────────────────
 # Resolve container dynamically via Docker label or fallback to default pattern
-DETECTED_GRAFANA=$(docker ps --quiet --filter "label=com.docker.compose.service=grafana" 2>/dev/null | head -n 1)
+DETECTED_GRAFANA=$(docker ps --quiet --filter "label=com.docker.compose.project=${PROJECT_NAME:-stack}" --filter "label=com.docker.compose.service=grafana" 2>/dev/null | head -n 1)
 GRAFANA_CONTAINER="${DETECTED_GRAFANA:-${PROJECT_NAME:-stack}-grafana-1}"
 AUTH="${DASHBOARD_ADMIN_USER:-admin}:${DASHBOARD_ADMIN_PASSWORD}"
 CONTACT_POINT_NAME="Telegram"

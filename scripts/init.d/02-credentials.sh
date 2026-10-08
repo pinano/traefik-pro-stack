@@ -106,6 +106,8 @@ fi
 HAS_ANUBIS=0
 if [ -f .anubis_available ]; then
     HAS_ANUBIS=1
+elif [ -n "$DASHBOARD_ANUBIS_SUBDOMAIN" ]; then
+    HAS_ANUBIS=1
 elif [ -f domains.csv ] && awk -F',' '!/^#/ && $4 != "" { found=1; exit } END { exit !found }' domains.csv 2>/dev/null; then
     HAS_ANUBIS=1
 fi

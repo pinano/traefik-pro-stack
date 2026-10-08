@@ -31,9 +31,10 @@ if [ -f .env ]; then
 fi
 DB_USER=${CROWDSEC_DB_USER:-crowdsec}
 DB_NAME=${CROWDSEC_DB_NAME:-crowdsec}
+PROJECT_NAME=${PROJECT_NAME:-stack}
 
 echo "🔍 Locating crowdsec-db container..."
-DB_CONTAINER=$(docker ps -q --filter "label=com.docker.compose.service=crowdsec-db" --filter "status=running" | head -n 1)
+DB_CONTAINER=$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT_NAME" --filter "label=com.docker.compose.service=crowdsec-db" --filter "status=running" | head -n 1)
 if [ -z "$DB_CONTAINER" ]; then
     echo "❌ ERROR: crowdsec-db container is not running."
     echo "Please ensure the stack is running with 'make start' before upgrading."
@@ -93,14 +94,14 @@ else
 fi
 
 echo "🚀 Starting new PostgreSQL container to initialize database..."
-$COMPOSE_CMD -f docker-compose-security.yaml up -d crowdsec-db
+$COMPOSE_CMD -p "$PROJECT_NAME" -f docker-compose-security.yaml up -d crowdsec-db
 
 echo "⏳ Waiting for the new database container to become ready..."
 MAX_RETRIES=30
 RETRY_COUNT=0
 NEW_DB_CONTAINER=""
 while true; do
-    NEW_DB_CONTAINER=$(docker ps -q --filter "label=com.docker.compose.service=crowdsec-db" | head -n 1)
+    NEW_DB_CONTAINER=$(docker ps -q --filter "label=com.docker.compose.project=$PROJECT_NAME" --filter "label=com.docker.compose.service=crowdsec-db" | head -n 1)
     if [ -n "$NEW_DB_CONTAINER" ] && docker inspect -f '{{.State.Health.Status}}' "$NEW_DB_CONTAINER" 2>/dev/null | grep -q "healthy"; then
         break
     fi
