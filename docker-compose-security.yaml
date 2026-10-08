@@ -137,7 +137,7 @@ services:
   #  POSTGRES EXPORTER (Metrics for Prometheus)
   # ===========================
   postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:v0.17.1
+    image: prometheuscommunity/postgres-exporter:v0.20.1
     restart: unless-stopped
     profiles:
       - crowdsec
@@ -172,7 +172,7 @@ services:
   #  CROWDSEC WEB UI (Management interface for CrowdSec LAPI)
   # ===========================
   crowdsec-web-ui:
-    image: ghcr.io/theduffman85/crowdsec-web-ui:2026.9.2
+    image: ghcr.io/theduffman85/crowdsec-web-ui:2026.10.2
     restart: unless-stopped
     profiles:
       - crowdsec

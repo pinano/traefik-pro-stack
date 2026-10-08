@@ -84,6 +84,22 @@ fi
 echo "📋 Copying $DIST_FILE to $ENV_FILE..."
 cp "$DIST_FILE" "$ENV_FILE"
 
+# Helper to blindly replace without prompt
+replace_val() {
+    local var_name=$1
+    local new_val=$2
+    # Use a temporary file and awk + ENVIRON for a truly literal replacement.
+    local TMP_FILE=$(mktemp)
+    NEW_VAL="$new_val" awk -v name="$var_name" '
+        BEGIN { FS="="; val=ENVIRON["NEW_VAL"]; found=0 }
+        $1 == name { print name "=" val; found=1; next }
+        { print }
+        END { if (found == 0) print name "=" val }
+    ' "$ENV_FILE" > "$TMP_FILE"
+    cat "$TMP_FILE" > "$ENV_FILE"
+    rm "$TMP_FILE"
+}
+
 # Helper function to prompt and replace
 # usage: prompt_val VAR_NAME DESCRIPTION [CUSTOM_DEFAULT]
 prompt_val() {
@@ -137,7 +153,6 @@ replace_val() {
 
 echo ""
 echo "🔧 CONFIGURING VARIABLES..."
-
 # =============================================================================
 # 1. ENVIRONMENT SELECTION (Universal)
 # =============================================================================
@@ -262,13 +277,15 @@ else
     prompt_val "TRAEFIK_HSTS_MAX_AGE" "HSTS max age (seconds)"
     prompt_val "TRAEFIK_FRAME_ANCESTORS" "Allowed Iframe Ancestors (e.g. https://my-other-web.com)"
 
+    # Backrest (Cloud Backups)
+    prompt_val "BACKREST_ENABLE" "Enable Backrest (Cloud Backups)? (true/false)" "true"
+
     prompt_val "WATCHDOG_TELEGRAM_BOT_TOKEN" "Telegram Bot Token (for Let's Encrypt renewal alerts)"
     prompt_val "WATCHDOG_TELEGRAM_RECIPIENT_ID" "Telegram Chat/Group ID (for Let's Encrypt renewal alerts)"
     prompt_val "WATCHDOG_CERT_DAYS_WARNING" "Days before SSL certificate expiration to send alert (default: 10)"
     prompt_val "WATCHDOG_CROWDSEC_CHECK_INTERVAL" "CrowdSec Watchdog check interval (seconds)"
     prompt_val "WATCHDOG_DNS_CHECK_INTERVAL" "DNS check interval (seconds)"
 fi
-
 # --- AUTOMATED GENERATION ---
 
 
