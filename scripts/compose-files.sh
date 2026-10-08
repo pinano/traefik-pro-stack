@@ -76,8 +76,8 @@ if [ -f ".anubis_available" ]; then
     fi
 fi
 
-# Add Apache logs if host Apache was detected (flag set by start.sh)
-if [ -f ".apache_host_available" ]; then
+# Add Apache logs if host Apache was detected and observability is enabled
+if [ -f ".apache_host_available" ] && [ "$GRAFANA_ENABLED_VAL" != "false" ]; then
     COMPOSE_FILES="$COMPOSE_FILES -f docker-compose-apache-logs.yaml"
 fi
 

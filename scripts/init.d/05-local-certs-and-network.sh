@@ -178,6 +178,10 @@ fi
 source scripts/compose-files.sh
 
 if [ "$APACHE_HOST_AVAILABLE" == "true" ]; then
-    echo "   📋 Apache legacy detected, including logs extension."
+    if [ "$GRAFANA_ENABLED_VAL" != "false" ]; then
+        echo "   📋 Apache legacy detected, including logs extension."
+    else
+        echo "   📋 Apache legacy detected (logs extension skipped: observability disabled)."
+    fi
 fi
 
