@@ -21,7 +21,8 @@ def test_credentials_sync_skips_disabled_services(tmp_path):
             **os.environ,
             'ENV_FILE': str(env_file),
             'CROWDSEC_ENABLE': 'false',
-            'GRAFANA_ENABLED': 'false'
+            'GRAFANA_ENABLED': 'false',
+            'DASHBOARD_ANUBIS_SUBDOMAIN': ''
         },
         capture_output=True,
         text=True
