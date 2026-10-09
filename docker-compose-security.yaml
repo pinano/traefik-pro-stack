@@ -172,7 +172,7 @@ services:
   #  CROWDSEC WEB UI (Management interface for CrowdSec LAPI)
   # ===========================
   crowdsec-web-ui:
-    image: ghcr.io/theduffman85/crowdsec-web-ui:2026.10.2
+    image: ghcr.io/theduffman85/crowdsec-web-ui:2026.10.3
     restart: unless-stopped
     profiles:
       - crowdsec
