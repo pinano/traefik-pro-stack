@@ -1,3 +1,8 @@
+## v2026.10.14 (2026-10-14)
+
+- feat: enhance image update script with pagination, CLI flags, and update component versions (a05be0a)
+- chore: update traefik and crowdsec-web-ui docker images (6811d81)
+
 ## v2026.10.08 (2026-10-08)
 
 - docs: align documentation with 5-network isolation and modular compose files (e61565b)
