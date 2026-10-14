@@ -198,27 +198,24 @@ fi
 echo "─── [2/3] 🔧 Fixing permissions ────────────────────────────────────────"
 
 # Robust permission fix: Directories 755, Files 644
-find ./config/traefik -type d -exec chmod 755 {} \;
-find ./config/traefik -type f -name "*.yaml" -exec chmod 644 {} \;
-find ./config/traefik -type f -name "*.json" -exec chmod 600 {} \;
+find ./config/traefik -type d -exec chmod 755 {} \; 2>/dev/null || true
+find ./config/traefik -type f -name "*.yaml" -exec chmod 644 {} \; 2>/dev/null || true
+find ./config/traefik -type f -name "*.json" -exec chmod 600 {} \; 2>/dev/null || true
 chmod 644 ./domains.csv 2>/dev/null || true
 
-# Ensure docker-compose-anubis-generated.yaml and base are readable
+# Ensure docker-compose-anubis-generated.yaml is readable
 if [ -f "docker-compose-anubis-generated.yaml" ]; then
-    chmod 644 docker-compose-anubis-generated.yaml
-fi
-if [ -f "docker-compose-anubis-base.yaml" ]; then
-    chmod 644 docker-compose-anubis-base.yaml
+    chmod 644 docker-compose-anubis-generated.yaml 2>/dev/null || true
 fi
 
 # Ensure anubis policy is readable
 if [ -f "./config/anubis/botPolicy-generated.yaml" ]; then
-    chmod 644 ./config/anubis/botPolicy-generated.yaml
+    chmod 644 ./config/anubis/botPolicy-generated.yaml 2>/dev/null || true
 fi
 
 # Ensure captcha_keys.csv has secure permissions
 if [ -f "./config/crowdsec/captcha_keys.csv" ]; then
-    chmod 600 ./config/crowdsec/captcha_keys.csv
+    chmod 600 ./config/crowdsec/captcha_keys.csv 2>/dev/null || true
 fi
 
 # Match ownership to parent directory (host user)
