@@ -4,7 +4,7 @@ services:
   # ANUBIS (base template - extended by docker-compose-anubis-generated.yaml)
   # ===========================
   anubis-base:
-    image: ghcr.io/techarohq/anubis:v1.25.0
+    image: ghcr.io/techarohq/anubis:v1.28.1
     restart: unless-stopped
     networks:
       - traefik
