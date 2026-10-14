@@ -1,6 +1,9 @@
 import os
 import sys
-import pytest
+try:
+    import pytest
+except ImportError:
+    pytest = None
 from pathlib import Path
 
 # Add scripts directory to path to import functions directly
@@ -23,6 +26,8 @@ def test_parse_version():
     # Standard semver
     assert check_image_updates.parse_version("1.2.3") == (1, 2, 3, 0, "", "1.2.3")
     assert check_image_updates.parse_version("v2.0") == (2, 0, 0, 0, "", "v2.0")
+    assert check_image_updates.parse_version("v1.28.1") == (1, 28, 1, 0, "", "v1.28.1")
+    assert check_image_updates.parse_version("v1.28.0-pre3") == (1, 28, 0, 0, "pre3", "v1.28.0-pre3")
     
     # Suffixes
     assert check_image_updates.parse_version("1.2.3-alpine") == (1, 2, 3, 0, "alpine", "1.2.3-alpine")
@@ -36,6 +41,8 @@ def test_is_prerelease():
     assert check_image_updates.is_prerelease("alpha") is True
     assert check_image_updates.is_prerelease("dev") is True
     assert check_image_updates.is_prerelease("nightly") is True
+    assert check_image_updates.is_prerelease("pre1") is True
+    assert check_image_updates.is_prerelease("pre3") is True
     
     # Numeric CI tags
     assert check_image_updates.is_prerelease("20230514") is True
@@ -53,6 +60,7 @@ def test_is_same_flavor():
     current_alpine = check_image_updates.parse_version("1.0.0-alpine")
     current_slim = check_image_updates.parse_version("1.0.0-slim")
     current_none = check_image_updates.parse_version("1.0.0")
+    current_anubis = check_image_updates.parse_version("v1.25.0")
     
     # Alpine should only match alpine
     assert check_image_updates.is_same_flavor(current_alpine, "1.1.0-alpine") is True
@@ -63,3 +71,15 @@ def test_is_same_flavor():
     # No flavor should only match no flavor
     assert check_image_updates.is_same_flavor(current_none, "1.1.0") is True
     assert check_image_updates.is_same_flavor(current_none, "1.1.0-alpine") is False
+
+    # Anubis stable should accept newer stable and reject pre-releases
+    assert check_image_updates.is_same_flavor(current_anubis, "v1.28.1") is True
+    assert check_image_updates.is_same_flavor(current_anubis, "v1.28.0") is True
+    assert check_image_updates.is_same_flavor(current_anubis, "v1.28.0-pre3") is False
+
+
+if __name__ == "__main__":
+    test_parse_version()
+    test_is_prerelease()
+    test_is_same_flavor()
+    print("✅ All check_image_updates unit tests passed successfully!")

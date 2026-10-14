@@ -89,7 +89,7 @@ def is_same_flavor(current_parsed, candidate_tag):
     
     return normalize_suffix(current_suffix) == normalize_suffix(candidate_suffix)
 
-def get_docker_hub_tags(namespace, image, current_parsed=None, max_pages=3):
+def get_docker_hub_tags(namespace, image, current_parsed=None, max_pages=5):
     tags = []
     url = f"https://registry.hub.docker.com/v2/repositories/{namespace}/{image}/tags?page_size=100"
     for _ in range(max_pages):
@@ -100,19 +100,32 @@ def get_docker_hub_tags(namespace, image, current_parsed=None, max_pages=3):
                 results = data.get('results', [])
                 page_tags = [tag['name'] for tag in results if 'name' in tag]
                 tags.extend(page_tags)
-                
-                # If we already found candidate tags matching the flavor on this page, stop early
-                if current_parsed and any(is_same_flavor(current_parsed, t) for t in page_tags):
-                    break
-                    
                 url = data.get('next')
                 if not url:
                     break
         except Exception:
             break
+
+    # If no candidate flavor tags found in initial pages (e.g. flooded by CI build tags like Loki),
+    # try targeted query by major version prefix
+    if current_parsed:
+        has_match = any(is_same_flavor(current_parsed, t) for t in tags)
+        if not has_match and current_parsed[0] >= 0:
+            major = current_parsed[0]
+            current_tag = current_parsed[5]
+            prefix = f"v{major}." if current_tag.startswith('v') else f"{major}."
+            filter_url = f"https://registry.hub.docker.com/v2/repositories/{namespace}/{image}/tags?page_size=100&name={prefix}"
+            try:
+                req = urllib.request.Request(filter_url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req, timeout=5) as response:
+                    data = json.loads(response.read().decode())
+                    results = data.get('results', [])
+                    tags.extend([tag['name'] for tag in results if 'name' in tag])
+            except Exception:
+                pass
     return tags
 
-def get_ghcr_tags(image_name):
+def get_ghcr_tags(image_name, max_pages=15):
     # ghcr.io images can be fetched anonymously by acquiring a token first
     token_url = f"https://ghcr.io/token?scope=repository:{image_name}:pull"
     try:
@@ -121,28 +134,52 @@ def get_ghcr_tags(image_name):
             token_data = json.loads(response.read().decode())
             token = token_data.get('token')
             
-        tags_url = f"https://ghcr.io/v2/{image_name}/tags/list"
-        req_tags = urllib.request.Request(tags_url, headers={
-            'User-Agent': 'Mozilla/5.0',
-            'Authorization': f"Bearer {token}"
-        })
-        with urllib.request.urlopen(req_tags, timeout=5) as response:
-            tags_data = json.loads(response.read().decode())
-            return tags_data.get('tags', [])
+        tags = []
+        url = f"https://ghcr.io/v2/{image_name}/tags/list?n=1000"
+        for _ in range(max_pages):
+            req_tags = urllib.request.Request(url, headers={
+                'User-Agent': 'Mozilla/5.0',
+                'Authorization': f"Bearer {token}"
+            })
+            with urllib.request.urlopen(req_tags, timeout=5) as response:
+                tags_data = json.loads(response.read().decode())
+                page_tags = tags_data.get('tags', [])
+                tags.extend(page_tags)
+                
+                # OCI Distribution API pagination via Link header
+                link = response.headers.get('link')
+                if not link:
+                    break
+                m = re.search(r'<([^>]+)>;\s*rel=["\']?next["\']?', link, re.IGNORECASE)
+                if not m:
+                    break
+                next_url = m.group(1)
+                if next_url.startswith('/'):
+                    url = f"https://ghcr.io{next_url}"
+                else:
+                    url = next_url
+        return tags
     except Exception as e:
         # print(f"Error fetching GHCR tags: {e}", file=sys.stderr)
         return []
 
-def get_quay_tags(image_name):
-    url = f"https://quay.io/api/v1/repository/{image_name}/tag/"
-    try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=5) as response:
-            data = json.loads(response.read().decode())
-            return [t['name'] for t in data.get('tags', []) if t.get('is_valid', True)]
-    except Exception as e:
-        # print(f"Error fetching Quay tags: {e}", file=sys.stderr)
-        return []
+def get_quay_tags(image_name, max_pages=5):
+    tags = []
+    page = 1
+    for _ in range(max_pages):
+        url = f"https://quay.io/api/v1/repository/{image_name}/tag/?limit=100&page={page}"
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                data = json.loads(response.read().decode())
+                page_tags = [t['name'] for t in data.get('tags', []) if t.get('is_valid', True)]
+                tags.extend(page_tags)
+                if not data.get('has_additional'):
+                    break
+                page += 1
+        except Exception:
+            break
+    return tags
 
 def get_latest_version(image_str):
     # Parse image string
@@ -223,7 +260,7 @@ def scan_compose_files():
     
     # Scan root directory for compose files
     for file in sorted(os.listdir('.')):
-        if not pattern.match(file) and file != 'docker-compose.yaml':
+        if (not pattern.match(file) and file != 'docker-compose.yaml') or file.endswith('-generated.yaml'):
             continue
         
         try:
@@ -335,7 +372,7 @@ def apply_updates(image_updates, plugin_updates):
     # 1. Update images in compose files
     if image_updates:
         pattern = re.compile(r'^docker-compose-.*\.yaml$')
-        compose_files = sorted([f for f in os.listdir('.') if (pattern.match(f) or f == 'docker-compose.yaml')])
+        compose_files = sorted([f for f in os.listdir('.') if (pattern.match(f) or f == 'docker-compose.yaml') and not f.endswith('-generated.yaml')])
         
         for file in compose_files:
             try:
@@ -461,16 +498,23 @@ def main():
         
     print(f"✅ Finished check. {updates_available} updates available, {errors} errors/skips.")
     
-    if updates_available > 0:
+    auto_yes = ('-y' in sys.argv or '--yes' in sys.argv)
+    check_only = ('--check-only' in sys.argv or '--dry-run' in sys.argv)
+    
+    if updates_available > 0 and not check_only:
         print()
-        try:
-            choice = input("❓ Do you want to update all images and plugins to their latest versions in the configuration files? [y/N]: ").strip().lower()
-            if choice in ['y', 'yes']:
-                apply_updates(image_updates_dict, plugin_updates_dict)
-            else:
-                print("Update cancelled.")
-        except (KeyboardInterrupt, EOFError):
-            print("\nUpdate cancelled.")
+        if auto_yes:
+            print("🚀 Auto-applying updates (-y / --yes flag detected)...")
+            apply_updates(image_updates_dict, plugin_updates_dict)
+        else:
+            try:
+                choice = input("❓ Do you want to update all images and plugins to their latest versions in the configuration files? [y/N]: ").strip().lower()
+                if choice in ['y', 'yes']:
+                    apply_updates(image_updates_dict, plugin_updates_dict)
+                else:
+                    print("Update cancelled.")
+            except (KeyboardInterrupt, EOFError):
+                print("\nUpdate cancelled.")
 
     if postgres_updates:
         print()
