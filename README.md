@@ -562,7 +562,7 @@ Never edit these manually in `.env`:
 ├── docker-compose-dashboard.yaml      # Dashboard, Dozzle, Dashboard Socket Proxy
 ├── docker-compose-watchdog.yaml       # Watchdog (SSL, DNS, CrowdSec monitor)
 ├── docker-compose-anubis-base.yaml    # Anubis base template
-├── docker-compose-anubis.yaml         # Anubis asset server
+├── docker-compose-anubis-assets.yaml  # Anubis asset server
 ├── docker-compose-anubis-generated.yaml # Anubis instances (auto-generated)
 ├── docker-compose-backrest.yaml       # Backups (optional)
 ├── docker-compose-phpmyadmin.yaml     # phpMyAdmin (optional)

@@ -104,7 +104,7 @@ services:
       - ./scripts:${DASHBOARD_APP_PATH_HOST}/scripts:ro
       - ./docker-compose-edge.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-edge.yaml:ro
       - ./docker-compose-security.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-security.yaml:ro
-      - ./docker-compose-anubis.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-anubis.yaml:ro
+      - ./docker-compose-anubis-assets.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-anubis-assets.yaml:ro
       - ./docker-compose-anubis-base.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-anubis-base.yaml:ro
       - ./docker-compose-anubis-generated.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-anubis-generated.yaml
       - ./docker-compose-apache-logs.yaml:${DASHBOARD_APP_PATH_HOST}/docker-compose-apache-logs.yaml:ro

@@ -177,7 +177,7 @@ The stack separates responsibilities across multiple files:
 | `docker-compose-dashboard.yaml` | Dashboard (Flask), Dozzle, **Docker Socket Proxy (Dashboard)** |
 | `docker-compose-watchdog.yaml` | Watchdog (SSL, DNS, CrowdSec health monitor) — conditional on `WATCHDOG_ENABLE != false` (disabled in `local`) |
 | `docker-compose-anubis-base.yaml` | Abstract Anubis template (`anubis-base`) — used only via `extends`, never booted directly |
-| `docker-compose-anubis.yaml` | Anubis asset server (`anubis-assets`) — conditional on `.anubis_available` |
+| `docker-compose-anubis-assets.yaml` | Anubis asset server (`anubis-assets`) — conditional on `.anubis_available` |
 | `docker-compose-anubis-generated.yaml` | Auto-generated Anubis instances (per TLD) — conditional on `.anubis_available` |
 | `docker-compose-backrest.yaml` | Backrest (Restic + Rclone) — conditional on `BACKREST_ENABLE=true` |
 | `docker-compose-phpmyadmin.yaml` | phpMyAdmin — conditional on `PHPMYADMIN_ENABLE=true` |

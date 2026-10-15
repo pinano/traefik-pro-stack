@@ -9,7 +9,7 @@ def test_anubis_disabled_when_no_domains_configured(tmp_path):
     """
     Verify that when no domain in domains.csv uses Anubis:
     1. .anubis_available flag file is absent.
-    2. compose-files.sh does not include docker-compose-anubis.yaml or generated compose.
+    2. compose-files.sh does not include docker-compose-anubis-assets.yaml or generated compose.
     3. Neither anubis-base nor anubis-assets are in active compose services.
     """
     script_path = os.path.join(PROJECT_ROOT, 'scripts', 'generate-config.py')
@@ -46,7 +46,7 @@ def test_anubis_disabled_when_no_domains_configured(tmp_path):
         text=True
     )
     assert proc.returncode == 0
-    assert 'docker-compose-anubis.yaml' not in proc.stdout
+    assert 'docker-compose-anubis-assets.yaml' not in proc.stdout
     assert 'docker-compose-anubis-generated.yaml' not in proc.stdout
 
     # Test docker compose config --services
@@ -66,7 +66,7 @@ def test_anubis_enabled_when_domain_configured(tmp_path):
     """
     Verify that when a domain in domains.csv uses Anubis:
     1. .anubis_available flag file is created.
-    2. compose-files.sh includes docker-compose-anubis.yaml and docker-compose-anubis-generated.yaml.
+    2. compose-files.sh includes docker-compose-anubis-assets.yaml and docker-compose-anubis-generated.yaml.
     3. anubis-assets and the domain service are active, but anubis-base remains template-only.
     """
     script_path = os.path.join(PROJECT_ROOT, 'scripts', 'generate-config.py')
