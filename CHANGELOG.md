@@ -1,3 +1,12 @@
+## v2026.10.15 (2026-10-15)
+
+- feat: add watchdog compose file mount and filter missing compose files in restart script (f7670af)
+- fix: add missing closing fi statement in restart script (b69cf7d)
+- fix: set correct permissions and atomic replacement for CrowdSec configuration files in initialization and restart scripts (de9f67f)
+- refactor: rename docker-compose-anubis.yaml to docker-compose-anubis-assets.yaml and downgrade anubis image version (dad3e4d)
+- refactor: rename docker-compose-anubis.yaml to docker-compose-anubis-assets.yaml and downgrade Anubis image version (3e01cbf)
+- fix: suppress permission errors and handle missing compose files in restart script (f0c84ac)
+
 ## v2026.10.14 (2026-10-14)
 
 - feat: enhance image update script with pagination, CLI flags, and update component versions (a05be0a)
