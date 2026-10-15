@@ -70,7 +70,7 @@ fi
 
 # Add Anubis if active domains exist (flag set by generate-config.py)
 if [ -f ".anubis_available" ]; then
-    COMPOSE_FILES="$COMPOSE_FILES -f docker-compose-anubis.yaml"
+    COMPOSE_FILES="$COMPOSE_FILES -f docker-compose-anubis-assets.yaml"
     if [ -f "docker-compose-anubis-generated.yaml" ]; then
         COMPOSE_FILES="$COMPOSE_FILES -f docker-compose-anubis-generated.yaml"
     fi

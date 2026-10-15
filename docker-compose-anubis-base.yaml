@@ -4,7 +4,7 @@ services:
   # ANUBIS (base template - extended by docker-compose-anubis-generated.yaml)
   # ===========================
   anubis-base:
-    image: ghcr.io/techarohq/anubis:v1.28.1
+    image: ghcr.io/techarohq/anubis:v1.27.0
     restart: unless-stopped
     networks:
       - traefik
@@ -38,7 +38,7 @@ services:
     # Anubis exposes /healthz — monitored via built-in healthcheck flag.
     # The chainguard static image has no shell: use CMD array to call the binary directly.
     healthcheck:
-      test: ["CMD", "/ko-app/anubis", "--healthcheck"]
+      test: [ "CMD", "/ko-app/anubis", "--healthcheck" ]
       interval: 30s
       timeout: 5s
       retries: 3
