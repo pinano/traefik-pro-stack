@@ -319,6 +319,7 @@ if [[ "$DASHBOARD_INTERNAL" == "true" ]]; then
     find ./config/traefik -type f -name "*.yaml" -exec chmod 644 {} \;
     find ./config/traefik -type f -name "*.json" -exec chmod 600 {} \; # acme.json needs 600
     chmod 644 ./domains.csv
+    chmod 644 ./config/crowdsec/*.yaml 2>/dev/null || true
     if [ -f "./config/crowdsec/captcha_keys.csv" ]; then
         chmod 600 ./config/crowdsec/captcha_keys.csv  # 600: owner rw only
     fi
@@ -341,6 +342,12 @@ if [[ "$DASHBOARD_INTERNAL" == "true" ]]; then
          chown "$TARGET_UID:$TARGET_GID" ./domains.csv
          if [ -f "./config/crowdsec/captcha_keys.csv" ]; then
              chown "$TARGET_UID:$TARGET_GID" ./config/crowdsec/captcha_keys.csv
+         fi
+         if [ -f "./config/crowdsec/profiles.yaml" ]; then
+             chown "$TARGET_UID:$TARGET_GID" ./config/crowdsec/profiles.yaml 2>/dev/null || true
+         fi
+         if [ -f "./config/crowdsec/acquis.yaml" ]; then
+             chown "$TARGET_UID:$TARGET_GID" ./config/crowdsec/acquis.yaml 2>/dev/null || true
          fi
     else
          echo "      ⚠️  Could not determine target ownership. Left as root but readable."

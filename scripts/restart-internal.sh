@@ -178,7 +178,8 @@ FALLBACK_EOF
         echo "   ✔ profiles.yaml unchanged — no CrowdSec reload needed."
     else
         # Atomic replacement: mv is atomic on the same filesystem
-        mv "$TMP_PROFILES" "$PROFILES_OUT"
+        chmod 644 "$TMP_PROFILES" 2>/dev/null || true
+        mv -f "$TMP_PROFILES" "$PROFILES_OUT"
         echo "   🔄 profiles.yaml updated."
 
         # Reload CrowdSec if it's running (SIGHUP reloads profiles without restart)
@@ -202,6 +203,7 @@ find ./config/traefik -type d -exec chmod 755 {} \; 2>/dev/null || true
 find ./config/traefik -type f -name "*.yaml" -exec chmod 644 {} \; 2>/dev/null || true
 find ./config/traefik -type f -name "*.json" -exec chmod 600 {} \; 2>/dev/null || true
 chmod 644 ./domains.csv 2>/dev/null || true
+chmod 644 ./config/crowdsec/*.yaml 2>/dev/null || true
 
 # Ensure docker-compose-anubis-generated.yaml is readable
 if [ -f "docker-compose-anubis-generated.yaml" ]; then
@@ -234,6 +236,12 @@ if [ -n "$TARGET_UID" ] && [ -n "$TARGET_GID" ]; then
     fi
     if [ -f "./config/crowdsec/captcha_keys.csv" ]; then
         chown "$TARGET_UID:$TARGET_GID" ./config/crowdsec/captcha_keys.csv 2>/dev/null || true
+    fi
+    if [ -f "./config/crowdsec/profiles.yaml" ]; then
+        chown "$TARGET_UID:$TARGET_GID" ./config/crowdsec/profiles.yaml 2>/dev/null || true
+    fi
+    if [ -f "./config/crowdsec/acquis.yaml" ]; then
+        chown "$TARGET_UID:$TARGET_GID" ./config/crowdsec/acquis.yaml 2>/dev/null || true
     fi
 else
     echo "   ⚠️ Could not determine target ownership. Files left as-is."

@@ -46,10 +46,11 @@ fi
 
 # Idempotent write: only update acquis.yaml if content changed
 if [ -f "$ACQUIS_OUT" ] && cmp -s "$TMP_ACQUIS" "$ACQUIS_OUT"; then
-    rm "$TMP_ACQUIS"
+    rm -f "$TMP_ACQUIS"
 else
-    cat "$TMP_ACQUIS" > "$ACQUIS_OUT"
-    rm "$TMP_ACQUIS"
+    chmod 644 "$TMP_ACQUIS" 2>/dev/null || true
+    rm -f "$ACQUIS_OUT" 2>/dev/null || true
+    mv -f "$TMP_ACQUIS" "$ACQUIS_OUT"
 fi
 
 # =============================================================================
@@ -144,10 +145,11 @@ EOF
 
 # Idempotent write: only update profiles.yaml if content changed
 if [ -f "$PROFILES_OUT" ] && cmp -s "$TMP_PROFILES" "$PROFILES_OUT"; then
-    rm "$TMP_PROFILES"
+    rm -f "$TMP_PROFILES"
 else
-    cat "$TMP_PROFILES" > "$PROFILES_OUT"
-    rm "$TMP_PROFILES"
+    chmod 644 "$TMP_PROFILES" 2>/dev/null || true
+    rm -f "$PROFILES_OUT" 2>/dev/null || true
+    mv -f "$TMP_PROFILES" "$PROFILES_OUT"
 fi
 
 # =============================================================================
