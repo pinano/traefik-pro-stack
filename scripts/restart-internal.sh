@@ -322,6 +322,8 @@ else
     if [ -n "$BASE_ID" ]; then
         docker rm -f $BASE_ID >/dev/null 2>&1 || true
     fi
+fi
+
 # If Watchdog is disabled, ensure no Watchdog containers remain running
 if [[ "$WATCHDOG_ENABLE" == "false" ]]; then
     WATCHDOG_IDS=$(docker ps -aq --filter label=com.docker.compose.project="${PROJECT_NAME:-stack}" --filter label=com.docker.compose.service="watchdog" 2>/dev/null || true)
