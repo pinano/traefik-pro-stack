@@ -272,6 +272,25 @@ fi
 # Build compose file list (same logic as compose-files.sh)
 source scripts/compose-files.sh
 
+# Filter COMPOSE_FILES to only include files that actually exist in the current environment
+VALID_COMPOSE_FILES=""
+skip_next=false
+for arg in $COMPOSE_FILES; do
+    if [ "$skip_next" = true ]; then
+        if [ -f "$arg" ]; then
+            VALID_COMPOSE_FILES="$VALID_COMPOSE_FILES -f $arg"
+        else
+            echo "   ⚠️ Notice: Compose file $arg not found in container filesystem, skipping."
+        fi
+        skip_next=false
+    elif [ "$arg" = "-f" ]; then
+        skip_next=true
+    else
+        VALID_COMPOSE_FILES="$VALID_COMPOSE_FILES $arg"
+    fi
+done
+COMPOSE_FILES="$VALID_COMPOSE_FILES"
+
 # Build compose command with explicit project name
 COMPOSE_CMD="docker compose -p ${PROJECT_NAME:-stack}"
 if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
