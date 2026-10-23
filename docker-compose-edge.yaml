@@ -4,7 +4,7 @@ services:
   #  TRAEFIK (Edge Router)
   # ===========================
   traefik:
-    image: traefik:v3.7.14
+    image: traefik:3.7.16
     restart: always
     depends_on:
       crowdsec:

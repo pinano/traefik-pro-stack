@@ -28,6 +28,8 @@ services:
       - DELETE=1
       - EXEC=1
       - IMAGES=1
+      - DISTRIBUTION=1
+      - AUTH=1
       # Explicitly disallow dangerous ops
       - BUILD=0
       - VOLUMES=0
@@ -36,7 +38,6 @@ services:
       - CONFIGS=0
       - NODES=0
       - PLUGINS=0
-      - DISTRIBUTION=0
       - COMMIT=0
       - SESSION=0
       - SYSTEM=0
@@ -155,7 +156,7 @@ services:
   #  DOZZLE (Container log viewer)
   # ===========================
   dozzle:
-    image: amir20/dozzle:v11.3.2
+    image: amir20/dozzle:v11.3.4
     restart: always
     networks:
       - traefik
