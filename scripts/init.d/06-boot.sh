@@ -194,6 +194,20 @@ if [ -n "$PROJECT_CONTAINERS" ]; then
     fi
 fi
 
+# Disconnect any foreign/stale containers lingering on isolated socket proxy networks (e.g. from an old PROJECT_NAME)
+for net in socket-proxy socket-proxy-dashboard; do
+    if docker network inspect "$net" >/dev/null 2>&1; then
+        net_cids=$(docker network inspect "$net" --format '{{range $id, $c := .Containers}}{{$id}} {{end}}' 2>/dev/null || true)
+        for cid in $net_cids; do
+            c_proj=$(docker inspect --format '{{index .Config.Labels "com.docker.compose.project"}}' "$cid" 2>/dev/null || true)
+            if [ -n "$c_proj" ] && [ "$c_proj" != "$PROJECT_NAME" ]; then
+                echo "   ⚠️ Disconnecting foreign container from old project '$c_proj' on $net..."
+                docker network disconnect -f "$net" "$cid" >/dev/null 2>&1 || true
+            fi
+        done
+    fi
+done
+
 # Deploy stack containers
 echo "   ⏳ Deploying stack containers:"
 $COMPOSE_CMD $COMPOSE_FILES up -d --remove-orphans
