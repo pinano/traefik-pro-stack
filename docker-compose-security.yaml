@@ -4,7 +4,7 @@ services:
   #  CROWDSEC (IPS / WAF)
   # ===========================
   crowdsec:
-    image: crowdsecurity/crowdsec:v1.8.1
+    image: crowdsecurity/crowdsec:v1.8.2
     restart: unless-stopped
     profiles:
       - crowdsec
@@ -172,7 +172,7 @@ services:
   #  CROWDSEC WEB UI (Management interface for CrowdSec LAPI)
   # ===========================
   crowdsec-web-ui:
-    image: ghcr.io/theduffman85/crowdsec-web-ui:2026.10.10
+    image: ghcr.io/theduffman85/crowdsec-web-ui:2026.11.6
     restart: unless-stopped
     profiles:
       - crowdsec
