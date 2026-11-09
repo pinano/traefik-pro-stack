@@ -4,7 +4,7 @@ services:
   #  GRAFANA (The visualizer)
   # ===========================
   grafana:
-    image: grafana/grafana:13.2.4
+    image: grafana/grafana:13.3
     restart: unless-stopped
     environment:
       - GF_SERVER_ROOT_URL=https://${DASHBOARD_SUBDOMAIN}.${DOMAIN}/grafana
@@ -107,7 +107,7 @@ services:
   #  ALLOY (Log & metrics collector)
   # ===========================
   alloy:
-    image: grafana/alloy:v1.21.2
+    image: grafana/alloy:v1.21.3
     restart: unless-stopped
     user: "root" # Alloy needs root to read logs from other containers in /var/lib/docker
     security_opt:
@@ -149,7 +149,7 @@ services:
   #  PROMETHEUS (Metrics storage)
   # ===========================
   prometheus:
-    image: prom/prometheus:v3.15.1
+    image: prom/prometheus:v3.16.0
     restart: unless-stopped
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -190,7 +190,7 @@ services:
   #  REDIS EXPORTER (Metrics for Prometheus)
   # ===========================
   redis-exporter:
-    image: oliver006/redis_exporter:v1.95.0-alpine
+    image: oliver006/redis_exporter:v1.97.0-alpine
     restart: unless-stopped
     environment:
       - REDIS_ADDR=redis:6379
