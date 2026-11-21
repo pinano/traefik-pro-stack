@@ -222,9 +222,16 @@ with open(sys.argv[1], "w", encoding="utf-8") as f:
     else
         mv -f "$TMP_VALKEY" "$TARGET_VALKEY"
     fi
-    # This file embeds REDIS_PASSWORD — restrict to owner (the container runs
-    # as uid 1000 via compose `user:`, matching the host owner, so 600 is safe).
+    # This file embeds REDIS_PASSWORD — restrict to owner (600). The container
+    # runs as the operator uid (HOST_UID, synced by 01-env-sync.sh), which can
+    # read its own files.
     chmod 600 "$TARGET_VALKEY" 2>/dev/null || true
+    # When the operator is root, the valkey image entrypoint re-executes the
+    # server as its internal valkey user (uid 999) via setpriv, so the config
+    # must be readable by that uid — still 600, just owned by 999:1000.
+    if [ "$(id -u)" = "0" ]; then
+        chown 999:1000 "$TARGET_VALKEY" 2>/dev/null || true
+    fi
 
 # Generate CrowdSec config.yaml.local from template (idempotent write)
 if [ -f "./config/crowdsec/config.yaml.local.template" ]; then
