@@ -19,8 +19,15 @@ datasources:
     access: proxy
     url: http://prometheus:9090
     isDefault: true
-    version: 1
+    version: 2
     editable: true
+    # Server-side auth (audit M7): Prometheus requires Basic auth on ALL
+    # endpoints, including reads. The token is injected as the container env
+    # var of the same name (docker-compose-observability.yaml).
+    basicAuth: true
+    basicAuthUser: alloy
+    secureJsonData:
+      basicAuthPassword: ${PROMETHEUS_REMOTE_WRITE_TOKEN}
     jsonData:
       httpMethod: POST
       timeInterval: "15s"

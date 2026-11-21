@@ -12,6 +12,9 @@ services:
       - GF_SECURITY_ADMIN_USER=${DASHBOARD_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${DASHBOARD_ADMIN_PASSWORD}
       - GF_USERS_ALLOW_SIGN_UP=false # Important: Disallow user registration
+      # Token used by the provisioned Prometheus datasource for Basic auth
+      # (audit M7 — Prometheus rejects unauthenticated reads).
+      - PROMETHEUS_REMOTE_WRITE_TOKEN=${PROMETHEUS_REMOTE_WRITE_TOKEN}
       # --- Auth Proxy (SSO Integration) ---
       # Any request that reaches Grafana has already been authenticated by the dashboard SSO
       # (Traefik forwardAuth → /auth-check). We enable Auth Proxy so Grafana reads the
