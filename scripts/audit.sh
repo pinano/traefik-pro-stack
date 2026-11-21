@@ -142,8 +142,10 @@ fi
 # -----------------------------------------------------------------------------
 section "5. CROWDSEC STATE (requires running daemon)"
 # -----------------------------------------------------------------------------
-if docker ps --format '{{.Names}}' 2>/dev/null | grep -qx 'stack-crowdsec-1\|crowdsec'; then
-    cs_container=$(docker ps --format '{{.Names}}' | grep -E 'crowdsec$' | head -1)
+# Match the CrowdSec container regardless of compose project naming
+# (stack-crowdsec-1, traefik-crowdsec-1, ...), excluding its db/web-ui.
+cs_container=$(docker ps --format '{{.Names}}' 2>/dev/null | grep 'crowdsec' | grep -Ev 'db|web-ui|exporter' | head -1)
+if [ -n "$cs_container" ]; then
     decisions=$(docker exec "$cs_container" cscli decisions list -o raw 2>/dev/null | tail -n +2 | wc -l)
     info "Active CrowdSec decisions: $decisions"
     wl=$(docker exec "$cs_container" cscli parser list raw 2>/dev/null | grep -ci whitelist || true)
