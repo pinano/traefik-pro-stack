@@ -97,6 +97,24 @@ fi
 
 DUMP_FILE="/tmp/crowdsec_pg_upgrade_dump.sql"
 
+# Pre-flight: verify we will be able to rename the data dir AFTER the stack
+# is stopped. Docker creates the bind-mount tree as root when missing, and a
+# root-owned parent makes the mv fail once the stack is already down.
+DATA_DIR="./data/crowdsec/postgres"
+DATA_PARENT=$(dirname "$DATA_DIR")
+if [ ! -d "$DATA_DIR" ]; then
+    echo "❌ ERROR: $DATA_DIR does not exist — nothing to migrate."
+    exit 1
+fi
+if [ ! -w "$DATA_PARENT" ]; then
+    echo "❌ ERROR: $DATA_PARENT is not writable by $(whoami) — the data-dir"
+    echo "   rename would fail once the stack is already stopped (docker usually"
+    echo "   creates the bind-mount tree as root). Fix the parent dir only — do"
+    echo "   NOT recurse into the postgres data files, they must keep their uid:"
+    echo "     sudo chown $(whoami):$(id -gn) $DATA_PARENT"
+    exit 1
+fi
+
 # Cleanup temporary dump file on exit or interruption
 cleanup() {
     rm -f "$DUMP_FILE"
