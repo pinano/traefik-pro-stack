@@ -309,6 +309,7 @@ make crowdsec-db-stats       # Database size & connections
 make crowdsec-db-shell       # Interactive psql
 make certs-info            # Certificate status
 make check-updates         # Check for image updates
+make upgrade-postgres      # Upgrade PostgreSQL (no arg: migrates to the tag in the compose file)
 make help                  # Full command list
 ```
 

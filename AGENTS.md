@@ -299,8 +299,21 @@ make crowdsec-db-stats    # Show CrowdSec PostgreSQL DB size, rows, and connecti
 make crowdsec-db-shell    # Interactive psql terminal in the CrowdSec DB
 make certs-info       # Certificate status summary
 make check-updates    # Check for Docker image updates in compose files
+make upgrade-postgres [VERSION=...]  # PostgreSQL upgrade (no arg: migrates to the compose tag)
 make help             # Full list of commands
 ```
+
+### Upgrading PostgreSQL (CrowdSec DB)
+
+The PostgreSQL data directory (`./data/crowdsec/postgres`) is **incompatible between major versions** — never just bump the image tag on a major jump (the container will crash-loop over the rejected data dir).
+
+- **Same major (e.g. `18.6` → `18.7`)**: update the tag in `docker-compose-security.yaml` and `make restart`. The data dir is compatible within a major; no migration needed.
+- **New major (e.g. `18` → `19`)**: update the tag in `docker-compose-security.yaml`, then run `make upgrade-postgres` — with no argument the script reads the target tag from the compose file, compares it against the running server version and performs the full dump/restore migration (it skips with guidance if the change is same-major). One-shot alternative: `make upgrade-postgres VERSION=19.0-alpine3.23` rewrites the tag itself before migrating. The script requires the stack up and `crowdsec-db` healthy.
+- **Ordering matters**: after pulling a commit that bumps the postgres tag, run `make upgrade-postgres` **before** `make start`/`make restart` — the old container must still be running for the dump. If the stack was already restarted and `crowdsec-db` is crash-looping, revert the tag, `make start`, then upgrade.
+
+**Rollback**: revert the image tag, move `postgres_backup_<timestamp>` back to `postgres`, `make start`. The old data is never deleted by the script. `scripts/rollback.sh` also detects PostgreSQL version changes and invokes the upgrade script automatically.
+
+Before a major upgrade, confirm nightly dumps are in place (Backrest + `backup-db-dumps.sh`); `make crowdsec-db-stats` shows the current DB size.
 
 ---
 

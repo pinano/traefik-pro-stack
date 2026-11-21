@@ -164,11 +164,12 @@ release: ## Generate a new CalVer release, update CHANGELOG.md, and create a git
 ## Safely upgrades the PostgreSQL database major version.
 ## - Dumps the current data
 ## - Backs up the old directory
-## - Updates the docker-compose image tag
 ## - Restores the data into the new container
-## Usage: make upgrade-postgres VERSION=18.4-alpine3.23
+## Usage: make upgrade-postgres VERSION=18.4-alpine3.23   (rewrites the compose tag)
+##    or: make upgrade-postgres                          (migrates to the tag already
+##                                                        set in docker-compose-security.yaml)
 .PHONY: upgrade-postgres
-upgrade-postgres: ## Upgrade PostgreSQL version (usage: make upgrade-postgres VERSION=...)
+upgrade-postgres: ## Upgrade PostgreSQL version (optional VERSION=..., else uses the compose tag)
 	@./scripts/upgrade-postgres.sh $(VERSION)
 
 ##@help update

@@ -1,8 +1,17 @@
 #!/bin/bash
 # ==============================================================================
-# UPGRADE POSTGRESQL SCRIPT
+# UPGRADE POSTGRES SCRIPT
 # Safely upgrades PostgreSQL by dumping the data, backing up the data folder,
 # and restoring the data into the new version container.
+#
+# Usage:
+#   make upgrade-postgres                          # migrate to the tag already
+#                                                  # set in docker-compose-security.yaml
+#   make upgrade-postgres VERSION=19.0-alpine3.23  # rewrite the tag AND migrate
+#
+# Behavior is driven by comparing the compose tag against the RUNNING server
+# version: same tag -> nothing to do; same major -> restart only; different
+# major -> full dump/restore migration.
 # ==============================================================================
 set -e
 
@@ -10,20 +19,6 @@ set -e
 cd "$(dirname "$0")/.."
 
 NEW_VERSION=$1
-if [ -z "$NEW_VERSION" ]; then
-    echo "❌ ERROR: No target PostgreSQL version specified."
-    echo "Usage: make upgrade-postgres VERSION=<new-version>"
-    echo "Example: make upgrade-postgres VERSION=18.4-alpine3.23"
-    exit 1
-fi
-
-DUMP_FILE="/tmp/crowdsec_pg_upgrade_dump.sql"
-
-# Cleanup temporary dump file on exit or interruption
-cleanup() {
-    rm -f "$DUMP_FILE"
-}
-trap cleanup EXIT INT TERM
 
 # Source .env to get DB credentials
 if [ -f .env ]; then
@@ -49,6 +44,66 @@ if ! docker inspect -f '{{.State.Health.Status}}' "$DB_CONTAINER" 2>/dev/null | 
     exit 1
 fi
 
+# Optional argument: rewrite the compose tag ourselves. Without it, the tag
+# already present in docker-compose-security.yaml is the migration target.
+if [ -n "$NEW_VERSION" ]; then
+    echo "🔄 Updating docker-compose-security.yaml to version $NEW_VERSION..."
+    # Using Python for reliable YAML replacement without regex edge cases
+    python3 -c "
+import sys, re
+file_path = 'docker-compose-security.yaml'
+with open(file_path, 'r') as f:
+    content = f.read()
+
+new_content = re.sub(r'image:\s*postgres:.*', f'image: postgres:{sys.argv[1]}', content)
+
+with open(file_path, 'w') as f:
+    f.write(new_content)
+" "$NEW_VERSION"
+    echo "✅ Configuration updated."
+fi
+
+TARGET_TAG=$(grep -oP 'image:\s*postgres:\K\S+' docker-compose-security.yaml | head -n 1)
+if [ -z "$TARGET_TAG" ]; then
+    echo "❌ ERROR: Could not read the postgres image tag from docker-compose-security.yaml."
+    exit 1
+fi
+
+RUNNING_TAG=$(docker inspect -f '{{.Config.Image}}' "$DB_CONTAINER")
+RUNNING_VERSION=$(docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -tAc "SHOW server_version;" 2>/dev/null | tr -d '[:space:]')
+if [ -z "$RUNNING_VERSION" ]; then
+    echo "❌ ERROR: Could not read the running server version from the crowdsec-db container."
+    exit 1
+fi
+
+if [ "$RUNNING_TAG" = "postgres:$TARGET_TAG" ]; then
+    echo "✅ The running container is already postgres:$TARGET_TAG — nothing to do."
+    exit 0
+fi
+
+TARGET_MAJOR=${TARGET_TAG%%.*}
+RUNNING_MAJOR=${RUNNING_VERSION%%.*}
+
+if [ "$TARGET_MAJOR" = "$RUNNING_MAJOR" ]; then
+    echo "ℹ️  Target tag $TARGET_TAG has the same major version as the running one ($RUNNING_VERSION)."
+    echo "   No data migration is needed — just run 'make restart' to pick up the new tag."
+    exit 0
+fi
+
+if [ "$TARGET_MAJOR" -lt "$RUNNING_MAJOR" ]; then
+    echo "⚠️  WARNING: this is a MAJOR DOWNGRADE ($RUNNING_VERSION → $TARGET_TAG)."
+    echo "   PostgreSQL does not guarantee that a dump restores into an older major."
+fi
+
+DUMP_FILE="/tmp/crowdsec_pg_upgrade_dump.sql"
+
+# Cleanup temporary dump file on exit or interruption
+cleanup() {
+    rm -f "$DUMP_FILE"
+}
+trap cleanup EXIT INT TERM
+
+echo "🔁 Migrating database $RUNNING_VERSION → $TARGET_TAG..."
 echo "📦 Exporting current database data..."
 # Create dump file with strict 0600 permissions to protect database contents in /tmp
 (umask 077 && : > "$DUMP_FILE")
@@ -67,25 +122,10 @@ TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_DIR="./data/crowdsec/postgres_backup_$TIMESTAMP"
 if [ -d "./data/crowdsec/postgres" ]; then
     mv ./data/crowdsec/postgres "$BACKUP_DIR"
-    echo "✅ Old data directory moved to $BACKUP_DIR"
+    echo "✅ Old data directory moved to $BACKUP_DIR (kept until you delete it)"
 else
     echo "⚠️ Warning: ./data/crowdsec/postgres not found. Skipping backup."
 fi
-
-echo "🔄 Updating docker-compose-security.yaml to version $NEW_VERSION..."
-# Using Python for reliable YAML replacement without regex edge cases
-python3 -c "
-import sys, re
-file_path = 'docker-compose-security.yaml'
-with open(file_path, 'r') as f:
-    content = f.read()
-
-new_content = re.sub(r'image:\s*postgres:.*', f'image: postgres:{sys.argv[1]}', content)
-
-with open(file_path, 'w') as f:
-    f.write(new_content)
-" "$NEW_VERSION"
-echo "✅ Configuration updated."
 
 if docker compose version >/dev/null 2>&1; then
     COMPOSE_CMD="docker compose"
@@ -113,12 +153,12 @@ while true; do
     RETRY_COUNT=$((RETRY_COUNT+1))
 done
 
-echo "📥 Importing data into the new PostgreSQL $NEW_VERSION database..."
+echo "📥 Importing data into the new PostgreSQL $TARGET_TAG database..."
 docker exec -i "$NEW_DB_CONTAINER" psql -U "$DB_USER" "$DB_NAME" < "$DUMP_FILE"
 echo "✅ Data restored successfully."
 
 echo "🧹 Cleaning up temporary dump file..."
-rm -f $DUMP_FILE
+rm -f "$DUMP_FILE"
 
 echo "🚀 Starting the full stack..."
 make start
