@@ -107,10 +107,11 @@ services:
     image: valkey/valkey:9.2-alpine3.24
     command: valkey-server /valkey.conf
     restart: unless-stopped
-    # Run as host uid/gid 1000 so it can read its config file, which contains
-    # REDIS_PASSWORD and is chmod 600 (owner-only). Persistence is disabled in
-    # valkey.conf (save "" / appendonly no), so no writable data dir is needed.
-    user: "1000:1000"
+    # Run as the operator uid/gid (auto-synced into .env by 01-env-sync.sh) so
+    # it can read its config file, which contains REDIS_PASSWORD and is chmod
+    # 600 (owner-only). Persistence is disabled in valkey.conf (save "" /
+    # appendonly no), so no writable data dir is needed.
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     environment:
       - TZ=${TZ}
     volumes:

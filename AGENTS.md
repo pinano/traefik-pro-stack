@@ -449,6 +449,7 @@ This drops packets at **netfilter** (nftables/iptables) *before* they ever touch
 | no-new-privileges on maintenance and alloy | ✅ Done | compose files |
 | Alloy healthcheck | ✅ Done | `docker-compose-observability.yaml` |
 | Valkey maxmemory at 80% of cgroup limit (400mb / 512M — eviction beats kernel OOM) | ✅ Done | `config/valkey/valkey.conf` |
+| Containers reading 600-generated configs run as the operator uid (HOST_UID/HOST_GID auto-synced every boot) | ✅ Done | `scripts/init.d/01-env-sync.sh`, `docker-compose-security.yaml`, `docker-compose-observability.yaml` |
 | Atomic config writes (same-filesystem mktemp + mv) in `init.d/` and `.env` handling | ✅ Done | `scripts/init.d/`, `scripts/initialize-env.sh` |
 | Pip bootstrap verified (ensurepip first, SHA-256-pinned get-pip fallback) | ✅ Done | `scripts/bootstrap-pip.sh` |
 | Dashboard SSE hardening (secret redaction, GET→POST streams, SECRET_KEY fail-closed) | ✅ Done | `config/dashboard/` |
@@ -492,6 +493,7 @@ Variables managed automatically by `start.sh` — **never suggest editing them m
 - `REDIS_PASSWORD`
 - `ANUBIS_REDIS_PRIVATE_KEY`
 - `PROMETHEUS_REMOTE_WRITE_TOKEN`
+- `HOST_UID` / `HOST_GID` (operator uid/gid; containers reading 600-generated configs run as this user)
 - `TRAEFIK_DASHBOARD_AUTH`
 - `DOZZLE_DASHBOARD_AUTH`
 

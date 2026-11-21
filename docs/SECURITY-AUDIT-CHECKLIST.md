@@ -59,6 +59,7 @@ Also verify: that no new `echo` in `scripts/init.d/` prints secret values; that 
 3. `crowdsec-web-ui` has its own login (`AUTH_ENABLED=true`, fixes M6). Do not reintroduce `AUTH_ENABLED=false` even though Traefik puts the edge chain in front of it.
 4. **Prometheus enforces server-side Basic auth** (`--web.config.file`, fixes M7): the bcrypt hash is regenerated on every `make start` from `PROMETHEUS_REMOTE_WRITE_TOKEN`. The self-scrape uses `password_file` and the healthcheck sends credentials in the URL — if you change the mechanism, keep the three in sync.
 5. **Add-first bouncer key rotation** (fixes M1): only rotates if the SHA-256 fingerprint in `.bouncer_key.fingerprint` changes. Deleting and re-adding on every boot opens a no-bouncer window (fail-open).
+6. **Generated 600 configs are read by containers running as the operator uid** (`HOST_UID`/`HOST_GID`, auto-synced on every boot — valkey, prometheus). If a container crashes with `permission denied` on a generated file, compare `id -u` with `HOST_UID` in `.env` and run `make start` again.
 
 ## 7. Performance
 

@@ -150,6 +150,10 @@ services:
   # ===========================
   prometheus:
     image: prom/prometheus:v3.16.0
+    # Run as the operator uid/gid (auto-synced into .env by 01-env-sync.sh):
+    # the official image runs as nobody (65534) and cannot read the
+    # 600-permission generated auth files (audit M7 follow-up).
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
     restart: unless-stopped
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
