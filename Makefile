@@ -293,21 +293,59 @@ ensure-networks: ## Create external Docker networks if they do not exist
 ##@help rebuild
 ## Rebuilds custom images from their Dockerfiles.
 ## - By default, rebuilds the 'dashboard' and 'watchdog' images.
-## - Can rebuild specific services: make rebuild traefik
+## - Can rebuild a single service: make rebuild s=dashboard
+# Versioned local images: every build is tagged v<VERSION>-<git-sha>
+# (CalVer + commit) for deterministic rollbacks — no floating :latest.
+IMAGE_TAG := v$(shell cat VERSION 2>/dev/null || date +%Y.%m.%d)$(shell s=$$(git rev-parse --short HEAD 2>/dev/null); [ -n "$$s" ] && printf '%s' "-$$s")
+
+ifeq ($(strip $(SERVICE_ARGS))$(strip $(s)),)
+REBUILD_SVCS := dashboard
+ifneq (,$(findstring docker-compose-watchdog.yaml,$(COMPOSE_FILES)))
+REBUILD_SVCS := dashboard watchdog
+endif
+else ifdef s
+REBUILD_SVCS := $(s)
+else
+REBUILD_SVCS := $(SERVICE_ARGS)
+endif
+
 .PHONY: rebuild
 rebuild: ensure-networks ## Rebuild services from Dockerfile (default: dashboard watchdog)
-ifneq ($(strip $(SERVICE_ARGS)),)
-	@echo "Rebuilding service(s): $(SERVICE_ARGS)..."
-	@$(DOCKER_COMPOSE) up -d --build --force-recreate $(SERVICE_ARGS)
-else ifdef s
-	@echo "Rebuilding service: $(s)..."
-	@$(DOCKER_COMPOSE) up -d --build --force-recreate $(s)
-else
-	@REBUILD_SVCS="dashboard"; \
-	if echo "$(COMPOSE_FILES)" | grep -q "docker-compose-watchdog.yaml"; then REBUILD_SVCS="$$REBUILD_SVCS watchdog"; fi; \
-	echo "Rebuilding custom image services ($$REBUILD_SVCS)..."; \
-	$(DOCKER_COMPOSE) up -d --build --force-recreate $$REBUILD_SVCS
-endif
+	@echo "🔨 Rebuilding service(s): $(REBUILD_SVCS) → tag: $(IMAGE_TAG)"
+	@SVCS=""; \
+	for svc in $(REBUILD_SVCS); do \
+	    case $$svc in \
+	        dashboard) export STACK_DASHBOARD_TAG="$(IMAGE_TAG)";; \
+	        watchdog)  export STACK_WATCHDOG_TAG="$(IMAGE_TAG)";; \
+	    esac; \
+	    SVCS="$$SVCS $$svc"; \
+	done; \
+	if $(DOCKER_COMPOSE) up -d --build --force-recreate $$SVCS; then \
+	    for svc in $(REBUILD_SVCS); do \
+	        case $$svc in \
+	            dashboard) VAR=STACK_DASHBOARD_TAG;; \
+	            watchdog)  VAR=STACK_WATCHDOG_TAG;; \
+	            *) VAR=;; \
+	        esac; \
+	        if [ -n "$$VAR" ] && [ -f .env ]; then \
+	            if grep -q "^$$VAR=" .env; then \
+	                sed -i "s/^$$VAR=.*/$$VAR=$(IMAGE_TAG)/" .env; \
+	            else \
+	                printf '%s=%s\n' "$$VAR" "$(IMAGE_TAG)" >> .env; \
+	            fi; \
+	        fi; \
+	    done; \
+	    for svc in $(REBUILD_SVCS); do \
+	        case $$svc in \
+	            dashboard|watchdog) docker rmi "stack-$$svc:latest" 2>/dev/null || true;; \
+	        esac; \
+	    done; \
+	    chmod 600 .env 2>/dev/null || true; \
+	    echo "📌 Tag $(IMAGE_TAG) persisted to .env (rollback: set the matching *_TAG, then make start)."; \
+	else \
+	    echo "❌ Build failed — image tag not updated in .env."; \
+	    exit 1; \
+	fi
 
 ##@help status
 ## Shows the status of all running containers in the stack.

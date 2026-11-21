@@ -69,6 +69,9 @@ services:
   # ===========================
   dashboard:
     build: ./config/dashboard
+    # Tagged v<VERSION>-<sha> by `make rebuild` (STACK_DASHBOARD_TAG in .env).
+    # Falls back to the floating :latest tag until the first versioned build.
+    image: stack-dashboard:${STACK_DASHBOARD_TAG:-latest}
     restart: unless-stopped
     networks:
       - traefik

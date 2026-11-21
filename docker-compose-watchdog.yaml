@@ -4,6 +4,9 @@ services:
   # ===========================
   watchdog:
     build: ./config/watchdog
+    # Tagged v<VERSION>-<sha> by `make rebuild` (STACK_WATCHDOG_TAG in .env).
+    # Falls back to the floating :latest tag until the first versioned build.
+    image: stack-watchdog:${STACK_WATCHDOG_TAG:-latest}
     restart: unless-stopped
     init: true
     networks:

@@ -494,6 +494,7 @@ Variables managed automatically by `start.sh` — **never suggest editing them m
 - `ANUBIS_REDIS_PRIVATE_KEY`
 - `PROMETHEUS_REMOTE_WRITE_TOKEN`
 - `HOST_UID` / `HOST_GID` (operator uid/gid; containers reading 600-generated configs run as this user)
+- `STACK_DASHBOARD_TAG` / `STACK_WATCHDOG_TAG` (versioned tag `v<VERSION>-<sha>` of locally built images; set by `make rebuild` for deterministic rollbacks)
 - `TRAEFIK_DASHBOARD_AUTH`
 - `DOZZLE_DASHBOARD_AUTH`
 
