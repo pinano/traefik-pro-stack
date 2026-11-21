@@ -116,19 +116,17 @@ set +a
 # Host uid/gid sync (audit A3/M7 follow-up): containers that must read the
 # generated 600 config files (valkey, prometheus) run as the invoking user's
 # uid — keeps them working on hosts where the operator is not uid 1000.
+# In-place edit only: values are pure digits, and .env must NEVER be rebuilt
+# from scratch here (it holds every secret in the stack).
 CURRENT_UID=$(id -u)
 CURRENT_GID=$(id -g)
 if [ "${HOST_UID:-}" != "$CURRENT_UID" ] || [ "${HOST_GID:-}" != "$CURRENT_GID" ]; then
-    ENV_TMP=$(mktemp "${ENV_FILE}.XXXXXX")
-    python3 -c '
-import sys
-uid, gid, path = sys.argv[1], sys.argv[2], sys.argv[3]
-lines = [l for l in open(path, encoding="utf-8").read().splitlines()
-         if not l.startswith(("HOST_UID=", "HOST_GID="))]
-lines += [f"HOST_UID={uid}", f"HOST_GID={gid}"]
-open(path, "w", encoding="utf-8").write("\n".join(lines) + "\n")
-' "$CURRENT_UID" "$CURRENT_GID" "$ENV_TMP"
-    mv -f "$ENV_TMP" "$ENV_FILE"
+    if grep -q "^HOST_UID=" "$ENV_FILE" && grep -q "^HOST_GID=" "$ENV_FILE"; then
+        sed -i "s/^HOST_UID=.*/HOST_UID=$CURRENT_UID/" "$ENV_FILE"
+        sed -i "s/^HOST_GID=.*/HOST_GID=$CURRENT_GID/" "$ENV_FILE"
+    else
+        printf 'HOST_UID=%s\nHOST_GID=%s\n' "$CURRENT_UID" "$CURRENT_GID" >> "$ENV_FILE"
+    fi
     chmod 600 "$ENV_FILE"
     export HOST_UID="$CURRENT_UID" HOST_GID="$CURRENT_GID"
     echo "   ✅ HOST_UID/HOST_GID set to $CURRENT_UID:$CURRENT_GID (container user matching)."
