@@ -1,3 +1,18 @@
+## v2026.11.21 (2026-11-21)
+
+- feat(make): versioned tags for locally built images (dashboard, watchdog) (494d4d7)
+- fix(audit): missing -o flag made whitelist parser count always 0 (7211883)
+- fix(audit): match crowdsec container regardless of compose project naming (54553f1)
+- fix(env-sync): never rebuild .env when syncing HOST_UID/HOST_GID (5fef5e0)
+- fix(containers): run 600-config readers as the operator uid (HOST_UID/HOST_GID) (f870ffa)
+- fix(upgrade-postgres): pre-flight writability check before stopping the stack (3e2df7a)
+- feat(make): auto-detect PostgreSQL upgrade target in upgrade-postgres (0c3b794)
+- fix(security): remediate all high & medium audit findings (A1-A6, M1-M9) (c649568)
+- Update versions (309a259)
+- Version bumps (6fc9df5)
+- fix: disconnect stale containers from isolated socket proxy networks during boot (1b8f7f1)
+- chore: update Docker images, service versions, and dashboard configuration flags (94af92b)
+
 ## v2026.10.15 (2026-10-15)
 
 - feat: add watchdog compose file mount and filter missing compose files in restart script (f7670af)
