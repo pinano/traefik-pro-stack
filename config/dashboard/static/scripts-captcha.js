@@ -118,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
     confirmDeployBtn.addEventListener('click', () => {
         confirmModal.classList.remove('show');
         initiateStream(
-            `/dm-api/apply-config-stream?csrf_token=${csrfToken}`,
+            `/dm-api/apply-config-stream`,
             '✅ Hot Reload — Zero Downtime',
             'CAPTCHA configurations successfully applied in real-time!'
         );

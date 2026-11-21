@@ -84,7 +84,13 @@ function closeHelp() {
     }
 }
 
-/** Generic SSE stream launcher — used for both Soft Restart and Hot Reload */
+/** Generic SSE stream launcher — used for both Soft Restart and Hot Reload.
+ *
+ * POST-based (audit M9): EventSource is GET-only, which made destructive
+ * endpoints (stack restart, config apply) reachable via plain URL — logged in
+ * access logs and CSRF-prone. The stream is consumed with fetch + a
+ * ReadableStream reader instead, sending the CSRF token via header.
+ */
 function initiateStream(streamUrl, modalTitle, successMsg) {
     const restartModalTitle = document.getElementById('restart-modal-title');
     const restartModal = document.getElementById('restart-modal');
@@ -105,14 +111,14 @@ function initiateStream(streamUrl, modalTitle, successMsg) {
         deployNotification.classList.remove('is-restart');
     }
     document.body.classList.remove('has-notification');
-    
+
     if (deployBtn) {
         deployBtn.classList.remove('btn-deploy-needed');
         deployBtn.classList.remove('is-restart');
         deployBtn.disabled = true;
         deployBtn.title = "Deployment in progress...";
     }
-    
+
     if (deployBanner) {
         deployBanner.classList.remove('show');
     }
@@ -121,39 +127,76 @@ function initiateStream(streamUrl, modalTitle, successMsg) {
         updateNotificationPadding();
     }
 
-    const eventSource = new EventSource(streamUrl);
+    let finished = false;
 
-    eventSource.onmessage = (event) => {
-        const line = event.data;
+    const onStreamError = () => {
+        if (finished) return; // Normal end of stream already handled
+        if (logContainer) logContainer.textContent += '\n\n🔄 Connection closed. This is expected as Traefik reloads the new configuration.\n✅ The stack should be up in a few seconds.';
+        if (closeModalBtn) closeModalBtn.style.display = 'block';
+    };
 
-        if (logContainer) {
-            if (logContainer.textContent === 'Connecting...\n') {
-                logContainer.textContent = '';
-            }
+    const handleData = (line) => {
+        if (!logContainer) return;
+        if (logContainer.textContent === 'Connecting...\n') {
+            logContainer.textContent = '';
+        }
 
-            if (line.trim() === '[Process finished with code 0]') {
-                logContainer.textContent += `\n${successMsg}\n`;
-                if (closeModalBtn) closeModalBtn.style.display = 'block';
-                eventSource.close();
-            } else if (line.includes('[Process finished with code')) {
-                logContainer.textContent += `\n❌ ${line}\n`;
-                if (closeModalBtn) closeModalBtn.style.display = 'block';
-                if (deployBtn) deployBtn.disabled = false;
-                eventSource.close();
-            } else {
-                logContainer.textContent += line + '\n';
-                if (logContainer.parentElement) {
-                    logContainer.parentElement.scrollTop = logContainer.parentElement.scrollHeight;
-                }
+        if (line.trim() === '[Process finished with code 0]') {
+            logContainer.textContent += `\n${successMsg}\n`;
+            if (closeModalBtn) closeModalBtn.style.display = 'block';
+            finished = true;
+        } else if (line.includes('[Process finished with code')) {
+            logContainer.textContent += `\n❌ ${line}\n`;
+            if (closeModalBtn) closeModalBtn.style.display = 'block';
+            if (deployBtn) deployBtn.disabled = false;
+            finished = true;
+        } else {
+            logContainer.textContent += line + '\n';
+            if (logContainer.parentElement) {
+                logContainer.parentElement.scrollTop = logContainer.parentElement.scrollHeight;
             }
         }
     };
 
-    eventSource.onerror = () => {
-        if (logContainer) logContainer.textContent += '\n\n🔄 Connection closed. This is expected as Traefik reloads the new configuration.\n✅ The stack should be up in a few seconds.';
-        if (closeModalBtn) closeModalBtn.style.display = 'block';
-        eventSource.close();
-    };
+    // csrfToken is a global const rendered in each page's inline script.
+    const csrfTokenValue = (typeof csrfToken !== 'undefined') ? csrfToken : '';
+
+    fetch(streamUrl, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfTokenValue },
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (!response.ok || !response.body) {
+            throw new Error('Stream request failed: ' + response.status);
+        }
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        const pump = ({ value, done }) => {
+            if (done) {
+                onStreamError();
+                return;
+            }
+            buffer += decoder.decode(value, { stream: true });
+            const frames = buffer.split('\n\n');
+            buffer = frames.pop();
+            frames.forEach((frame) => {
+                frame.split('\n').forEach((raw) => {
+                    if (raw.startsWith('data: ')) {
+                        handleData(raw.slice(6));
+                    } else if (raw.startsWith('data:')) {
+                        handleData(raw.slice(5));
+                    }
+                });
+            });
+            reader.read().then(pump);
+        };
+
+        reader.read().then(pump);
+    })
+    .catch(onStreamError);
 }
 
 /**

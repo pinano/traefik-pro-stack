@@ -56,18 +56,26 @@ WATCHDOG_ENABLE=$(echo "${WATCHDOG_ENABLE:-${WATCHDOG_ENABLED:-true}}" | tr -d '
 export WATCHDOG_ENABLE
 
 # ─── Mutex: Prevent concurrent executions ────────────────────────
-LOCKFILE="/tmp/stack-restart.lock"
+# /run/lock is root-only (symlink-safe); /tmp is world-writable (audit A6).
+# Exit code 75 (EX_TEMPFAIL) means "skipped: another restart already running"
+# so callers (dashboard stream) can distinguish it from a successful run.
+mkdir -p /run/lock 2>/dev/null || true
+LOCKFILE="/run/lock/stack-restart.lock"
 if command -v flock >/dev/null 2>&1; then
+    if ! touch "$LOCKFILE" 2>/dev/null; then
+        echo "❌ Cannot create lock file at $LOCKFILE (permission denied?). Aborting."
+        exit 1
+    fi
     exec 200>"$LOCKFILE"
     if ! flock -n 200; then
         echo "⚠️ Another stack restart process is already running. Skipping concurrent execution."
-        exit 0
+        exit 75
     fi
 else
-    LOCKDIR="/tmp/stack-restart.lockdir"
+    LOCKDIR="/run/lock/stack-restart.lockdir"
     if ! mkdir "$LOCKDIR" 2>/dev/null; then
         echo "⚠️ Another stack restart process is already running. Skipping concurrent execution."
-        exit 0
+        exit 75
     fi
     trap 'rm -rf "$LOCKDIR"' EXIT INT TERM
 fi
@@ -261,7 +269,12 @@ else
     APACHE_CHECK_HOST="localhost"
 fi
 
-if python3 -c "import socket; s = socket.socket(); s.settimeout(1); exit(0) if s.connect_ex(('${APACHE_CHECK_HOST}', int('${APACHE_CHECK_PORT}'))) == 0 else exit(1)" 2>/dev/null; then
+if python3 -c '
+import socket, sys
+s = socket.socket()
+s.settimeout(1)
+sys.exit(0 if s.connect_ex((sys.argv[1], int(sys.argv[2]))) == 0 else 1)
+' "$APACHE_CHECK_HOST" "$APACHE_CHECK_PORT" 2>/dev/null; then
     export APACHE_HOST_AVAILABLE="true"
     touch "$APACHE_FLAG_FILE"
 else

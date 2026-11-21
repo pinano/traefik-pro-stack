@@ -104,14 +104,35 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
     fi
 
     # Re-register the Traefik Bouncer key on each start to ensure consistency.
-    docker exec "$CROWDSEC_ID" cscli bouncers delete traefik-bouncer > /dev/null 2>&1 || true
+    # Audit M1: rotate ONLY when the key actually changed. The old behaviour
+    # (delete → add on every boot) left a window where LAPI had no bouncer at
+    # all — and a permanent one if the add failed mid-boot (bouncer fail-open).
+    # Instead we add first: a fresh key registers immediately; an unchanged key
+    # is detected via a fingerprint file and left untouched; only a mismatching
+    # key is rotated (delete → add), when the old entry is already stale.
+    KEY_FINGERPRINT=$(printf '%s' "${CROWDSEC_LAPI_KEY}" | sha256sum | awk '{print $1}')
+    FINGERPRINT_FILE="./.bouncer_key.fingerprint"
+    STORED_FINGERPRINT=$(cat "$FINGERPRINT_FILE" 2>/dev/null || true)
 
     ADD_EXIT=0
     ADD_OUTPUT=$(echo "${CROWDSEC_LAPI_KEY}" | docker exec -i "$CROWDSEC_ID" sh -c 'read -r KEY && cscli bouncers add traefik-bouncer --key "$KEY"' 2>&1) || ADD_EXIT=$?
 
-    if [ $ADD_EXIT -ne 0 ]; then
-        echo "❌ Error registering bouncer key: $ADD_OUTPUT"
-        exit 1
+    if [ "${ADD_EXIT}" -eq 0 ]; then
+        printf '%s\n' "$KEY_FINGERPRINT" > "$FINGERPRINT_FILE"
+    elif echo "$ADD_OUTPUT" | grep -qi "already exist" && [ "$KEY_FINGERPRINT" = "$STORED_FINGERPRINT" ]; then
+        echo "   ✅ Bouncer key unchanged since last boot — skipping rotation."
+    else
+        # Key changed (or fingerprint lost) → rotate. Deleting first is safe
+        # here: the previously registered key no longer matches the one the
+        # bouncer plugin uses, so that entry is already useless.
+        docker exec "$CROWDSEC_ID" cscli bouncers delete traefik-bouncer > /dev/null 2>&1 || true
+        ADD_EXIT=0
+        ADD_OUTPUT=$(echo "${CROWDSEC_LAPI_KEY}" | docker exec -i "$CROWDSEC_ID" sh -c 'read -r KEY && cscli bouncers add traefik-bouncer --key "$KEY"' 2>&1) || ADD_EXIT=$?
+        if [ "${ADD_EXIT}" -ne 0 ]; then
+            echo "❌ Error registering bouncer key: $ADD_OUTPUT"
+            exit 1
+        fi
+        printf '%s\n' "$KEY_FINGERPRINT" > "$FINGERPRINT_FILE"
     fi
 
     # =============================================================================

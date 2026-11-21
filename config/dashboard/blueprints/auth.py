@@ -12,8 +12,24 @@ log = logging.getLogger(__name__)
 
 auth_bp = Blueprint('auth', __name__)
 
-ADMIN_USER = os.environ.get('DASHBOARD_ADMIN_USER', 'admin')
-ADMIN_PASS = os.environ.get('DASHBOARD_ADMIN_PASSWORD', 'admin')
+# Fail-closed (audit A4, 2026-11-21): this panel can restart containers via the
+# docker socket proxy, so it must never come up with missing or trivial
+# credentials in production. Local dev (TRAEFIK_ACME_ENV_TYPE != production)
+# keeps the convenience of trivial passwords.
+ADMIN_USER = os.environ.get('DASHBOARD_ADMIN_USER') or 'admin'
+ADMIN_PASS = os.environ.get('DASHBOARD_ADMIN_PASSWORD') or ''
+
+if not ADMIN_PASS:
+    raise RuntimeError(
+        "DASHBOARD_ADMIN_PASSWORD is not set. This panel can restart containers; "
+        "refusing to start without credentials."
+    )
+if os.environ.get('TRAEFIK_ACME_ENV_TYPE', '') != 'local' and \
+        ADMIN_PASS.strip().lower() in {'admin', 'password', 'changeme', '1234', '12345678'}:
+    raise RuntimeError(
+        "DASHBOARD_ADMIN_PASSWORD is a trivial default value. "
+        "Refusing to start the dashboard outside local development with weak credentials."
+    )
 
 def generate_csrf_token():
     if 'csrf_token' not in session:
@@ -43,10 +59,10 @@ def check_csrf():
         if not token or token != session.get('csrf_token'):
             return jsonify({'error': 'CSRF token missing or invalid'}), 403
 
-    if request.endpoint in ('api.restart_stream', 'api.apply_config_stream', 'restart_stream', 'apply_config_stream'):
-        token = request.args.get('csrf_token')
-        if not token or token != session.get('csrf_token'):
-            return jsonify({'error': 'CSRF token missing or invalid'}), 403
+    # NOTE (audit M9): the legacy query-string CSRF check for the restart/
+    # apply SSE endpoints was removed — those endpoints are POST-only now and
+    # send the token via the X-CSRFToken header (kept out of URLs and access
+    # logs).
 
 @auth_bp.app_context_processor
 def inject_csrf_token():

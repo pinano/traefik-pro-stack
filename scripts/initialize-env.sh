@@ -51,10 +51,10 @@ fi
 
 # Install requirements
 if [ -f "scripts/requirements.txt" ]; then
-    if ! ./.venv/bin/python3 -c "import yaml, tldextract" &>/dev/null; then
+    if ! ./.venv/bin/python3 -c "import yaml, tldextract, bcrypt" &>/dev/null; then
         echo "⬇️  Installing/Updating Python dependencies..."
         # Bootstrap pip if it is missing (common on Debian without python3-full)
-        ./.venv/bin/python3 -m pip --version &>/dev/null || (echo "📦 Bootstrapping pip..." && curl -sS https://bootstrap.pypa.io/get-pip.py | ./.venv/bin/python3 -q)
+        ./.venv/bin/python3 -m pip --version &>/dev/null || ./scripts/bootstrap-pip.sh ./.venv/bin/python3
         ./.venv/bin/python3 -m pip install -q -r scripts/requirements.txt || echo "⚠️  Warning: Failed to install dependencies. Check your internet connection."
     fi
 else
@@ -83,6 +83,9 @@ fi
 
 echo "📋 Copying $DIST_FILE to $ENV_FILE..."
 cp "$DIST_FILE" "$ENV_FILE"
+# .env holds every credential in the stack — owner-only from the very first
+# second of a fresh install (audit M5).
+chmod 600 "$ENV_FILE"
 
 # Helper function to prompt and replace
 # usage: prompt_val VAR_NAME DESCRIPTION [CUSTOM_DEFAULT]
@@ -123,16 +126,15 @@ replace_val() {
     if [[ "$new_val" =~ [[:space:]] ]] && [[ ! "$new_val" =~ ^\".*\"$ ]] && [[ ! "$new_val" =~ ^\'.*\'$ ]]; then
         new_val="\"$new_val\""
     fi
-    # Use a temporary file and awk + ENVIRON for a truly literal replacement.
-    local TMP_FILE=$(mktemp)
+    # Use a temporary file in the same directory for an atomic rename (audit M2/M5).
+    local TMP_FILE=$(mktemp "${ENV_FILE}.XXXXXX")
     NEW_VAL="$new_val" awk -v name="$var_name" '
         BEGIN { FS="="; val=ENVIRON["NEW_VAL"]; found=0 }
         $1 == name { print name "=" val; found=1; next }
         { print }
         END { if (found == 0) print name "=" val }
     ' "$ENV_FILE" > "$TMP_FILE"
-    cat "$TMP_FILE" > "$ENV_FILE"
-    rm "$TMP_FILE"
+    mv -f "$TMP_FILE" "$ENV_FILE"
 }
 
 echo ""

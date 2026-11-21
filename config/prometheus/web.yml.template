@@ -1,0 +1,13 @@
+# Prometheus web configuration (server-side authentication) — audit M7.
+# Generated into web-generated.yml by scripts/init.d/04-assets.sh, which embeds
+# the bcrypt hash of PROMETHEUS_REMOTE_WRITE_TOKEN. Do not edit the generated
+# file by hand: it is overwritten on every `make start`.
+#
+# Without this file Prometheus accepts remote_write from ANY container on the
+# `traefik` network (metric poisoning). With it, only holders of the token
+# (Alloy, via Basic auth) can write.
+#
+# NOTE: Prometheus rejects plaintext passwords here — the value MUST be a
+# bcrypt hash ($2y$...), verified against prom/prometheus:v3.16.0.
+basic_auth_users:
+  alloy: "PROMETHEUS_REMOTE_WRITE_TOKEN_BCRYPT_PLACEHOLDER"

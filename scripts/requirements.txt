@@ -2,3 +2,4 @@ pyyaml
 tldextract
 pytest
 requests
+bcrypt

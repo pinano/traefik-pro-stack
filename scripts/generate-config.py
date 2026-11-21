@@ -445,8 +445,15 @@ def process_router(entry, http_section, domain_to_cert_def):
     # -------------------------------------------------------------------------
     # 3. Static Assets Router (Per-Domain) - Priority 500
     # -------------------------------------------------------------------------
-    # Assets (CSS, JS, images, fonts) get a much higher rate limit bucket
+    # Assets (CSS, JS, images, fonts) get a higher rate limit bucket
     # so that legitimate page loads with many assets don't exhaust the burst.
+    # CrowdSec ban enforcement is still applied (lightweight, no AppSec) so
+    # banned IPs cannot bypass the firewall by requesting static-looking URLs.
+    assets_mw = ["security-headers"]
+    if CROWDSEC_ENABLE:
+        assets_mw.append("crowdsec-check-assets")
+    assets_mw += ["global-ratelimit-assets", "global-compress"]
+
     assets_router_name = f"static-assets-{safe_domain}"
     http_section['routers'][assets_router_name] = {
         'rule': f"Host(`{domain}`) && PathRegexp(`\\.(css|js|png|jpg|jpeg|webp|gif|ico|woff|woff2|ttf|eot|svg)$`)",
@@ -454,7 +461,7 @@ def process_router(entry, http_section, domain_to_cert_def):
         'service': target_service,
         'priority': 500,
         'tls': router_conf['tls'],
-        'middlewares': ["security-headers", "global-ratelimit-assets", "global-compress"]
+        'middlewares': assets_mw
     }
         
     # -------------------------------------------------------------------------
@@ -673,11 +680,13 @@ def generate_configs():
                         'burst': G_RATE_BURST
                     }
                 },
-                # 4. Static Assets Rate Limit (generous bucket for CSS/JS/images)
+                # 4. Static Assets Rate Limit (halved from 200/400: still
+                # comfortable for heavy page loads, but halves the worst-case
+                # amplification a non-banned IP can sustain on asset URLs)
                 'global-ratelimit-assets': {
                     'rateLimit': {
-                        'average': 200,
-                        'burst': 400
+                        'average': 100,
+                        'burst': 200
                     }
                 },
                 # 5. Traefik Concurrency
@@ -787,6 +796,18 @@ def generate_configs():
         traefik_dynamic_conf['http']['middlewares']['crowdsec-check'] = {
             'plugin': {
                 'crowdsec': copy.deepcopy(base_crowdsec_config)
+            }
+        }
+
+        # Lightweight variant for the static-assets routers: enforces CrowdSec
+        # ban decisions (Redis/stream cached) but skips AppSec payload
+        # inspection so asset serving stays cheap under high traffic.
+        # Prevents banned IPs from bypassing the firewall via *.css/js/png URLs.
+        assets_crowdsec_config = copy.deepcopy(base_crowdsec_config)
+        assets_crowdsec_config['crowdsecAppsecEnabled'] = False
+        traefik_dynamic_conf['http']['middlewares']['crowdsec-check-assets'] = {
+            'plugin': {
+                'crowdsec': assets_crowdsec_config
             }
         }
 
@@ -1134,6 +1155,30 @@ def generate_configs():
             'middlewares': ["security-headers", "anubis-preload-headers"]
         }
         apply_tls_config(traefik_dynamic_conf['http']['routers'][panel_router_name], auth_domain, domain_to_cert_def)
+
+    # Audit A5: warn when the aggregate worst-case Anubis memory
+    # (instances x ANUBIS_MEM_LIMIT) exceeds half of the host RAM.
+    # Limits are per-instance ceilings, not reservations: idle instances
+    # use ~20MB each, so this only matters under simultaneous attack.
+    if services:
+        try:
+            raw = get_env_safe('ANUBIS_MEM_LIMIT', '256M').upper().strip()
+            m = re.match(r'^([0-9]+(?:\.[0-9]+)?)\s*([MG])$', raw)
+            host_total_mb = None
+            with open('/proc/meminfo', 'r') as mf:
+                for line in mf:
+                    if line.startswith('MemTotal:'):
+                        host_total_mb = int(line.split()[1]) / 1024
+                        break
+            if m and host_total_mb:
+                per_instance_mb = float(m.group(1)) * (1024 if m.group(2) == 'G' else 1)
+                worst_case_mb = per_instance_mb * len(services)
+                if worst_case_mb > host_total_mb * 0.5:
+                    print(f"   ⚠️ Anubis worst-case memory: {len(services)} instances × {raw} = "
+                          f"{worst_case_mb / 1024:.1f} GB on a {host_total_mb / 1024:.1f} GB host. "
+                          f"Consider lowering ANUBIS_MEM_LIMIT in .env")
+        except Exception:
+            pass  # Never fail config generation over a warning
 
     anubis_flag = ".anubis_available"
     if services:

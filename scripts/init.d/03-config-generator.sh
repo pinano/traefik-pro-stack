@@ -15,7 +15,8 @@ if [ ! -f "$ACQUIS_BASE" ]; then
     exit 1
 fi
 
-TMP_ACQUIS=$(mktemp)
+# Atomic write (audit M2): stage in the target directory, then rename.
+TMP_ACQUIS=$(mktemp ./config/crowdsec/.acquis.yaml.XXXXXX)
 cp "$ACQUIS_BASE" "$TMP_ACQUIS"
 
 if [[ "$CROWDSEC_ENABLE" == "true" ]] && [[ "$CROWDSEC_APPSEC_ENABLE" == "true" ]]; then
@@ -66,7 +67,8 @@ if [ ! -f "$PROFILES_BASE" ]; then
     exit 1
 fi
 
-TMP_PROFILES=$(mktemp)
+# Atomic write (audit M2): stage in the target directory, then rename.
+TMP_PROFILES=$(mktemp ./config/crowdsec/.profiles.yaml.XXXXXX)
 cp "$PROFILES_BASE" "$TMP_PROFILES"
 
 # Check if CAPTCHA registry has active configurations

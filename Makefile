@@ -331,7 +331,7 @@ services: ## List available services
 .PHONY: test
 test: ## Run unit and integration tests
 	@if [ ! -d ".venv" ] && [ ! -d "venv" ]; then echo "❌ Error: Virtual environment not found. Please run 'make init' first."; exit 1; fi
-	@$(PYTHON) -m pip --version >/dev/null 2>&1 || (echo "📦 Bootstrapping pip..." && curl -sS https://bootstrap.pypa.io/get-pip.py | $(PYTHON) -q)
+	@$(PYTHON) -m pip --version >/dev/null 2>&1 || ./scripts/bootstrap-pip.sh "$(PYTHON)"
 	@$(PYTHON) -c "import pytest" 2>/dev/null || (echo "📦 Installing testing dependencies..." && $(PYTHON) -m pip install -r scripts/requirements.txt -q)
 	@echo "🧪 Running unit tests..."
 	@$(PYTHON) -m pytest tests/unit/
@@ -345,6 +345,14 @@ test: ## Run unit and integration tests
 ## - Verifies CrowdSec LAPI responsiveness and WAF loading.
 ## - Pings the Redis cache server.
 ## - Validates Grafana's internal API health.
+
+##@help audit
+## Runs a read-only security & performance audit (checks file permissions,
+## .env hygiene, docker hardening, edge policy and performance sanity).
+## - Exit 0 if no FAIL findings; 1 otherwise. Never modifies the system.
+.PHONY: audit
+audit: ## Run read-only security & performance audit (scripts/audit.sh)
+	@./scripts/audit.sh
 
 .PHONY: health
 health: ## Run a global health check across all core services

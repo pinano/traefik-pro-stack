@@ -19,9 +19,14 @@ bots:
   - name: assets
     path_regex: ^/assets/.*$
     action: ALLOW
-  - name: good-bots # --- SEO FRIENDLY ---
-    user_agent_regex: "(Googlebot|Bingbot|Slurp|DuckDuckBot|Baiduspider|YandexBot)"
-    action: ALLOW
+  # SECURITY: Do NOT add user_agent_regex ALLOW rules for crawlers
+  # (Googlebot, Bingbot, ...). They are trivially spoofable: any attacker
+  # sending "User-Agent: Googlebot" would bypass the PoW challenge entirely.
+  # Real crawlers (Googlebot, Bingbot) execute JavaScript and solve the
+  # challenge with minimal crawl-budget impact. If SEO issues arise, the
+  # recommended alternative is IP-range verification via Anubis
+  # `source_cidrs` using the crawler's published IP lists — never a bare
+  # user_agent_regex ALLOW.
   #- name: "everyone"
   #  user_agent_regex: "."
   #  action: "CHALLENGE"

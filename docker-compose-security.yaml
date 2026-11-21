@@ -107,6 +107,10 @@ services:
     image: valkey/valkey:9.2-alpine3.24
     command: valkey-server /valkey.conf
     restart: unless-stopped
+    # Run as host uid/gid 1000 so it can read its config file, which contains
+    # REDIS_PASSWORD and is chmod 600 (owner-only). Persistence is disabled in
+    # valkey.conf (save "" / appendonly no), so no writable data dir is needed.
+    user: "1000:1000"
     environment:
       - TZ=${TZ}
     volumes:
@@ -137,7 +141,7 @@ services:
   #  POSTGRES EXPORTER (Metrics for Prometheus)
   # ===========================
   postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:v0.20.1
+    image: prometheuscommunity/postgres-exporter:v0.21.1
     restart: unless-stopped
     profiles:
       - crowdsec
@@ -172,7 +176,7 @@ services:
   #  CROWDSEC WEB UI (Management interface for CrowdSec LAPI)
   # ===========================
   crowdsec-web-ui:
-    image: ghcr.io/theduffman85/crowdsec-web-ui:2026.11.9
+    image: ghcr.io/theduffman85/crowdsec-web-ui:2026.11.12
     restart: unless-stopped
     profiles:
       - crowdsec
@@ -183,7 +187,9 @@ services:
       - CROWDSEC_PASSWORD=${CROWDSEC_WEB_UI_PASSWORD:-}
       - BASE_PATH=/crowdsec
       - TZ=${TZ}
-      - AUTH_ENABLED=false
+      # Own login on top of the edge middleware chain (defense in depth, audit M6).
+      # Credentials are the LAPI machine user registered by 06-boot.sh.
+      - AUTH_ENABLED=true
       - NODE_OPTIONS=--max-old-space-size=512
       - CROWDSEC_LOOKBACK_PERIOD=${CROWDSEC_LOOKBACK_PERIOD:-7d}
       - CROWDSEC_PROMETHEUS_URL=http://crowdsec:6060/metrics
@@ -223,7 +229,7 @@ services:
   #  DOCKER SOCKET PROXY (Security Hardening)
   # ===========================
   docker-socket-proxy:
-    image: tecnativa/docker-socket-proxy:v0.5.0
+    image: tecnativa/docker-socket-proxy:3.4
     restart: unless-stopped
     environment:
       - LOG_LEVEL=warning

@@ -155,7 +155,9 @@ update_env_var "TRAEFIK_CERT_RESOLVER" "$TRAEFIK_CERT_RESOLVER"
 
 # Generate traefik-generated.yaml from template (idempotent write)
 if [ -f "./config/traefik/traefik.yaml.template" ]; then
-    TMP_TRAEFIK=$(mktemp)
+    # Atomic write (audit M2): stage in the target directory (same filesystem)
+    # and rename, so a crash can never leave a truncated config behind.
+    TMP_TRAEFIK=$(mktemp ./config/traefik/.traefik-generated.yaml.XXXXXX)
     python3 -c '
 import os, sys
 template_path = "./config/traefik/traefik.yaml.template"
@@ -193,8 +195,7 @@ with open(sys.argv[1], "w", encoding="utf-8") as f:
     if [ -f "$TARGET_TRAEFIK" ] && cmp -s "$TMP_TRAEFIK" "$TARGET_TRAEFIK"; then
         rm "$TMP_TRAEFIK"
     else
-        cat "$TMP_TRAEFIK" > "$TARGET_TRAEFIK"
-        rm "$TMP_TRAEFIK"
+        mv -f "$TMP_TRAEFIK" "$TARGET_TRAEFIK"
     fi
 else
     echo "❌ Error: config/traefik/traefik.yaml.template not found!"
@@ -204,7 +205,8 @@ fi
 
 # Generate valkey-generated.conf from template (idempotent write)
 if [ -f "./config/valkey/valkey.conf" ]; then
-    TMP_VALKEY=$(mktemp)
+    # Atomic write (audit M2): stage next to the target, then rename.
+    TMP_VALKEY=$(mktemp ./config/valkey/.valkey-generated.conf.XXXXXX)
     python3 -c '
 import os, sys
 with open("./config/valkey/valkey.conf", "r", encoding="utf-8") as f:
@@ -218,13 +220,16 @@ with open(sys.argv[1], "w", encoding="utf-8") as f:
     if [ -f "$TARGET_VALKEY" ] && cmp -s "$TMP_VALKEY" "$TARGET_VALKEY"; then
         rm "$TMP_VALKEY"
     else
-        cat "$TMP_VALKEY" > "$TARGET_VALKEY"
-        rm "$TMP_VALKEY"
+        mv -f "$TMP_VALKEY" "$TARGET_VALKEY"
     fi
+    # This file embeds REDIS_PASSWORD — restrict to owner (the container runs
+    # as uid 1000 via compose `user:`, matching the host owner, so 600 is safe).
+    chmod 600 "$TARGET_VALKEY" 2>/dev/null || true
 
 # Generate CrowdSec config.yaml.local from template (idempotent write)
 if [ -f "./config/crowdsec/config.yaml.local.template" ]; then
-    TMP_CS_CONF=$(mktemp)
+    # Atomic write (audit M2): stage next to the target, then rename.
+    TMP_CS_CONF=$(mktemp ./config/crowdsec/.config.yaml.local.XXXXXX)
     python3 -c '
 import os, sys
 with open("./config/crowdsec/config.yaml.local.template", "r", encoding="utf-8") as f:
@@ -244,13 +249,72 @@ with open(sys.argv[1], "w", encoding="utf-8") as f:
     if [ -f "$TARGET_CS_CONF" ] && cmp -s "$TMP_CS_CONF" "$TARGET_CS_CONF"; then
         rm "$TMP_CS_CONF"
     else
-        cat "$TMP_CS_CONF" > "$TARGET_CS_CONF"
-        rm "$TMP_CS_CONF"
+        mv -f "$TMP_CS_CONF" "$TARGET_CS_CONF"
     fi
+    # This file embeds CROWDSEC_DB_PASSWORD — restrict to owner (CrowdSec runs
+    # as uid/gid 1000, matching the host owner, so 600 is safe).
+    chmod 600 "$TARGET_CS_CONF" 2>/dev/null || true
 fi
 else
     echo "❌ Error: config/valkey/valkey.conf not found!"
     exit 1
+fi
+
+# Generate Prometheus web auth config (audit M7): bcrypt hash of the
+# remote-write token so Prometheus itself rejects unauthenticated writers
+# (previously only Alloy sent a bearer token; the server accepted anything).
+if [ -f "./config/prometheus/web.yml.template" ]; then
+    HASHING_PY=""
+    for PY_CANDIDATE in "./.venv/bin/python3" "python3"; do
+        if "$PY_CANDIDATE" -c "import bcrypt" 2>/dev/null; then
+            HASHING_PY="$PY_CANDIDATE"
+            break
+        fi
+    done
+    if [ -z "$HASHING_PY" ]; then
+        echo "❌ Error: bcrypt module not available (run 'make init' to install Python deps)."
+        echo "   Refusing to boot without server-side remote-write authentication for Prometheus."
+        exit 1
+    fi
+
+    if [ -z "${PROMETHEUS_REMOTE_WRITE_TOKEN:-}" ]; then
+        echo "⚠️  Warning: PROMETHEUS_REMOTE_WRITE_TOKEN is empty — remote-write auth will be unusable."
+    fi
+
+    mkdir -p ./config/prometheus
+    TMP_WEB=$(mktemp ./config/prometheus/.web-generated.yml.XXXXXX)
+    "$HASHING_PY" -c '
+import bcrypt, os, sys
+token = os.getenv("PROMETHEUS_REMOTE_WRITE_TOKEN", "").encode()
+hashed = bcrypt.hashpw(token, bcrypt.gensalt(rounds=10)).decode()
+with open("./config/prometheus/web.yml.template", "r", encoding="utf-8") as f:
+    content = f.read()
+content = content.replace("PROMETHEUS_REMOTE_WRITE_TOKEN_BCRYPT_PLACEHOLDER", hashed)
+with open(sys.argv[1], "w", encoding="utf-8") as f:
+    f.write(content)
+' "$TMP_WEB" || { echo "❌ Error: could not hash PROMETHEUS_REMOTE_WRITE_TOKEN"; rm -f "$TMP_WEB"; exit 1; }
+
+    TARGET_WEB="./config/prometheus/web-generated.yml"
+    if [ -f "$TARGET_WEB" ] && cmp -s "$TMP_WEB" "$TARGET_WEB"; then
+        rm "$TMP_WEB"
+    else
+        mv -f "$TMP_WEB" "$TARGET_WEB"
+    fi
+    # The bcrypt hash lets an attacker brute-force the token offline.
+    chmod 600 "$TARGET_WEB" 2>/dev/null || true
+
+    # Plaintext token for authenticated *clients* (Prometheus self-scrape and
+    # its healthcheck). Client-side secrets are plaintext by design; the file
+    # is owner-only.
+    TOKEN_FILE="./config/prometheus/remote-write-token"
+    TMP_TOKEN=$(mktemp ./config/prometheus/.remote-write-token.XXXXXX)
+    printf '%s\n' "${PROMETHEUS_REMOTE_WRITE_TOKEN:-}" > "$TMP_TOKEN"
+    if [ -f "$TOKEN_FILE" ] && cmp -s "$TMP_TOKEN" "$TOKEN_FILE"; then
+        rm "$TMP_TOKEN"
+    else
+        mv -f "$TMP_TOKEN" "$TOKEN_FILE"
+    fi
+    chmod 600 "$TOKEN_FILE" 2>/dev/null || true
 fi
 
 # Generate dynamic configuration with Python script

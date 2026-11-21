@@ -180,7 +180,11 @@ if [[ "${CONTACT_POINT_EXISTS}" == "false" ]]; then
     fi
 else
     # Contact point exists — patch it to apply the latest message template.
-    EXISTING_UID=$(python3 -c "import sys, json; data = json.loads(sys.stdin.read()); print(next((cp['uid'] for cp in data if cp['name'] == '${CONTACT_POINT_NAME}'), ''))" <<< "${EXISTING}" 2>/dev/null || true)
+    EXISTING_UID=$(python3 -c '
+import sys, json
+data = json.loads(sys.stdin.read())
+print(next((cp["uid"] for cp in data if cp["name"] == sys.argv[1]), ""))
+' "$CONTACT_POINT_NAME" <<< "${EXISTING}" 2>/dev/null || true)
 
     if [[ -n "${EXISTING_UID}" ]]; then
         info "Updating message template on existing '${CONTACT_POINT_NAME}' (uid: ${EXISTING_UID})..."

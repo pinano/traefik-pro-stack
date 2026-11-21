@@ -8,7 +8,7 @@ from flask import Blueprint, request, jsonify, Response
 from blueprints.auth import login_required
 from extensions import limiter
 from config import BASE_DIR, GENERATE_CONFIG_SCRIPT, RESTART_INTERNAL_SCRIPT, DASHBOARD_SUBDOMAIN, DOMAIN, TRAEFIK_ACME_ENV_TYPE
-from utils.system import get_subprocess_env, build_compose_env, get_external_services, resolve_domain, check_host_file, get_ssl_status_map
+from utils.system import get_subprocess_env, build_compose_env, get_external_services, resolve_domain, check_host_file, get_ssl_status_map, redact_secrets
 from utils.csv_manager import read_csv, write_csv, read_captcha_csv, write_captcha_csv, validate_domain_data, validate_captcha_data, get_root_domain
 from utils.csv_manager import TURNSTILE_SITE_KEY_RE, TURNSTILE_SECRET_KEY_RE, HCAPTCHA_SITE_KEY_RE, HCAPTCHA_SECRET_KEY_RE, RECAPTCHA_KEY_RE
 
@@ -408,7 +408,7 @@ def check_domains_batch():
 
     return jsonify(results)
 
-@api_bp.route('/dm-api/apply-config-stream')
+@api_bp.route('/dm-api/apply-config-stream', methods=['POST'])
 @login_required
 def apply_config_stream():
     def generate():
@@ -432,7 +432,7 @@ def apply_config_stream():
         )
 
         for line in process.stdout:
-            yield f"data: {line}\n\n"
+            yield f"data: {redact_secrets(line, local_env)}\n\n"
 
         process.stdout.close()
         return_code = process.wait()
@@ -455,12 +455,13 @@ def restart_stack():
         log.error(f"Failed to start restart script: {e}")
         return jsonify({'error': str(e)}), 500
 
-@api_bp.route('/dm-api/restart-stream')
+@api_bp.route('/dm-api/restart-stream', methods=['POST'])
 @login_required
 def restart_stream():
     def generate():
         yield "data: 🚀 Connecting to server and initiating regeneration...\n\n"
 
+        stream_env = build_compose_env()
         process = subprocess.Popen(
             ['bash', RESTART_INTERNAL_SCRIPT],
             cwd=BASE_DIR,
@@ -468,11 +469,11 @@ def restart_stream():
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
-            env=build_compose_env()
+            env=stream_env
         )
 
         for line in process.stdout:
-            yield f"data: {line}\n\n"
+            yield f"data: {redact_secrets(line, stream_env)}\n\n"
 
         process.stdout.close()
         return_code = process.wait()

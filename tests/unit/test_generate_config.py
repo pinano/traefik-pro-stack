@@ -317,6 +317,85 @@ def test_generate_config_crowdsec_disabled(tmp_path):
     assert not any('crowdsec' in mw for mw in app_router_mw)
 
 
+def test_generate_config_assets_crowdsec_enforcement(tmp_path):
+    """
+    Tests that static-assets routers enforce CrowdSec bans via the lightweight
+    'crowdsec-check-assets' middleware (AppSec disabled for performance), and
+    that no crowdsec middleware is generated when CrowdSec is disabled.
+    """
+    (tmp_path / 'config' / 'traefik' / 'dynamic-config').mkdir(parents=True)
+    (tmp_path / 'config' / 'crowdsec' / 'parsers').mkdir(parents=True)
+
+    domains_csv = tmp_path / 'domains.csv'
+    domains_csv.write_text("domain, redirection, docker_service\nexample.com, , web-app\n")
+
+    env = os.environ.copy()
+    env['CROWDSEC_LAPI_KEY'] = 'test-key'
+    env['REDIS_PASSWORD'] = 'test-pass'
+    env['CROWDSEC_ENABLE'] = 'true'
+
+    result = subprocess.run(['python3', SCRIPT_PATH], cwd=str(tmp_path), env=env, capture_output=True, text=True)
+    assert result.returncode == 0, f"Script failed: {result.stderr}"
+
+    routers_yaml = tmp_path / 'config' / 'traefik' / 'dynamic-config' / 'routers-generated.yaml'
+    with open(routers_yaml, 'r') as f:
+        config = yaml.safe_load(f)
+
+    middlewares = config['http']['middlewares']
+
+    # The lightweight assets middleware exists and skips AppSec inspection
+    assets_plugin = middlewares['crowdsec-check-assets']['plugin']['crowdsec']
+    assert assets_plugin['crowdsecAppsecEnabled'] is False
+
+    # The static-assets router enforces CrowdSec bans
+    assets_router = config['http']['routers']['static-assets-example-com']
+    assert 'crowdsec-check-assets' in assets_router['middlewares']
+
+
+def test_generate_config_assets_no_crowdsec_when_disabled(tmp_path):
+    """
+    Tests that with CROWDSEC_ENABLE=false the assets router has no crowdsec
+    middleware references.
+    """
+    (tmp_path / 'config' / 'traefik' / 'dynamic-config').mkdir(parents=True)
+    (tmp_path / 'config' / 'crowdsec' / 'parsers').mkdir(parents=True)
+
+    domains_csv = tmp_path / 'domains.csv'
+    domains_csv.write_text("domain, redirection, docker_service\nexample.com, , web-app\n")
+
+    env = os.environ.copy()
+    env['CROWDSEC_LAPI_KEY'] = 'test-key'
+    env['REDIS_PASSWORD'] = 'test-pass'
+    env['CROWDSEC_ENABLE'] = 'false'
+
+    subprocess.run(['python3', SCRIPT_PATH], cwd=str(tmp_path), env=env, capture_output=True)
+
+    routers_yaml = tmp_path / 'config' / 'traefik' / 'dynamic-config' / 'routers-generated.yaml'
+    with open(routers_yaml, 'r') as f:
+        config = yaml.safe_load(f)
+
+    assets_router = config['http']['routers']['static-assets-example-com']
+    assert 'crowdsec-check-assets' not in assets_router['middlewares']
+
+
+def test_anubis_policy_no_spoofable_ua_allow():
+    """
+    Guards against reintroducing user_agent_regex ALLOW rules in the Anubis
+    bot policy: they are trivially spoofable and bypass the PoW challenge
+    (audit finding A1, 2026-11-21).
+    """
+    policy_path = Path(__file__).resolve().parents[2] / 'config' / 'anubis' / 'botPolicy.yaml'
+    with open(policy_path, 'r', encoding='utf-8') as f:
+        policy = yaml.safe_load(f)
+
+    for bot in policy.get('bots', []):
+        if bot.get('action') == 'ALLOW':
+            assert 'user_agent_regex' not in bot, (
+                f"Anubis bot rule '{bot.get('name')}' uses user_agent_regex with ALLOW: "
+                "trivially spoofable PoW bypass. Use path_regex or source_cidrs instead."
+            )
+
+
 
 
 

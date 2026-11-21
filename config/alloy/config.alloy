@@ -510,8 +510,12 @@ prometheus.relabel "node_exporter" {
 prometheus.remote_write "local" {
     endpoint {
         url = "http://prometheus:9090/api/v1/write"
-        headers = {
-            "Authorization" = "Bearer " + sys.env("PROMETHEUS_REMOTE_WRITE_TOKEN"),
+        // Server-side Basic auth enforced by Prometheus --web.config.file
+        // (audit M7). The same token is stored bcrypt/plaintext in
+        // config/prometheus/web-generated.yml.
+        basic_auth {
+            username = "alloy"
+            password = sys.env("PROMETHEUS_REMOTE_WRITE_TOKEN")
         }
     }
 }

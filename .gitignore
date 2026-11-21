@@ -11,6 +11,16 @@ domains.csv
 # Captcha keys CSV
 config/crowdsec/captcha_keys.csv
 
+# Audit reports — public repo: never publish the curated attack plan
+docs/audits/
+
+# Prometheus web auth (audit M7 — generated per boot, contains token material)
+config/prometheus/web-generated.yml
+config/prometheus/remote-write-token
+
+# Bouncer key rotation fingerprint (audit M1 — runtime state)
+.bouncer_key.fingerprint
+
 # Generated configuration files
 docker-compose-anubis-generated.yaml
 config/traefik/traefik-generated.yaml

@@ -1054,14 +1054,14 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (confirmAction === 'restart') {
             confirmModal.classList.remove('show');
             initiateStream(
-                `/dm-api/restart-stream?csrf_token=${csrfToken}`,
+                `/dm-api/restart-stream`,
                 'Soft Restart Progress',
                 '✅ Soft restart completed successfully.'
             );
         } else if (confirmAction === 'apply-config') {
             confirmModal.classList.remove('show');
             initiateStream(
-                `/dm-api/apply-config-stream?csrf_token=${csrfToken}`,
+                `/dm-api/apply-config-stream`,
                 'Hot Reload — Zero Downtime',
                 '✅ Config applied. Traefik is hot-reloading the new rules.'
             );
@@ -1073,7 +1073,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Keep backward-compatible alias
     function initiateRestart() {
         initiateStream(
-            `/dm-api/restart-stream?csrf_token=${csrfToken}`,
+            `/dm-api/restart-stream`,
             'Soft Restart Progress',
             '✅ Soft restart completed successfully.'
         );

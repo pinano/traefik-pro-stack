@@ -260,11 +260,11 @@ for ED in $EXPECTED_DOMAINS; do
             ' 2>/dev/null | head -n 1)
 
             if echo "$ROUTER_ERR" | grep -qi "CAA"; then
-                REASON=" [<b>Causa:</b> Bloqueado por registro CAA en DNS]"
+                REASON=" [<b>Cause:</b> Blocked by CAA record in DNS]"
             elif echo "$ROUTER_ERR" | grep -qi "rateLimited"; then
-                REASON=" [<b>Causa:</b> Límite de ráfaga ACME alcanzado (429)]"
+                REASON=" [<b>Cause:</b> ACME burst rate limit reached (429)]"
             elif echo "$ROUTER_ERR" | grep -qi "unauthorized"; then
-                REASON=" [<b>Causa:</b> DNS no apunta a este servidor o puerto 80/443 cerrado]"
+                REASON=" [<b>Cause:</b> DNS does not point to this server or port 80/443 closed]"
             elif [ -n "$ROUTER_ERR" ]; then
                 REASON=" [<b>Error:</b> ${ROUTER_ERR}]"
             fi
@@ -277,7 +277,7 @@ for ED in $EXPECTED_DOMAINS; do
 done
 
 if [ $MISSING_COUNT -gt 0 ]; then
-    MESSAGE="Encontrados <b>${MISSING_COUNT}</b> dominio(s) <b>sin certificado SSL</b> en acme.json:%0A%0A${MISSING_DOMAINS}%0ATraefik no ha podido generar el certificado para estos dominios.%0A👉 <b>Acción requerida:</b> Revisa los registros DNS o la configuración de CAA del dominio."
+    MESSAGE="Found <b>${MISSING_COUNT}</b> domain(s) <b>without SSL certificate</b> in acme.json:%0A%0A${MISSING_DOMAINS}%0ATraefik could not generate the certificate for these domains.%0A👉 <b>Required action:</b> Check the DNS records or the domain's CAA configuration."
     send_telegram "$MESSAGE"
     ERRORS=$((ERRORS + MISSING_COUNT))
 fi

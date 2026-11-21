@@ -89,8 +89,10 @@ if [[ "$CROWDSEC_ENABLE" == "true" ]]; then
         done
     fi
 
-    # Build the YAML whitelist file in a temporary location
-    TMP_WHITELIST=$(mktemp)
+    # Build the YAML whitelist file in a temporary location next to the target
+    # (atomic write, audit M2)
+    mkdir -p ./config/crowdsec/parsers
+    TMP_WHITELIST=$(mktemp "./config/crowdsec/parsers/.ip-whitelist.yaml.XXXXXX")
     
     cat > "$TMP_WHITELIST" << 'EOF'
 # ============================================================================
@@ -125,8 +127,7 @@ EOF
     if [ -f "$WHITELIST_FILE" ] && cmp -s "$TMP_WHITELIST" "$WHITELIST_FILE"; then
         rm "$TMP_WHITELIST"
     else
-        cat "$TMP_WHITELIST" > "$WHITELIST_FILE"
-        rm "$TMP_WHITELIST"
+        mv -f "$TMP_WHITELIST" "$WHITELIST_FILE"
     fi
     
     TOTAL_ENTRIES=$((${#IPS_LIST[@]} + ${#CIDRS_LIST[@]}))
@@ -166,7 +167,12 @@ else
     APACHE_CHECK_HOST="localhost"
 fi
 
-if python3 -c "import socket; s = socket.socket(); s.settimeout(1); exit(0) if s.connect_ex(('${APACHE_CHECK_HOST}', int('${APACHE_CHECK_PORT}'))) == 0 else exit(1)" 2>/dev/null; then
+if python3 -c '
+import socket, sys
+s = socket.socket()
+s.settimeout(1)
+sys.exit(0 if s.connect_ex((sys.argv[1], int(sys.argv[2]))) == 0 else 1)
+' "$APACHE_CHECK_HOST" "$APACHE_CHECK_PORT" 2>/dev/null; then
     export APACHE_HOST_AVAILABLE="true"
     touch "$APACHE_FLAG_FILE"
 else

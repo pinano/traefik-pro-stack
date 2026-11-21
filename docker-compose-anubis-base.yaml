@@ -15,9 +15,12 @@ services:
     deploy:
       resources:
         limits:
-          # Set up defaults ${VAR:-default} in case we forget these in the .env
-          cpus: '${ANUBIS_CPU_LIMIT:-0.10}'
-          memory: '${ANUBIS_MEM_LIMIT:-32M}'
+          # Set up defaults ${VAR:-default} in case we forget these in the .env.
+          # Limits are per-instance ceilings (one instance per protected domain
+          # group), NOT reservations: idle Anubis uses ~20MB each. 256M/0.5 CPU
+          # gives 8x headroom over idle under a PoW flood (audit A5).
+          cpus: '${ANUBIS_CPU_LIMIT:-0.5}'
+          memory: '${ANUBIS_MEM_LIMIT:-256M}'
         reservations:
           memory: 16M
     environment:

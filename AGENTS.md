@@ -420,7 +420,7 @@ This drops packets at **netfilter** (nftables/iptables) *before* they ever touch
 |--------|--------|-------|
 | Dashboard proxy network isolation (`socket-proxy-dashboard`) | ✅ Done | `docker-compose-dashboard.yaml` |
 | Atomic `profiles.yaml` write | ✅ Done | `restart-internal.sh` |
-| Atomic bouncer key rotation (add-before-delete) | ✅ Done | `scripts/init.d/06-boot.sh` |
+| Atomic bouncer key rotation (add-first + fingerprint; rotate only on key change) | ✅ Done | `scripts/init.d/06-boot.sh` |
 | Regex sanitization for `BLOCKED_PATHS` / `BAD_USER_AGENTS` | ✅ Done | `generate-config.py` |
 | Redis isolated from `traefik` network | ✅ Done | `docker-compose-edge.yaml`, `docker-compose-security.yaml` |
 | Healthchecks added (`dozzle`, `watchdog`, `maintenance`, `redis-exporter`) | ✅ Done | compose files |
@@ -430,11 +430,15 @@ This drops packets at **netfilter** (nftables/iptables) *before* they ever touch
 | Buffer size limits (50 MB default) | ✅ Done | `generate-config.py`, `.env.dist` |
 | WriteTimeout aligned with ReadTimeout | ✅ Done | `traefik.yaml.template` |
 | Bearer auth on Prometheus remote_write | ✅ Done | `docker-compose-observability.yaml`, `config.alloy`, `.env.dist` |
+| Prometheus server-side remote-write auth (bcrypt web config, generated per boot) | ✅ Done | `config/prometheus/web.yml.template`, `scripts/init.d/04-assets.sh`, `docker-compose-observability.yaml` |
 | maxConnsPerHost limit (500) | ✅ Done | `generate-config.py`, `.env.dist` |
 | Retry middleware (2 attempts) | ✅ Done | `generate-config.py` |
 | no-new-privileges on maintenance and alloy | ✅ Done | compose files |
 | Alloy healthcheck | ✅ Done | `docker-compose-observability.yaml` |
-| Valkey maxmemory increased to 512 MB | ✅ Done | `config/valkey/valkey.conf` |
+| Valkey maxmemory at 80% of cgroup limit (400mb / 512M — eviction beats kernel OOM) | ✅ Done | `config/valkey/valkey.conf` |
+| Atomic config writes (same-filesystem mktemp + mv) in `init.d/` and `.env` handling | ✅ Done | `scripts/init.d/`, `scripts/initialize-env.sh` |
+| Pip bootstrap verified (ensurepip first, SHA-256-pinned get-pip fallback) | ✅ Done | `scripts/bootstrap-pip.sh` |
+| Dashboard SSE hardening (secret redaction, GET→POST streams, SECRET_KEY fail-closed) | ✅ Done | `config/dashboard/` |
 | DDoS detection alerts (Grafana + Prometheus) | ✅ Done | `rules.yaml`, `rules.yml` |
 | TLS cipher suites delegated to Go defaults | ✅ Done | `traefik.yaml.template` |
 | Generous rate limit for static assets | ✅ Done | `generate-config.py` |
@@ -442,6 +446,10 @@ This drops packets at **netfilter** (nftables/iptables) *before* they ever touch
 | Dashboard healthcheck endpoint (`/healthz`) | ✅ Done | `views.py`, `docker-compose-dashboard.yaml` |
 | Host hardening pre-flight check | ✅ Done | `scripts/init.d/00-host-hardening-check.sh` |
 | Docker socket post-restore drop-in (`docker.service.d`) | ✅ Done | `/etc/systemd/system/docker.service.d/restart-socket-proxies.conf`, `00-host-hardening-check.sh` |
+| Recurring security/performance audit (`make audit`) | ✅ Done | `scripts/audit.sh`, `docs/SECURITY-AUDIT-CHECKLIST.md`, `docs/audits/` |
+| Dashboard credentials fail-closed (no trivial passwords outside local) | ✅ Done | `config/dashboard/blueprints/auth.py` |
+| Anubis per-instance headroom (256M/0.5 CPU) + host-RAM worst-case warning | ✅ Done | `docker-compose-anubis-base.yaml`, `.env.dist`, `generate-config.py` |
+| Restart mutex lockfile in `/run/lock` + distinguishable exit code 75 | ✅ Done | `scripts/restart-internal.sh` |
 
 ---
 
@@ -489,6 +497,7 @@ make start       # Full startup
 make stop        # Graceful shutdown
 make restart     # Full restart
 make validate    # Validate .env
+make audit       # Read-only security & performance audit (see docs/SECURITY-AUDIT-CHECKLIST.md)
 make health      # Health diagnostics
 make help        # Full list
 ```

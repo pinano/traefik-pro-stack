@@ -92,9 +92,12 @@ print(f"{added_count} {len(extra_lines)}")
     if cmp -s "$TEMP_ENV" "$ENV_FILE"; then
         rm "$TEMP_ENV"
     else
-        cat "$TEMP_ENV" > "$ENV_FILE"
-        rm "$TEMP_ENV"
+        # Atomic write (audit M2): stage next to .env (same filesystem), then rename.
+        ENV_TMP=$(mktemp "${ENV_FILE}.XXXXXX")
+        cat "$TEMP_ENV" > "$ENV_TMP"
+        mv -f "$ENV_TMP" "$ENV_FILE"
         chmod 600 "$ENV_FILE"
+        rm "$TEMP_ENV"
     fi
 
     if [ "$ADDED_VARS" -gt 0 ]; then

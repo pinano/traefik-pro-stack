@@ -269,6 +269,24 @@ def get_traefik_acme_log_errors():
                 }
     return errors
 
+def redact_secrets(text: str, env: dict = None):
+    """
+    Replace secret values (passwords, keys, tokens) found in `text` with a
+    redaction marker (audit M9). Used to sanitize subprocess output before it
+    is streamed to the browser: a crash traceback or `docker compose` warning
+    must never leak credentials into the SSE log viewer.
+    """
+    source = env if env is not None else os.environ
+    markers = ('PASSWORD', 'SECRET', 'TOKEN', 'API_KEY', 'LAPI_KEY', 'PRIVATE_KEY')
+    values = {
+        v for k, v in source.items()
+        if any(m in k.upper() for m in markers) and v and len(v) >= 8
+    }
+    for value in sorted(values, key=len, reverse=True):
+        text = text.replace(value, '▪▪▪REDACTED▪▪▪')
+    return text
+
+
 def get_subprocess_env():
     """
     Constructs a complete environment mapping by combining current process env
