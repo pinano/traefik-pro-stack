@@ -148,7 +148,7 @@ cs_container=$(docker ps --format '{{.Names}}' 2>/dev/null | grep 'crowdsec' | g
 if [ -n "$cs_container" ]; then
     decisions=$(docker exec "$cs_container" cscli decisions list -o raw 2>/dev/null | tail -n +2 | wc -l)
     info "Active CrowdSec decisions: $decisions"
-    wl=$(docker exec "$cs_container" cscli parser list raw 2>/dev/null | grep -ci whitelist || true)
+    wl=$(docker exec "$cs_container" cscli parser list -o raw 2>/dev/null | grep -ci whitelist || true)
     info "Custom whitelist parsers loaded: $wl (verify they only contain private ranges + your admin IPs)"
 else
     info "CrowdSec container not running — state checks skipped"
