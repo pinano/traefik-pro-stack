@@ -58,6 +58,18 @@ check_perms "config/traefik/dynamic-config/routers-generated.yaml" 644 false
 check_perms "config/crowdsec-web-ui/crowdsec.db" 600 false
 check_perms "data/filebrowser/filebrowser.db" 600 false
 
+# Scripts bind-mounted into the watchdog container and exec'd by its cron:
+# a lost exec bit silently disables SSL/DNS/CrowdSec monitoring.
+WATCHDOG_NOT_EXEC=""
+for f in config/watchdog/*.sh; do
+    [ -x "$f" ] || WATCHDOG_NOT_EXEC="$WATCHDOG_NOT_EXEC $f"
+done
+if [ -n "$WATCHDOG_NOT_EXEC" ]; then
+    bad "watchdog scripts missing exec bit:$WATCHDOG_NOT_EXEC — their checks silently never run. Fix: chmod +x$WATCHDOG_NOT_EXEC"
+else
+    ok "watchdog scripts executable"
+fi
+
 if grep -qE '^(REDIS_PASSWORD|CROWDSEC_LAPI_KEY|DASHBOARD_SECRET_KEY)=.{8,}' config/traefik/dynamic-config/routers-generated.yaml 2>/dev/null; then
     warn "routers-generated.yaml embeds live secrets (LAPI/Redis). Acceptable at 644 only on single-admin hosts; Traefik reads it as root."
 fi

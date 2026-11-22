@@ -55,16 +55,20 @@ done
 # Ensure non-root service users can write to their data directories.
 # When directories are newly created, set permissions recursively.
 # On subsequent starts, only touch the directory root to avoid slow disk traversal of large TSDB/log volumes.
+# Prometheus runs as HOST_UID:HOST_GID (docker-compose-observability.yaml),
+# so its data dir must be owned by the operator, not by a fixed container uid.
+OPERATOR_UID=$(stat -c '%u' ./config/traefik 2>/dev/null || stat -f '%u' ./config/traefik 2>/dev/null || echo 1000)
+OPERATOR_GID=$(stat -c '%g' ./config/traefik 2>/dev/null || stat -f '%g' ./config/traefik 2>/dev/null || echo 1000)
 if [ $DATA_CREATED -gt 0 ]; then
     chown -R 472:472 ./data/grafana 2>/dev/null || chmod -R 777 ./data/grafana 2>/dev/null || true
     chown -R 10001:10001 ./data/loki 2>/dev/null || chmod -R 777 ./data/loki 2>/dev/null || true
-    chown -R 65534:65534 ./data/prometheus 2>/dev/null || chmod -R 777 ./data/prometheus 2>/dev/null || true
+    chown -R "$OPERATOR_UID:$OPERATOR_GID" ./data/prometheus 2>/dev/null || chmod -R 777 ./data/prometheus 2>/dev/null || true
     chown -R 1000:1000 ./data/filebrowser 2>/dev/null || chmod -R 777 ./data/filebrowser 2>/dev/null || true
     echo "   ✅ Created $DATA_CREATED persistent data director(ies) under ./data/."
 else
     chown 472:472 ./data/grafana 2>/dev/null || chmod 777 ./data/grafana 2>/dev/null || true
     chown 10001:10001 ./data/loki 2>/dev/null || chmod 777 ./data/loki 2>/dev/null || true
-    chown 65534:65534 ./data/prometheus 2>/dev/null || chmod 777 ./data/prometheus 2>/dev/null || true
+    chown "$OPERATOR_UID:$OPERATOR_GID" ./data/prometheus 2>/dev/null || chmod 777 ./data/prometheus 2>/dev/null || true
     chown 1000:1000 ./data/filebrowser 2>/dev/null || chmod 777 ./data/filebrowser 2>/dev/null || true
 fi
 

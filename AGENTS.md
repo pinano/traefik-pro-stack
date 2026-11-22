@@ -464,6 +464,7 @@ This drops packets at **netfilter** (nftables/iptables) *before* they ever touch
 | Dashboard credentials fail-closed (no trivial passwords outside local) | ✅ Done | `config/dashboard/blueprints/auth.py` |
 | Anubis per-instance headroom (256M/0.5 CPU) + host-RAM worst-case warning | ✅ Done | `docker-compose-anubis-base.yaml`, `.env.dist`, `generate-config.py` |
 | Restart mutex lockfile in `/run/lock` + distinguishable exit code 75 | ✅ Done | `scripts/restart-internal.sh` |
+| Boot-time permission policy (exec bits on bind-mounted scripts, secret-file modes, Prometheus data dir owned by `HOST_UID`) | ✅ Done | `scripts/init.d/04-permissions.sh`, `scripts/init.d/04-assets.sh` |
 
 ---
 
