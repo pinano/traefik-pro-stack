@@ -39,9 +39,10 @@ services:
       # only reachable from the dashboard on the internal
       # socket-proxy-dashboard network.
       - VOLUMES=1
-      # Explicitly disallow dangerous ops
+      # Explicitly disallow dangerous ops (VOLUMES is granted above: the
+      # soft-restart `docker compose up` needs it — do not re-deny here,
+      # Compose keeps the LAST occurrence of a duplicated key)
       - BUILD=0
-      - VOLUMES=0
       - SWARM=0
       - SECRETS=0
       - CONFIGS=0

@@ -138,6 +138,40 @@ fi
 # -----------------------------------------------------------------------------
 section "4. DOCKER HARDENING (requires running daemon)"
 # -----------------------------------------------------------------------------
+# Socket-proxy permission policy (static check on the compose files, catches
+# drift before deploy). The global proxy must stay read-only; the dashboard
+# proxy needs its write grants for the soft-restart but must never gain
+# build/swarm-level powers. Compose keeps the LAST occurrence of a duplicated
+# env key, so the check reads values the same way.
+proxy_grants() {  # $1=compose file, $2=service -> prints "KEY=value" lines
+    awk -v svc="$2" '
+        $0 ~ "^  " svc ":[[:space:]]*$" {inblock=1; next}
+        inblock && /^ {0,2}[a-zA-Z_-]+:/ {inblock=0; next}
+        inblock && /^[[:space:]]*- [A-Z_]+=/ {gsub(/^[[:space:]]*- /, ""); print}
+    ' "$1"
+}
+check_proxy_grants() {  # $1=file, $2=service, $3=label, rest: KEY:expected pairs
+    local file=$1 svc=$2 label=$3; shift 3
+    if [ ! -f "$file" ]; then info "$label: $file not found (skipped)"; return; fi
+    local grants spec key expected actual drift=""
+    grants=$(proxy_grants "$file" "$svc")
+    for spec in "$@"; do
+        key=${spec%%:*}; expected=${spec##*:}
+        actual=$(printf '%s\n' "$grants" | grep -E "^${key}=" | tail -1 | cut -d= -f2)
+        actual=${actual:-0}
+        [ "$actual" = "$expected" ] || drift="$drift ${key}=${actual}(want ${expected})"
+    done
+    if [ -n "$drift" ]; then
+        bad "$label permission drift:$drift — review $file"
+    else
+        ok "$label permission set matches policy"
+    fi
+}
+check_proxy_grants "docker-compose-security.yaml" "docker-socket-proxy" "Global socket-proxy" \
+    POST:0 DELETE:0 EXEC:0 BUILD:0 COMMIT:0 VOLUMES:0 SWARM:0
+check_proxy_grants "docker-compose-dashboard.yaml" "docker-socket-proxy-dashboard" "Dashboard socket-proxy" \
+    POST:1 DELETE:1 EXEC:1 IMAGES:1 VOLUMES:1 BUILD:0 COMMIT:0 SWARM:0 SECRETS:0 CONFIGS:0
+
 if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
     latest=$(docker ps --format '{{.Image}}' | grep -E ':(latest)$|^[a-z0-9_/.-]+$' | head -5)
     if [ -n "$latest" ]; then warn "Containers using floating/:latest tags:\n$latest"; else ok "No floating image tags"; fi
