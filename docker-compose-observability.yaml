@@ -118,6 +118,9 @@ services:
     environment:
       - TZ=${TZ}
       - DOMAIN=${DOMAIN}
+      # Token for prometheus.remote_write basic auth in config.alloy
+      # (audit M7 — Prometheus rejects unauthenticated writes).
+      - PROMETHEUS_REMOTE_WRITE_TOKEN=${PROMETHEUS_REMOTE_WRITE_TOKEN}
     volumes:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - ./config/alloy/config.alloy:/etc/alloy/config.alloy:ro
