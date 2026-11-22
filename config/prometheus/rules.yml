@@ -120,8 +120,8 @@ groups:
 
       - alert: DiskSpaceLow
         expr: |
-          ((node_filesystem_avail_bytes{mountpoint="/",fstype!="tmpfs"}
-          / node_filesystem_size_bytes{mountpoint="/",fstype!="tmpfs"})) or on() vector(0) < 0.15
+          (node_filesystem_avail_bytes{mountpoint="/",fstype=~"ext2|ext3|ext4|xfs|btrfs|zfs"}
+          / node_filesystem_size_bytes{mountpoint="/",fstype=~"ext2|ext3|ext4|xfs|btrfs|zfs"}) < 0.15
         for: 5m
         labels:
           severity: warning
@@ -131,8 +131,8 @@ groups:
 
       - alert: DiskSpaceCritical
         expr: |
-          (node_filesystem_avail_bytes{mountpoint="/",fstype!="tmpfs"}
-          / node_filesystem_size_bytes{mountpoint="/",fstype!="tmpfs"}) < 0.05
+          (node_filesystem_avail_bytes{mountpoint="/",fstype=~"ext2|ext3|ext4|xfs|btrfs|zfs"}
+          / node_filesystem_size_bytes{mountpoint="/",fstype=~"ext2|ext3|ext4|xfs|btrfs|zfs"}) < 0.05
         for: 2m
         labels:
           severity: critical
