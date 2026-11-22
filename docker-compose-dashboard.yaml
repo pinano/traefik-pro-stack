@@ -7,7 +7,10 @@ services:
   # Unlike the global socket-proxy (read-only), this allows the
   # operations needed for soft-restarts: container listing, exec,
   # creation, and deletion (orphan removal).
-  # It does NOT allow image builds, volume management, or swarm ops.
+  # It does NOT allow image builds or swarm ops. Volume access is granted
+  # (read-only list/inspect) because `docker compose up --remove-orphans`
+  # queries project volumes to compute its plan; without it every soft
+  # restart fails with HAProxy 403 at the "applying changes" step.
   # ===========================
   docker-socket-proxy-dashboard:
     image: tecnativa/docker-socket-proxy:3.4
@@ -30,6 +33,12 @@ services:
       - IMAGES=1
       - DISTRIBUTION=1
       - AUTH=1
+      # Required by `docker compose up` (it lists project volumes to
+      # compute its plan). Note: combined with POST/DELETE above this
+      # technically allows volume writes; accepted because the proxy is
+      # only reachable from the dashboard on the internal
+      # socket-proxy-dashboard network.
+      - VOLUMES=1
       # Explicitly disallow dangerous ops
       - BUILD=0
       - VOLUMES=0
