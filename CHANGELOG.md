@@ -1,3 +1,7 @@
+## v2026.11.23 (2026-11-23)
+
+- fix(watchdog,grafana): prevent check-crowdsec pileup/OOM and raise Grafana asset rate limit (eceb4ae)
+
 ## v2026.11.21 (2026-11-21)
 
 - feat(make): versioned tags for locally built images (dashboard, watchdog) (494d4d7)
