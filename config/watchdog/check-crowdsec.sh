@@ -18,14 +18,41 @@ NC='\033[0m'
 
 # Temp file paths declared here so the cleanup trap can always reference them,
 # even if the script exits before they are created.
+LOCK_DIR="/tmp/check-crowdsec.lock"
+LOCK_OWNED=0
 GROUP_DIR=""
 BOUNCER_LIST_FILE=""
+ACTIVE_BANS_FILE=""
+REDIS_KEYS_FILE=""
+ORPHAN_KEYS_FILE=""
 
 cleanup() {
     rm -rf "$GROUP_DIR"
-    rm -f  "$BOUNCER_LIST_FILE"
+    rm -f  "$BOUNCER_LIST_FILE" "$ACTIVE_BANS_FILE" "$REDIS_KEYS_FILE" "$ORPHAN_KEYS_FILE"
+    if [ "$LOCK_OWNED" -eq 1 ]; then
+        rm -rf "$LOCK_DIR"
+    fi
 }
 trap cleanup EXIT INT TERM
+
+# Prevent overlapping cron runs
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+    if [ -f "$LOCK_DIR/pid" ]; then
+        LOCK_PID=$(cat "$LOCK_DIR/pid" 2>/dev/null)
+        if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
+            echo "⏳ Previous CrowdSec health check still running (PID $LOCK_PID), skipping."
+            exit 0
+        fi
+    fi
+    # Stale lock from a crashed/killed run
+    rm -rf "$LOCK_DIR"
+    if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+        echo "⏳ Could not acquire lock, skipping."
+        exit 0
+    fi
+fi
+LOCK_OWNED=1
+echo "$$" > "$LOCK_DIR/pid"
 
 echo "🛡️ Starting CrowdSec health check..."
 
@@ -412,33 +439,77 @@ if [ "$CROWDSEC_ENABLE" != "false" ] && [ -n "$REDIS_PASSWORD" ]; then
     fi
     
     if [ -n "$REDIS_CONTAINER" ] && [ "$(docker inspect -f '{{.State.Status}}' "$REDIS_CONTAINER" 2>/dev/null)" = "running" ]; then
+        ACTIVE_BANS_FILE=$(mktemp /tmp/crowdsec_bans_XXXXXX)
+        REDIS_KEYS_FILE=$(mktemp /tmp/crowdsec_rkeys_XXXXXX)
+        ORPHAN_KEYS_FILE=$(mktemp /tmp/crowdsec_orphans_XXXXXX)
+
         # 2. Get active bans from CrowdSec LAPI
-        ACTIVE_BANS=$(echo "$DECISIONS" | jq -r '.[].decisions[].value' 2>/dev/null | sort -u)
-        
+        echo "$DECISIONS" | jq -r '.[].decisions[].value' 2>/dev/null | sort -u > "$ACTIVE_BANS_FILE"
+
         # 3. Get all keys in DB 0
-        REDIS_KEYS=$(docker exec "$REDIS_CONTAINER" valkey-cli -a "$REDIS_PASSWORD" --no-auth-warning -n 0 KEYS "*" 2>/dev/null | tr -d '\r')
-        
-        for key in $REDIS_KEYS; do
-            # Strip prefix (e.g., crowdsec_cache:) if present, then strip _captcha suffix to get base IP
-            base_ip=$(echo "$key" | sed -E 's/^[^:]+://; s/_captcha$//')
-            
-            # Verify if it's an IP key (IPv4 or IPv6 or Range)
-            if echo "$base_ip" | grep -qE '^([0-9]{1,3}\.){3}[0-9]{1,3}(\/[0-9]{1,2})?$|^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}(\/[0-9]{1,3})?$'; then
-                is_active=0
-                for active_ban in $ACTIVE_BANS; do
-                    # Check exact match or CIDR range match (for IPv4 ranges)
-                    if [ "$base_ip" = "$active_ban" ] || in_cidr "$base_ip" "$active_ban"; then
-                        is_active=1
-                        break
-                    fi
-                done
-                
-                if [ $is_active -eq 0 ]; then
-                    echo "🧹 Reconciler: Removing orphaned cache key '$key' from Redis DB 0"
-                    docker exec "$REDIS_CONTAINER" valkey-cli -a "$REDIS_PASSWORD" --no-auth-warning -n 0 DEL "$key" >/dev/null 2>&1 || true
-                fi
-            fi
-        done
+        docker exec "$REDIS_CONTAINER" valkey-cli -a "$REDIS_PASSWORD" --no-auth-warning -n 0 KEYS "*" 2>/dev/null | tr -d '\r' > "$REDIS_KEYS_FILE"
+
+        # 4. Filter orphaned IP/CIDR keys in a single awk pass (avoids O(N*M) subshells)
+        awk '
+        function ip2int(ip,   o) {
+            if (split(ip, o, ".") != 4) return -1
+            if (o[1] < 0 || o[1] > 255 || o[2] < 0 || o[2] > 255 || o[3] < 0 || o[3] > 255 || o[4] < 0 || o[4] > 255) return -1
+            return (((o[1] * 256) + o[2]) * 256 + o[3]) * 256 + o[4]
+        }
+        NR == FNR {
+            if ($0 == "") next
+            exact[$0] = 1
+            if (index($0, "/") > 0 && $0 ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,2}$/) {
+                split($0, parts, "/")
+                net = ip2int(parts[1])
+                mask = parts[2] + 0
+                if (net >= 0 && mask >= 0 && mask <= 32) {
+                    div = 2 ^ (32 - mask)
+                    cidrs[++nc] = int(net / div) "|" div
+                }
+            }
+            next
+        }
+        {
+            key = $0
+            if (key == "") next
+            base_ip = key
+            sub(/^[^:]+:/, "", base_ip)
+            sub(/_captcha$/, "", base_ip)
+            is_v4 = (base_ip ~ /^([0-9]{1,3}\.){3}[0-9]{1,3}(\/[0-9]{1,2})?$/)
+            is_v6 = (!is_v4 && base_ip ~ /^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}(\/[0-9]{1,3})?$/)
+            if (!is_v4 && !is_v6) next
+
+            if (base_ip in exact) next
+
+            if (is_v4 && index(base_ip, "/") == 0 && nc > 0) {
+                ipn = ip2int(base_ip)
+                if (ipn >= 0) {
+                    matched = 0
+                    for (i = 1; i <= nc; i++) {
+                        split(cidrs[i], c, "|")
+                        if (int(ipn / c[2]) == c[1]) {
+                            matched = 1
+                            break
+                        }
+                    }
+                    if (matched) next
+                }
+            }
+            print key
+        }
+        ' "$ACTIVE_BANS_FILE" "$REDIS_KEYS_FILE" > "$ORPHAN_KEYS_FILE"
+
+        ORPHAN_COUNT=$(wc -l < "$ORPHAN_KEYS_FILE" | tr -d ' ')
+        if [ "${ORPHAN_COUNT:-0}" -gt 0 ]; then
+            echo "🧹 Reconciler: Removing $ORPHAN_COUNT orphaned cache key(s) from Redis DB 0..."
+            xargs -r -n 500 docker exec "$REDIS_CONTAINER" valkey-cli -a "$REDIS_PASSWORD" --no-auth-warning -n 0 DEL < "$ORPHAN_KEYS_FILE" >/dev/null 2>&1 || true
+        fi
+
+        rm -f "$ACTIVE_BANS_FILE" "$REDIS_KEYS_FILE" "$ORPHAN_KEYS_FILE"
+        ACTIVE_BANS_FILE=""
+        REDIS_KEYS_FILE=""
+        ORPHAN_KEYS_FILE=""
         echo "✅ Reconciler: Cache reconciliation completed."
     else
         echo "⚠️ Reconciler: Redis container not found or not running."

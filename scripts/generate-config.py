@@ -969,6 +969,29 @@ def generate_configs():
             'middlewares': grafana_mw
         }
 
+        # Grafana loads dozens of JS/plugin chunks in parallel over HTTP/2;
+        # give /grafana/public/ a higher burst and no 25-request concurrency cap
+        # so plugin modules (loki, prometheus) never fail with 429.
+        traefik_dynamic_conf['http']['middlewares']['grafana-assets-ratelimit'] = {
+            'rateLimit': {
+                'average': 200,
+                'burst': 500
+            }
+        }
+        grafana_assets_mw = [
+            'grafana-assets-ratelimit' if mw == 'global-ratelimit' else mw
+            for mw in grafana_mw
+            if mw != 'global-concurrency'
+        ]
+        traefik_dynamic_conf['http']['routers']['grafana-assets'] = {
+            'rule': f"Host(`{dashboard_domain}`) && PathPrefix(`/grafana/public/`)",
+            'entryPoints': ["websecure"],
+            'service': "grafana-frontend@docker",
+            'priority': 1100,
+            'tls': traefik_dynamic_conf['http']['routers'][base_router_name]['tls'],
+            'middlewares': grafana_assets_mw
+        }
+
     # --- CrowdSec Web UI Router (only when CrowdSec is enabled) ---
     if CROWDSEC_ENABLE:
         cswebui_mw = base_middlewares.copy()
