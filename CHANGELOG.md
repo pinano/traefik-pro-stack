@@ -1,3 +1,10 @@
+## v2026.11.26.1 (2026-11-26)
+
+- feat: add automated per-domain maintenance and 502-504 fallback error pages (aaf43e1)
+- feat: add automatic per-domain fallback and error pages to edge stack (47fa047)
+- feat: add error pages and fallback maintenance routing service (d032e4e)
+- fix: handle missing local image tags during service restart and rebuilds (e46f8c5)
+
 ## v2026.11.26 (2026-11-26)
 
 - feat: restrict media router rules to GET and HEAD HTTP methods (b60836e)
