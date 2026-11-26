@@ -91,6 +91,18 @@ for img in happy.webp pensive.webp reject.webp; do
     fi
 done
 
+# Maintenance page asset (copy default .dist only if no custom override exists)
+MAINTENANCE_DIR="./config/maintenance"
+if [ -d "$MAINTENANCE_DIR/index.html" ]; then
+    rm -rf "$MAINTENANCE_DIR/index.html"
+fi
+if [ ! -f "$MAINTENANCE_DIR/index.html" ]; then
+    if [ -f "$MAINTENANCE_DIR/index.html.dist" ]; then
+        cp "$MAINTENANCE_DIR/index.html.dist" "$MAINTENANCE_DIR/index.html"
+        chmod 644 "$MAINTENANCE_DIR/index.html" 2>/dev/null || true
+    fi
+fi
+
 mkdir -p ./config/traefik
 
 # Safety check: if acme.json is a directory (Docker artifact from bind-mount before file existed), remove it

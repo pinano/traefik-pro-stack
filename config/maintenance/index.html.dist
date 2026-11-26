@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Mantenimiento · Service Unavailable</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --text: #0f172a;
+            --text-muted: #475569;
+            --text-subtle: #64748b;
+            --pill-bg: #fef3c7;
+            --pill-border: #fde68a;
+            --pill-text: #92400e;
+            --dot: #d97706;
+            --btn-bg: #0f172a;
+            --btn-text: #f8fafc;
+            --btn-hover: #1e293b;
+            --shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #0b0f17;
+                --surface: #111827;
+                --border: #1f2937;
+                --text: #f8fafc;
+                --text-muted: #9ca3af;
+                --text-subtle: #6b7280;
+                --pill-bg: rgba(245, 158, 11, 0.1);
+                --pill-border: rgba(245, 158, 11, 0.25);
+                --pill-text: #fbbf24;
+                --dot: #f59e0b;
+                --btn-bg: #f8fafc;
+                --btn-text: #0f172a;
+                --btn-hover: #e2e8f0;
+                --shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+            line-height: 1.55;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .card {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            max-width: 560px;
+            width: 100%;
+            padding: 2.25rem;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 1.75rem;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background-color: var(--pill-bg);
+            border: 1px solid var(--pill-border);
+            color: var(--pill-text);
+            border-radius: 9999px;
+            padding: 0.3rem 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background-color: var(--dot);
+            animation: pulse 2.2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .status-dot {
+                animation: none;
+            }
+        }
+
+        .icon {
+            width: 24px;
+            height: 24px;
+            color: var(--text-subtle);
+            flex-shrink: 0;
+        }
+
+        .lang-block + .lang-block {
+            margin-top: 1.35rem;
+            padding-top: 1.35rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .lang-label {
+            display: inline-block;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-subtle);
+            margin-bottom: 0.35rem;
+        }
+
+        h1, h2 {
+            font-size: 1.25rem;
+            font-weight: 650;
+            letter-spacing: -0.015em;
+            color: var(--text);
+            margin-bottom: 0.45rem;
+        }
+
+        p {
+            font-size: 0.9375rem;
+            color: var(--text-muted);
+        }
+
+        .footer {
+            margin-top: 1.75rem;
+            padding-top: 1.25rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 1rem;
+        }
+
+        .retry-btn {
+            appearance: none;
+            border: none;
+            border-radius: 8px;
+            background-color: var(--btn-bg);
+            color: var(--btn-text);
+            font-family: inherit;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            padding: 0.5rem 0.95rem;
+            cursor: pointer;
+            transition: background-color 0.15s ease;
+        }
+
+        .retry-btn:hover {
+            background-color: var(--btn-hover);
+        }
+
+        @media (max-width: 480px) {
+            .card {
+                padding: 1.5rem;
+            }
+
+            .footer {
+                flex-direction: column;
+                align-items: stretch;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="card" role="main">
+        <div class="header">
+            <span class="status-pill">
+                <span class="status-dot" aria-hidden="true"></span>
+                Mantenimiento / Maintenance
+            </span>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9"></circle>
+                <path d="M12 7v5l3 2"></path>
+            </svg>
+        </div>
+
+        <section class="lang-block" lang="es">
+            <span class="lang-label">Español</span>
+            <h1>Servicio temporalmente no disponible</h1>
+            <p>Estamos realizando tareas de mantenimiento o actualización en este servicio. Volverá a estar operativo en breve.</p>
+        </section>
+
+        <section class="lang-block" lang="en">
+            <span class="lang-label">English</span>
+            <h2>Service temporarily unavailable</h2>
+            <p>We are performing scheduled maintenance or updates on this service. It will be back online shortly.</p>
+        </section>
+
+        <div class="footer">
+            <button type="button" class="retry-btn" onclick="window.location.reload()">Reintentar / Retry</button>
+        </div>
+    </main>
+</body>
+</html>

@@ -231,13 +231,24 @@ The startup is **idempotent** — running it multiple times does minimal work an
 Request → [Redirect Regex] → (301/302 if matched)
        → [UA Blacklist Router] → (403 if matched)
        → [CrowdSec Bouncer] → (403 / CAPTCHA if banned)
-       → [Buffering] → [Security Headers]
+       → [Buffering] → [Security Headers] → [Error Pages (502-504)]
        → [Rate Limiter] → [Concurrency Limiter]
        → [ForwardAuth / Anubis] → (PoW challenge)
        → [Compression] → Backend
 ```
 
 The UA Blacklist is a separate high-priority router, not part of the middleware chain. To change this order, modify `generate-config.py`.
+
+### Automatic Maintenance & Fallback Pages
+
+The stack runs an always-on lightweight Nginx container (`error-pages` in `docker-compose-edge.yaml`) serving `config/maintenance/index.html` via `config/maintenance/default.conf` (with `Retry-After: 300`, `Cache-Control: no-store, no-cache, must-revalidate`, and a loopback-only healthcheck at `127.0.0.1:8080/healthz`).
+
+- **When it activates automatically**:
+  - **Stopped, removed, or unstarted Docker container**: when a backend container disappears, Traefik unloads its primary `router-*` and the per-domain `fallback-*` router (`priority: 1`) automatically takes over, returning HTTP `503 Service Unavailable` with the domain's valid TLS certificate, CrowdSec checks, security headers, and rate limits instead of Traefik's bare `404 page not found`.
+  - **Unreachable or timed-out backend (`502`, `503`, `504`)**: on active routers for real backends, the `error-pages` middleware intercepts `502 Bad Gateway`, `503 Service Unavailable`, and `504 Gateway Timeout` responses (including legacy Apache backends) while preserving the original `5xx` status code. *(Note: an application's own `503`, such as WordPress `.maintenance`, is also rendered through this template.)*
+- **What passes through untouched**: application `404` and `500` responses, auth/security status codes (`401`, `403`, `429`), pure `noop` redirects, `media-stream-*` routers, and Dozzle SSE streams.
+- **Customizing the maintenance page**: `config/maintenance/index.html.dist` is the tracked bilingual (ES/EN) default template. On startup, if `config/maintenance/index.html` does not exist, it is seeded automatically from `.dist` and **never overwritten** afterwards (`config/maintenance/index.html` is gitignored). Edit `config/maintenance/index.html` at any time — Nginx serves it via directory mount with immediate hot-reload; delete it to revert to `.dist`.
+- **Global maintenance mode**: `make maintenance-on` / `make maintenance-off` (`docker-compose-maintenance.yaml`, `priority: 999999`) reuses the same `config/maintenance/index.html` template to put all public domains into maintenance at once while keeping the Dashboard accessible.
 
 ### Docker Socket Isolation
 
@@ -555,9 +566,10 @@ Never edit these manually in `.env`:
 │   ├── prometheus/                    # Scrape configs & alert rules
 │   ├── valkey/                        # Cache config templates
 │   ├── alloy/                         # Collector pipeline config
+│   ├── maintenance/                   # Maintenance / fallback HTML & Nginx config
 │   └── watchdog/                      # Health monitor scripts
 │
-├── docker-compose-edge.yaml           # Traefik
+├── docker-compose-edge.yaml           # Traefik + Error Pages (per-domain 503 fallback)
 ├── docker-compose-security.yaml       # CrowdSec, PostgreSQL, Redis, Socket Proxy
 ├── docker-compose-observability.yaml  # Grafana, Loki, Alloy, Prometheus, Redis Exporter
 ├── docker-compose-dashboard.yaml      # Dashboard, Dozzle, Dashboard Socket Proxy

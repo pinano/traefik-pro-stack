@@ -1,4 +1,5 @@
 # System & Environment variables
+.DS_Store
 .env
 *.save
 *.bak
@@ -46,6 +47,9 @@ config/anubis/assets/custom.min.css
 config/anubis/assets/static/img/happy.webp
 config/anubis/assets/static/img/pensive.webp
 config/anubis/assets/static/img/reject.webp
+
+# Maintenance custom page (only .dist default is tracked)
+config/maintenance/index.html
 
 # Runtime flags
 .apache_host_available

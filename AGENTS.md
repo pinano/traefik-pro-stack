@@ -127,6 +127,7 @@ make start
 | Layer | Component | Role |
 |------|-----------|-----|
 | **Edge Router** | Traefik v3.x | TLS termination, middleware chain, dynamic routing |
+| **Error / Fallback Pages** | Nginx (`error-pages`) | Automatic per-domain maintenance page for downed containers & `502–504` errors |
 | **IPS** | CrowdSec | Collaborative IP reputation, behavioral detection |
 | **WAF** | CrowdSec AppSec | Layer-7 inspection (OWASP, virtual patches) |
 | **IPS DB** | PostgreSQL 16 | High-concurrency database for CrowdSec LAPI |
@@ -171,7 +172,7 @@ The stack separates responsibilities across multiple files:
 
 | File | Contents |
 |---------|-----------|
-| `docker-compose-edge.yaml` | Traefik |
+| `docker-compose-edge.yaml` | Traefik, Error Pages (`error-pages`) |
 | `docker-compose-security.yaml` | CrowdSec, PostgreSQL, Redis, CrowdSec Web UI, Docker Socket Proxy |
 | `docker-compose-observability.yaml` | Grafana, Loki, Alloy, Prometheus, Redis Exporter (conditional on `GRAFANA_ENABLED != false`) |
 | `docker-compose-dashboard.yaml` | Dashboard (Flask), Dozzle, **Docker Socket Proxy (Dashboard)** |
@@ -217,6 +218,7 @@ Request → [Redirect Regex (Index 0)] → (if match: 301/302 immediate return)
        → [CrowdSec Bouncer] → (if IP banned or bad payload: 403; if captcha: presents challenge)
        → [Slowloris Buffer]
        → [Security Headers]
+       → [Error Pages (502-504)]
        → [Rate Limiter]
        → [Concurrency Limiter]
        → [Retry]
@@ -226,6 +228,11 @@ Request → [Redirect Regex (Index 0)] → (if match: 301/302 immediate return)
 ```
 
 The **UA Blacklist** is a separate high-priority router, not part of the middleware chain. Changes to this chain require modifying `generate-config.py`.
+
+**Automatic maintenance & error fallback**:
+- Every domain backed by a real service (Docker or `apache-host`) gets a `fallback-{domain}` router (`priority: 1`) pointing to `error-pages` (`http://error-pages:80`). When a backend container is stopped or removed and Traefik unloads `router-{domain}`, `fallback-{domain}` takes over automatically with HTTP `503`, valid TLS, CrowdSec, security headers, and rate limits (Watchdog still detects and alerts on the unloaded primary router).
+- On active primary routers, the `error-pages` middleware intercepts `502–504` responses (`502 Bad Gateway`, `503 Service Unavailable`, `504 Gateway Timeout`). It is intentionally omitted from `media-stream-*`, `traefik-dozzle`, and `noop` redirect routers, and lets application `404`/`500` responses pass through untouched.
+- Both automatic fallback and manual global maintenance (`make maintenance-on` via `docker-compose-maintenance.yaml`) share `config/maintenance/index.html` and `config/maintenance/default.conf`. `config/maintenance/index.html` is a gitignored user override seeded once from `config/maintenance/index.html.dist` by `scripts/init.d/04-assets.sh` and is never overwritten on startup.
 
 #### Network Isolation
 
