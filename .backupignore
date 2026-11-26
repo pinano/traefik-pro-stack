@@ -1,0 +1,4 @@
+# Regenerable observability/security/filebrowser data and Python tooling caches
+data
+.venv
+.pytest_cache
