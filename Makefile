@@ -320,7 +320,7 @@ rebuild: ensure-networks ## Rebuild services from Dockerfile (default: dashboard
 	    esac; \
 	    SVCS="$$SVCS $$svc"; \
 	done; \
-	if $(DOCKER_COMPOSE) up -d --build --force-recreate $$SVCS; then \
+	if $(DOCKER_COMPOSE) build $$SVCS; then \
 	    for svc in $(REBUILD_SVCS); do \
 	        case $$svc in \
 	            dashboard) VAR=STACK_DASHBOARD_TAG;; \
@@ -328,20 +328,21 @@ rebuild: ensure-networks ## Rebuild services from Dockerfile (default: dashboard
 	            *) VAR=;; \
 	        esac; \
 	        if [ -n "$$VAR" ] && [ -f .env ]; then \
-	            if grep -q "^$$VAR=" .env; then \
-	                sed -i "s/^$$VAR=.*/$$VAR=$(IMAGE_TAG)/" .env; \
-	            else \
-	                printf '%s=%s\n' "$$VAR" "$(IMAGE_TAG)" >> .env; \
-	            fi; \
+	            python3 -c 'import re, sys; var, val = sys.argv[1], sys.argv[2]; f = open(".env", "r+", encoding="utf-8"); c = f.read(); pat = re.compile(rf"^{re.escape(var)}=.*$$", re.M); c = pat.sub(lambda _: f"{var}={val}", c, count=1) if pat.search(c) else ((c if (not c or c.endswith("\n")) else c + "\n") + f"{var}={val}\n"); f.seek(0); f.write(c); f.truncate(); f.close()' "$$VAR" "$(IMAGE_TAG)"; \
 	        fi; \
 	    done; \
-	    for svc in $(REBUILD_SVCS); do \
-	        case $$svc in \
-	            dashboard|watchdog) docker rmi "stack-$$svc:latest" 2>/dev/null || true;; \
-	        esac; \
-	    done; \
 	    chmod 600 .env 2>/dev/null || true; \
-	    echo "📌 Tag $(IMAGE_TAG) persisted to .env (rollback: set the matching *_TAG, then make start)."; \
+	    if $(DOCKER_COMPOSE) up -d --no-build --force-recreate $$SVCS; then \
+	        for svc in $(REBUILD_SVCS); do \
+	            case $$svc in \
+	                dashboard|watchdog) docker rmi "stack-$$svc:latest" 2>/dev/null || true;; \
+	            esac; \
+	        done; \
+	        echo "📌 Tag $(IMAGE_TAG) persisted to .env (rollback: set the matching *_TAG, then make start)."; \
+	    else \
+	        echo "❌ Failed to start rebuilt service(s)."; \
+	        exit 1; \
+	    fi; \
 	else \
 	    echo "❌ Build failed — image tag not updated in .env."; \
 	    exit 1; \

@@ -11,7 +11,7 @@
 # Strategy:
 #   1. Regenerate dynamic config (Traefik routes, Anubis compose, policies)
 #   2. Fix file permissions (container runs as root)
-#   3. Use `docker compose up -d --no-recreate --remove-orphans` to:
+#   3. Use `docker compose up -d --no-build --no-recreate --remove-orphans` to:
 #      - Create NEW containers (e.g., new Anubis instances)
 #      - Remove ORPHANED containers (e.g., deleted Anubis instances)
 #      - Leave EXISTING containers untouched (no environment drift risk)
@@ -367,6 +367,32 @@ fi
 # Ensure all external Docker networks exist before applying compose changes
 ./scripts/ensure-networks.sh >/dev/null 2>&1 || true
 
+# Resolve local image tags for locally built services (dashboard, watchdog) when
+# the tag read from .env does not exist locally (e.g., stale .env bind-mount inode
+# after `make rebuild` rewrote .env, or :latest was removed after a versioned build).
+# Without this, `docker compose up` sees a missing image and attempts a `/build`
+# against docker-socket-proxy-dashboard (where BUILD=0 -> 403 Forbidden).
+for _svc_pair in "dashboard:STACK_DASHBOARD_TAG" "watchdog:STACK_WATCHDOG_TAG"; do
+    _svc="${_svc_pair%%:*}"
+    _var="${_svc_pair##*:}"
+    _cur_tag="${!_var:-latest}"
+    if ! docker image inspect "stack-${_svc}:${_cur_tag}" >/dev/null 2>&1; then
+        _resolved_tag=""
+        _running_img=$(docker ps -a \
+            --filter "label=com.docker.compose.project=${PROJECT_NAME:-stack}" \
+            --filter "label=com.docker.compose.service=${_svc}" \
+            --format '{{.Image}}' 2>/dev/null | head -n 1 || true)
+        if [[ "$_running_img" == "stack-${_svc}:"* ]]; then
+            _resolved_tag="${_running_img#stack-${_svc}:}"
+        else
+            _resolved_tag=$(docker images --format '{{.Tag}}' "stack-${_svc}" 2>/dev/null | grep -v '^<none>$' | head -n 1 || true)
+        fi
+        if [ -n "$_resolved_tag" ]; then
+            export "$_var=$_resolved_tag"
+        fi
+    fi
+done
+
 # Audit config for drift (helpful for debugging in modal log)
 $COMPOSE_CMD $COMPOSE_FILES config --quiet || echo "   ⚠️ Warning: Config validation produced warnings."
 
@@ -378,7 +404,7 @@ $COMPOSE_CMD $COMPOSE_FILES config --quiet || echo "   ⚠️ Warning: Config va
 # Routing changes are picked up by Traefik's file watcher automatically.
 # ACME certs for new domains are requested by Traefik when it sees a new
 # router with certResolver=le in the dynamic config.
-$COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d --no-recreate --remove-orphans > /dev/null
+$COMPOSE_CMD --progress quiet $COMPOSE_FILES up -d --no-build --no-recreate --remove-orphans > /dev/null
 echo "   ✅ Stack configuration up-to-date."
 
 echo ""
