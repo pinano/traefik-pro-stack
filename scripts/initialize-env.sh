@@ -255,6 +255,7 @@ else
     prompt_val "TRAEFIK_GLOBAL_RATE_BURST" "Traefik default burst limit"
     prompt_val "TRAEFIK_GLOBAL_CONCURRENCY" "Traefik global concurrency"
     prompt_val "TRAEFIK_TIMEOUT_ACTIVE" "Traefik active read timeout in seconds"
+    prompt_val "TRAEFIK_TIMEOUT_WRITE" "Traefik write timeout in seconds (0 = unlimited)"
     prompt_val "TRAEFIK_TIMEOUT_IDLE" "Traefik idle timeout in seconds"
     prompt_val "TRAEFIK_BLOCKED_PATHS" "Global Blocked Paths (e.g. /wp-admin/,/admin/)"
     prompt_val "TRAEFIK_BAD_USER_AGENTS" "Bad User Agents (regex, comma-separated)"

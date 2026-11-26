@@ -396,6 +396,70 @@ def test_anubis_policy_no_spoofable_ua_allow():
             )
 
 
+def test_generate_config_media_stream_router(tmp_path):
+    """
+    Tests that media-stream-* routers are generated with priority 500,
+    omit global-buffering and global-compress, and retain security, rate/concurrency
+    limits, redirects, and Apache forwarding headers.
+    """
+    (tmp_path / 'config' / 'traefik' / 'dynamic-config').mkdir(parents=True)
+    (tmp_path / 'config' / 'crowdsec' / 'parsers').mkdir(parents=True)
+
+    domains_csv = tmp_path / 'domains.csv'
+    domains_csv.write_text(
+        "domain, redirection, docker_service, anubis_subdomain, rate, burst, concurrency\n"
+        "podcast.example.com, , podcast-app, , 30, 60, 10\n"
+        "legacy.example.com, , apache-host, , , ,\n"
+        "old.example.com, podcast.example.com, noop, , , ,\n"
+    )
+
+    env = os.environ.copy()
+    env['CROWDSEC_LAPI_KEY'] = 'test-key-123'
+    env['REDIS_PASSWORD'] = 'test-redis-pass'
+    env['CROWDSEC_ENABLE'] = 'true'
+
+    result = subprocess.run(['python3', SCRIPT_PATH], cwd=str(tmp_path), env=env, capture_output=True, text=True)
+    assert result.returncode == 0, f"Script failed: {result.stderr}"
+
+    routers_yaml = tmp_path / 'config' / 'traefik' / 'dynamic-config' / 'routers-generated.yaml'
+    with open(routers_yaml, 'r') as f:
+        config = yaml.safe_load(f)
+
+    routers = config['http']['routers']
+
+    # 1. Standard media-stream router
+    assert 'media-stream-podcast-example-com' in routers
+    media_router = routers['media-stream-podcast-example-com']
+    assert media_router['priority'] == 500
+    assert media_router['service'] == 'podcast-app@docker'
+    rule = media_router['rule']
+    assert "Host(`podcast.example.com`)" in rule
+    assert "PathRegexp(`(?i)\\.(" in rule
+    for ext in ('mp3', 'm4a', 'mp4', 'm3u8'):
+        assert ext in rule
+
+    media_mw = media_router['middlewares']
+    assert 'global-buffering' not in media_mw
+    assert 'global-compress' not in media_mw
+    assert 'crowdsec-check' in media_mw
+    assert 'security-headers' in media_mw
+    assert 'rl-podcast-example-com' in media_mw
+    assert 'conc-podcast-example-com' in media_mw
+
+    # Main router must retain global-buffering and global-compress
+    main_mw = routers['router-podcast-example-com']['middlewares']
+    assert 'global-buffering' in main_mw
+    assert 'global-compress' in main_mw
+
+    # 2. Apache host media-stream router must retain apache-forward-headers
+    assert 'media-stream-legacy-example-com' in routers
+    assert 'apache-forward-headers' in routers['media-stream-legacy-example-com']['middlewares']
+
+    # 3. Redirected domain media-stream router must keep redirect at index 0
+    assert 'media-stream-old-example-com' in routers
+    assert routers['media-stream-old-example-com']['middlewares'][0] == 'redirect-old-example-com'
+
+
 
 
 

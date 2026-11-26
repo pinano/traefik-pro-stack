@@ -58,6 +58,7 @@ BASE_FILENAME = 'docker-compose-anubis-base.yaml'
 OUTPUT_COMPOSE = 'docker-compose-anubis-generated.yaml'
 OUTPUT_TRAEFIK = 'config/traefik/dynamic-config/routers-generated.yaml'
 CAPTCHA_KEYS_FILE = 'config/crowdsec/captcha_keys.csv'
+MEDIA_EXTENSIONS = "mp3|m4a|mp4|m4v|mov|mkv|webm|ogg|opus|aac|flac|wav|m3u8|ts"
 
 # =============================================================================
 # =============================================================================
@@ -462,6 +463,24 @@ def process_router(entry, http_section, domain_to_cert_def):
         'priority': 500,
         'tls': router_conf['tls'],
         'middlewares': assets_mw
+    }
+
+    # -------------------------------------------------------------------------
+    # 3b. Media Streaming Router (Per-Domain) - Priority 500
+    # -------------------------------------------------------------------------
+    # Audio/video files bypass global-buffering (avoids 50 MiB limit and disk
+    # buffering) and global-compress (already compressed; avoids Range/206 issues),
+    # while retaining redirects, CrowdSec, security headers, rate limits,
+    # concurrency limits, and Apache forwarding headers.
+    media_router_name = f"media-stream-{safe_domain}"
+    media_mw_list = [mw for mw in mw_list if mw not in ('global-buffering', 'global-compress')]
+    http_section['routers'][media_router_name] = {
+        'rule': f"Host(`{domain}`) && PathRegexp(`(?i)\\.({MEDIA_EXTENSIONS})$`)",
+        'entryPoints': ["websecure"],
+        'service': target_service,
+        'priority': 500,
+        'tls': router_conf['tls'],
+        'middlewares': media_mw_list
     }
         
     # -------------------------------------------------------------------------
