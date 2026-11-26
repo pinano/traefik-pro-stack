@@ -58,3 +58,18 @@ def test_assets_script_seeds_maintenance_html_without_overwriting(tmp_path):
     proc2 = subprocess.run(["bash", "-c", snippet], cwd=str(tmp_path), capture_output=True, text=True)
     assert proc2.returncode == 0, proc2.stderr
     assert (maint_dir / "index.html").read_text(encoding="utf-8") == "CUSTOM_USER_PAGE"
+
+
+def test_nginx_services_enable_worker_autotune_and_memory_headroom():
+    checks = [
+        ("docker-compose-edge.yaml", "error-pages", "64M"),
+        ("docker-compose-maintenance.yaml", "maintenance", "64M"),
+        ("docker-compose-anubis-assets.yaml", "anubis-assets", "64M"),
+    ]
+    for compose_name, svc_name, expected_mem in checks:
+        compose = yaml.safe_load((REPO_ROOT / compose_name).read_text(encoding="utf-8"))
+        svc = compose["services"][svc_name]
+        assert "NGINX_ENTRYPOINT_WORKER_PROCESSES_AUTOTUNE=1" in svc.get("environment", []), (
+            f"{svc_name} in {compose_name} must set NGINX_ENTRYPOINT_WORKER_PROCESSES_AUTOTUNE=1"
+        )
+        assert svc["deploy"]["resources"]["limits"]["memory"] == expected_mem
