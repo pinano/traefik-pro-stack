@@ -475,7 +475,7 @@ def process_router(entry, http_section, domain_to_cert_def):
     media_router_name = f"media-stream-{safe_domain}"
     media_mw_list = [mw for mw in mw_list if mw not in ('global-buffering', 'global-compress')]
     http_section['routers'][media_router_name] = {
-        'rule': f"Host(`{domain}`) && PathRegexp(`(?i)\\.({MEDIA_EXTENSIONS})$`)",
+        'rule': f"Host(`{domain}`) && (Method(`GET`) || Method(`HEAD`)) && PathRegexp(`(?i)\\.({MEDIA_EXTENSIONS})$`)",
         'entryPoints': ["websecure"],
         'service': target_service,
         'priority': 500,

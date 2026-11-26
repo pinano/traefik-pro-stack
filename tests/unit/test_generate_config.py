@@ -434,6 +434,7 @@ def test_generate_config_media_stream_router(tmp_path):
     assert media_router['service'] == 'podcast-app@docker'
     rule = media_router['rule']
     assert "Host(`podcast.example.com`)" in rule
+    assert "(Method(`GET`) || Method(`HEAD`))" in rule
     assert "PathRegexp(`(?i)\\.(" in rule
     for ext in ('mp3', 'm4a', 'mp4', 'm3u8'):
         assert ext in rule
