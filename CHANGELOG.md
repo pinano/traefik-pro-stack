@@ -1,3 +1,8 @@
+## v2026.11.26 (2026-11-26)
+
+- feat: restrict media router rules to GET and HEAD HTTP methods (b60836e)
+- feat: add media streaming router and configurable write timeout (4165448)
+
 ## v2026.11.23 (2026-11-23)
 
 - fix(watchdog,grafana): prevent check-crowdsec pileup/OOM and raise Grafana asset rate limit (eceb4ae)
