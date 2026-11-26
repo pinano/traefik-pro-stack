@@ -67,6 +67,36 @@ services:
         max-size: "50m" # Max 50MB per log file
         max-file: "3" # Keep only 3 files (current + 2 rotated)
 
+  # ===========================
+  #  ERROR PAGES (Per-domain fallback & 502-504 maintenance page)
+  # ===========================
+  error-pages:
+    image: nginx:1.31.9-alpine3.24-slim
+    restart: always
+    volumes:
+      - ./config/maintenance/index.html:/usr/share/nginx/html/index.html:ro
+      - ./config/maintenance/default.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - traefik
+    security_opt:
+      - no-new-privileges=true
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:8080/healthz || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 32M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 networks:
   traefik:
     name: traefik

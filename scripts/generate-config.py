@@ -356,6 +356,10 @@ def process_router(entry, http_section, domain_to_cert_def):
     
     mw_list.append('security-headers')
 
+    is_real_backend = not (service in ('noop', 'none', 'redirect', 'ping') or (not service and redirection))
+    if is_real_backend:
+        mw_list.append('error-pages')
+
     if 'rate' in extra or 'burst' in extra:
         custom_rl_name = f"rl-{safe_domain}"
         avg = extra.get('rate', G_RATE_AVG)
@@ -473,7 +477,7 @@ def process_router(entry, http_section, domain_to_cert_def):
     # while retaining redirects, CrowdSec, security headers, rate limits,
     # concurrency limits, and Apache forwarding headers.
     media_router_name = f"media-stream-{safe_domain}"
-    media_mw_list = [mw for mw in mw_list if mw not in ('global-buffering', 'global-compress')]
+    media_mw_list = [mw for mw in mw_list if mw not in ('global-buffering', 'global-compress', 'error-pages')]
     http_section['routers'][media_router_name] = {
         'rule': f"Host(`{domain}`) && (Method(`GET`) || Method(`HEAD`)) && PathRegexp(`(?i)\\.({MEDIA_EXTENSIONS})$`)",
         'entryPoints': ["websecure"],
@@ -487,6 +491,37 @@ def process_router(entry, http_section, domain_to_cert_def):
     # 4. Main Router (Standard Processing) - Default Priority
     # -------------------------------------------------------------------------
     http_section['routers'][router_name] = router_conf
+
+    # -------------------------------------------------------------------------
+    # 5. Fallback Maintenance Router (Per-Domain) - Priority 1
+    # -------------------------------------------------------------------------
+    # Activates automatically when a backend Docker container is stopped/removed
+    # (causing Traefik to unload router-{safe_domain}). Serves the maintenance
+    # page with HTTP 503 + valid TLS instead of Traefik's bare 404.
+    if is_real_backend:
+        fallback_mw = []
+        if redirection:
+            fallback_mw.append(f"redirect-{safe_domain}")
+        if CROWDSEC_ENABLE:
+            if root in captcha_registry:
+                fallback_mw.append(f"crowdsec-check-{sanitize_name(root)}")
+            else:
+                fallback_mw.append('crowdsec-check')
+        fallback_mw.append('security-headers')
+        if 'rate' in extra or 'burst' in extra:
+            fallback_mw.append(f"rl-{safe_domain}")
+        else:
+            fallback_mw.append('global-ratelimit')
+
+        fallback_router_name = f"fallback-{safe_domain}"
+        http_section['routers'][fallback_router_name] = {
+            'rule': f"Host(`{domain}`)",
+            'entryPoints': ["websecure"],
+            'service': 'error-pages',
+            'priority': 1,
+            'tls': router_conf['tls'],
+            'middlewares': fallback_mw
+        }
 
 # =============================================================================
 # MAIN LOGIC
@@ -761,6 +796,14 @@ def generate_configs():
                         }
                     }
                 },
+                # 13. Custom Error Pages (502-504 backend down / timeout -> maintenance page)
+                'error-pages': {
+                    'errors': {
+                        'status': ['502-504'],
+                        'service': 'error-pages',
+                        'query': '/'
+                    }
+                },
             },
             'routers': {},
             'services': {
@@ -770,6 +813,12 @@ def generate_configs():
                         'serversTransport': 'legacy-transport',
                         'servers': [{'url': f'http://{APACHE_HOST_IP}:{APACHE_HOST_PORT}'}],
                         'passHostHeader': True
+                    }
+                },
+                # 2. Internal Error / Maintenance Pages Service (defined in docker-compose-edge.yaml)
+                'error-pages': {
+                    'loadBalancer': {
+                        'servers': [{'url': 'http://error-pages:80'}]
                     }
                 }
             }
@@ -962,6 +1011,8 @@ def generate_configs():
         dozzle_mw.remove('global-compress')
     if 'global-buffering' in dozzle_mw:
         dozzle_mw.remove('global-buffering')
+    if 'error-pages' in dozzle_mw:
+        dozzle_mw.remove('error-pages')
     dozzle_mw.extend(sso_middlewares)
         
     traefik_dynamic_conf['http']['routers']['traefik-dozzle'] = {

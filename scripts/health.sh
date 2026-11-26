@@ -55,6 +55,7 @@ echo "--- Infrastructure ---"
 check_container "docker-socket-proxy" "nc -z 127.0.0.1 2375"
 check_container "docker-socket-proxy-dashboard" "nc -z 127.0.0.1 2375"
 check_container "traefik" "traefik healthcheck"
+check_container "error-pages" "wget --spider --quiet http://127.0.0.1:8080/healthz"
 if [ "$CROWDSEC_ENABLE" != "false" ]; then
     check_container "crowdsec" "cscli lapi status"
     if [ "${CROWDSEC_APPSEC_ENABLE:-true}" != "false" ]; then

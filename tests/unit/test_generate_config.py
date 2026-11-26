@@ -461,6 +461,80 @@ def test_generate_config_media_stream_router(tmp_path):
     assert routers['media-stream-old-example-com']['middlewares'][0] == 'redirect-old-example-com'
 
 
+def test_generate_config_fallback_and_error_pages(tmp_path):
+    """
+    Tests that real backends get the error-pages middleware (502-504) and a
+    priority-1 fallback-* maintenance router, while streaming/Dozzle routers
+    and pure noop redirect domains behave cleanly.
+    """
+    (tmp_path / 'config' / 'traefik' / 'dynamic-config').mkdir(parents=True)
+    (tmp_path / 'config' / 'crowdsec' / 'parsers').mkdir(parents=True)
+
+    domains_csv = tmp_path / 'domains.csv'
+    domains_csv.write_text(
+        "domain, redirection, docker_service, anubis_subdomain, rate, burst, concurrency\n"
+        "app.example.com, , web-app, auth, 20, 40, 10\n"
+        "legacy.example.com, , apache-host, , , ,\n"
+        "old.example.com, app.example.com, noop, , , ,\n"
+    )
+
+    env = os.environ.copy()
+    env['CROWDSEC_LAPI_KEY'] = 'test-key-123'
+    env['REDIS_PASSWORD'] = 'test-redis-pass'
+    env['CROWDSEC_ENABLE'] = 'true'
+    env['DOMAIN'] = 'example.com'
+    env['DASHBOARD_SUBDOMAIN'] = 'dashboard'
+
+    result = subprocess.run(['python3', SCRIPT_PATH], cwd=str(tmp_path), env=env, capture_output=True, text=True)
+    assert result.returncode == 0, f"Script failed: {result.stderr}"
+
+    routers_yaml = tmp_path / 'config' / 'traefik' / 'dynamic-config' / 'routers-generated.yaml'
+    with open(routers_yaml, 'r') as f:
+        config = yaml.safe_load(f)
+
+    services = config['http']['services']
+    middlewares = config['http']['middlewares']
+    routers = config['http']['routers']
+
+    assert services['error-pages']['loadBalancer']['servers'] == [{'url': 'http://error-pages:80'}]
+    assert middlewares['error-pages']['errors'] == {
+        'status': ['502-504'],
+        'service': 'error-pages',
+        'query': '/',
+    }
+
+    # Main routers for real backends include error-pages
+    assert 'error-pages' in routers['router-app-example-com']['middlewares']
+    assert 'error-pages' in routers['router-legacy-example-com']['middlewares']
+
+    # Media-stream and Dozzle routers exclude error-pages
+    assert 'error-pages' not in routers['media-stream-app-example-com']['middlewares']
+    assert 'error-pages' not in routers['traefik-dozzle']['middlewares']
+
+    # Priority-1 fallback router for standard Docker backend
+    assert 'fallback-app-example-com' in routers
+    fb_app = routers['fallback-app-example-com']
+    assert fb_app['priority'] == 1
+    assert fb_app['service'] == 'error-pages'
+    assert fb_app['rule'] == 'Host(`app.example.com`)'
+    assert fb_app['tls'] == routers['router-app-example-com']['tls']
+    assert 'crowdsec-check' in fb_app['middlewares']
+    assert 'security-headers' in fb_app['middlewares']
+    assert 'rl-app-example-com' in fb_app['middlewares']
+    assert 'global-buffering' not in fb_app['middlewares']
+    assert 'error-pages' not in fb_app['middlewares']
+    assert not any('anubis-mw' in mw for mw in fb_app['middlewares'])
+
+    # Priority-1 fallback router for apache-host backend
+    assert 'fallback-legacy-example-com' in routers
+    assert routers['fallback-legacy-example-com']['priority'] == 1
+    assert routers['fallback-legacy-example-com']['service'] == 'error-pages'
+
+    # Pure redirect domain (noop) must not get error-pages or fallback router
+    assert 'error-pages' not in routers['router-old-example-com']['middlewares']
+    assert 'fallback-old-example-com' not in routers
+
+
 
 
 

@@ -11,11 +11,16 @@ services:
     security_opt:
       - no-new-privileges=true
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider --quiet http://localhost/ || exit 1"]
+      test: ["CMD-SHELL", "wget --spider --quiet http://127.0.0.1:8080/healthz || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 3
       start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.10'
+          memory: 32M
     labels:
       - "traefik.enable=true"
       # Match all domains except the admin DOMAIN
